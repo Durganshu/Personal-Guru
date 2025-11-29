@@ -181,3 +181,24 @@ The output should be a single string of markdown-formatted text.
         teaching_material = re.sub(r'<think>.*?</think>', '', teaching_material, flags=re.DOTALL).strip()
 
         return teaching_material, None
+
+class QuizAgent:
+    def generate_quiz(self, topic):
+        user_background = os.getenv("USER_BACKGROUND", "a beginner")
+        prompt = f"""
+You are an expert in creating quizzes. For the topic '{topic}', create a quiz with 5-10 multiple-choice questions.
+The user's background is: '{user_background}'
+Each question should have 4 options (A, B, C, D) and one correct answer.
+Return a JSON object with a single key "questions", which is an array of question objects.
+Each question object should have keys "question", "options" (an array of 4 strings), and "correct_answer" (the letter 'A', 'B', 'C', or 'D').
+
+Now, generate a quiz for the topic: '{topic}'.
+"""
+        quiz_data, error = _call_ollama(prompt, is_json=True)
+        if error:
+            return quiz_data, error
+
+        if "questions" not in quiz_data or not isinstance(quiz_data["questions"], list):
+            return "Error: Invalid quiz format from LLM.", "Invalid format"
+
+        return quiz_data, None

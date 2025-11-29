@@ -9,7 +9,7 @@ import datetime
 from markdown_it import MarkdownIt
 
 # Import the agents
-from src.agents import PlannerAgent, AssessorAgent, FeedbackAgent, ChatAgent, TopicTeachingAgent
+from src.agents import PlannerAgent, AssessorAgent, FeedbackAgent, ChatAgent, TopicTeachingAgent, QuizAgent
 from src.storage import save_topic, load_topic, get_all_topics, delete_topic
 
 load_dotenv()
@@ -23,6 +23,7 @@ assessor = AssessorAgent()
 feedback_agent = FeedbackAgent()
 chat_agent = ChatAgent()
 teacher = TopicTeachingAgent()
+quiz_agent = QuizAgent()
 md = MarkdownIt()
 
 # Ensure the static directory exists
@@ -265,6 +266,45 @@ def export_topic_pdf(topic_name):
 def delete_topic_route(topic_name):
     delete_topic(topic_name)
     return redirect(url_for('index'))
+
+@app.route('/quiz/<topic_name>')
+def quiz(topic_name):
+    quiz_data, error = quiz_agent.generate_quiz(topic_name)
+    if error:
+        return f"<h1>Error Generating Quiz</h1><p>{quiz_data}</p>"
+    session['quiz_questions'] = quiz_data['questions']
+    return render_template('quiz.html', topic_name=topic_name, quiz_data=quiz_data)
+
+@app.route('/submit_quiz/<topic_name>', methods=['POST'])
+def submit_quiz(topic_name):
+    user_answers = request.form
+    questions = session.get('quiz_questions', [])
+    if not questions:
+        return "Quiz data not found in session.", 400
+
+    num_correct = 0
+    feedback_results = []
+
+    for i, question in enumerate(questions):
+        user_answer = user_answers.get(f'option_{i}')
+        correct_answer = question.get('correct_answer')
+
+        if user_answer:
+            feedback_data, _ = feedback_agent.evaluate_answer(user_answer, correct_answer)
+            if feedback_data['is_correct']:
+                num_correct += 1
+            feedback_results.append(feedback_data)
+
+    score = (num_correct / len(questions) * 100) if questions else 0
+
+    session.pop('quiz_questions', None)
+
+    return render_template('quiz_results.html',
+                           topic_name=topic_name,
+                           score=score,
+                           feedback_results=feedback_results,
+                           total_questions=len(questions))
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5002)
