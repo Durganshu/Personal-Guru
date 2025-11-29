@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz on {{ topic_name }}{% endblock %}
+
+{% block content %}
+<h1>Quiz on {{ topic_name }}</h1>
+<form method="post" action="{{ url_for('submit_quiz', topic_name=topic_name) }}">
+    {% for question in quiz_data.questions %}
+    <div class="question">
+        <h2>{{ question.question }}</h2>
+        {% for option in question.options %}
+        <div class="option">
+            <input type="radio" name="option_{{ loop.parent.loop.index0 }}" value="{{ ['A', 'B', 'C', 'D'][loop.index0] }}">
+            <label>{{ option }}</label>
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+    <input type="submit" value="Submit Quiz" class="button">
+</form>
+{% endblock %}

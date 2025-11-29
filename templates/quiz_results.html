@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Results for {{ topic_name }}{% endblock %}
+
+{% block content %}
+<h1>Quiz Results for {{ topic_name }}</h1>
+<h2>Your Score: {{ score|round(2) }}%</h2>
+
+<div class="feedback">
+    <h3>Feedback on Your Answers:</h3>
+    <ul>
+        {% for result in feedback_results %}
+        <li>{{ result.feedback }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<a href="{{ url_for('index') }}" class="button">Back to Home</a>
+{% endblock %}
