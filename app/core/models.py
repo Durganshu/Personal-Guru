@@ -1,7 +1,9 @@
 from app.core.extensions import db
 # from pgvector.sqlalchemy import Vector
 import datetime
+import uuid
 from sqlalchemy import JSON
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -135,3 +137,41 @@ class User(UserMixin, db.Model):
 #     content = db.Column(db.Text, nullable=False)
 #     embedding = db.Column(Vector(1536)) # Assuming OpenAI Ada-002 dimension
 #     metadata_json = db.Column(JSONB)
+
+
+class Installation(db.Model):
+    __tablename__ = 'installations'
+
+    installation_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cpu_cores = db.Column(db.Integer)
+    ram_gb = db.Column(db.Float)
+    gpu_model = db.Column(db.String(255))
+    os_version = db.Column(db.String(255))
+    install_method = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    telemetry_logs = db.relationship('TelemetryLog', backref='installation', cascade='all, delete-orphan')
+    feedback_entries = db.relationship('Feedback', backref='installation', cascade='all, delete-orphan')
+
+
+class TelemetryLog(db.Model):
+    __tablename__ = 'telemetry_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    installation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('installations.installation_id'), nullable=False)
+    session_id = db.Column(UUID(as_uuid=True))
+    event_type = db.Column(db.String(100), nullable=False)
+    payload = db.Column(JSONB)
+    timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+
+class Feedback(db.Model):
+    __tablename__ = 'feedback'
+
+    id = db.Column(db.Integer, primary_key=True)
+    installation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('installations.installation_id'), nullable=False)
+    feedback_type = db.Column(db.String(50), nullable=False) # 'form' or 'in_place'
+    content_reference = db.Column(db.String(255)) # ID of generated content
+    rating = db.Column(db.Integer)
+    comment = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
