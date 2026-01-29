@@ -40,7 +40,39 @@ echo [INFO] FFmpeg is already installed.
 
 REM Interactive Prompts
 echo.
-set /p install_tts="Install Speech Services (TTS/STT) dependencies? (Large download) [y/N]: "
+echo Select Installation Mode:
+echo 1. Standard Mode (Docker Required - Best Quality/Features)
+echo 2. Local Lite Mode (No Docker - Easiest Setup)
+
+:ask_mode
+set /p mode_choice="Enter choice [1/2]: "
+if "%mode_choice%"=="1" goto :mode_selected
+if "%mode_choice%"=="2" goto :mode_selected
+
+echo [ERROR] Invalid choice. Please enter 1 or 2.
+goto :ask_mode
+
+:mode_selected
+
+if "%mode_choice%"=="2" (
+    echo [INFO] Local Mode selected. Using SQLite and Local Audio.
+    set local_mode=y
+    set install_tts=n
+    set start_db=n
+
+    if not exist .env (
+        copy .env.example .env
+        echo [INFO] Created .env from example.
+    )
+    echo. >> .env
+    echo # Local Mode Overrides >> .env
+    echo [INFO] Updated .env for Local Mode.
+
+) else (
+    echo [INFO] Standard Mode selected.
+    set local_mode=n
+    echo.
+)
 
 REM Check if environment already exists
 call conda info --envs | findstr /B /C:"Personal-Guru " >nul 2>nul
@@ -66,25 +98,22 @@ call conda activate Personal-Guru
 if %errorlevel% neq 0 goto :env_activate_fail
 
 REM Install Dependencies
-echo [INFO] Installing Dependencies from requirements.txt...
-call pip install -r requirements.txt
+echo [INFO] Installing Dependencies from pyproject.toml...
+if /i "%local_mode%"=="y" (
+    call pip install -e .[local]
+) else (
+    echo [INFO] Installing development dependencies...
+    call pip install -e .[dev]
+)
 if %errorlevel% neq 0 echo [WARNING] Some dependencies may have failed to install.
 
-REM Optional TTS
-if /i not "%install_tts%"=="y" goto :skip_tts
-echo.
-echo [WARNING] High-quality TTS is best run via Docker (see deployment guide).
-echo          Local installation of TTS on Windows is experimental.
-echo [INFO] Starting TTS Server (Speaches/Kokoro)...
-docker compose up -d speaches
-echo [INFO] Waiting for TTS Server to start (15s)...
-timeout /t 15 /nobreak
-echo [INFO] Downloading Kokoro-82M model...
-docker compose exec speaches uv tool run speaches-cli model download speaches-ai/Kokoro-82M-v1.0-ONNX
-echo [INFO] Downloading Faster Whisper Medium model (STT)...
-docker compose exec speaches uv tool run speaches-cli model download Systran/faster-whisper-medium.en
-echo [SUCCESS] TTS Setup Complete.
-:skip_tts
+REM Install pre-commit hooks
+echo [INFO] Installing pre-commit hooks...
+call pre-commit install
+if %errorlevel% neq 0 echo [WARNING] Failed to install pre-commit hooks.
+
+REM Optional TTS (Removed from setup)
+
 
 REM Install GTK3 for WeasyPrint (required for PDF generation on Windows)
 echo.
@@ -94,7 +123,14 @@ if %errorlevel% neq 0 echo [WARNING] GTK3 installation via conda failed. WeasyPr
 
 REM Database Setup
 echo.
-set /p start_db="Start Database via Docker now? [Y/n]: "
+if /i "%local_mode%"=="y" (
+    echo [INFO] Using Local SQLite Database.
+    echo [INFO] Initializing SQLite Database...
+    python scripts\update_database.py
+    set start_db=n
+) else (
+    set /p start_db="Start Database via Docker now? [Y/n]: "
+)
 if /i "%start_db%"=="n" goto :skip_db
 
 echo [INFO] Starting Database...

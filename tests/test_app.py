@@ -253,23 +253,20 @@ def test_validate_config_all_present(monkeypatch):
 
 def test_validate_config_missing_vars(monkeypatch):
     # Ensure they are unset
-    monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("LLM_BASE_URL", raising=False)
     monkeypatch.delenv("LLM_MODEL_NAME", raising=False)
 
     missing = validate_config()
-    assert "DATABASE_URL" in missing
     assert "LLM_BASE_URL" in missing
     assert "LLM_MODEL_NAME" in missing
 
 def test_validate_config_partial_missing(monkeypatch):
-    monkeypatch.setenv("DATABASE_URL", "postgresql://localhost:5432/db")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://localhost:5432/db") # Set but not checked
     monkeypatch.delenv("LLM_BASE_URL", raising=False)
     monkeypatch.setenv("LLM_MODEL_NAME", "llama3")
 
     missing = validate_config()
     assert "LLM_BASE_URL" in missing
-    assert "DATABASE_URL" not in missing
 
 @pytest.fixture
 def setup_client():
@@ -296,6 +293,10 @@ def test_setup_success_mock_fs(setup_client, mocker):
     m = mocker.mock_open()
     mocker.patch('builtins.open', m)
 
+    # Mock dependencies that trigger file I/O or external calls
+    mocker.patch('app.common.audio_service.WhisperSTT')
+    mocker.patch('app.common.sandbox.Sandbox')
+
     rv = setup_client.post('/', data={
         'database_url': 'postgresql://test',
         'port': '5011',
@@ -311,8 +312,26 @@ def test_setup_success_mock_fs(setup_client, mocker):
     assert rv.status_code == 200
     assert b"Configuration Saved!" in rv.data
 
-    # Verify file write
-    m.assert_called_with('.env', 'w')
+    # Verify that .env was opened for writing
+    # We iterate through calls because other files might have been opened (though we tried to mock them)
+    env_write_call = None
+    for call in m.mock_calls:
+        if call[0] == '' and len(call.args) > 0 and call.args[0].endswith('.env') and call.args[1] == 'w':
+             # found open('.env', 'w')
+             env_write_call = call
+             break
+        # Also check for name='open' if it was called differently, but usually it's the call to the mock object itself
+
+    # If not found in the iterate, try the direct call_args if it was the last one (fallback)
+    if not env_write_call:
+        # Check if the last call was it
+        if m.call_args and m.call_args[0][0].endswith('.env'):
+             env_write_call = m.call_args
+
+    assert env_write_call is not None, "Expected .env to be opened for writing"
+
+    # Capture the handle returned by the open call to check what was written
+    # Since we mocked open, the return value of the call is the file handle
     handle = m()
 
     # Collect all content written
@@ -323,7 +342,6 @@ def test_setup_success_mock_fs(setup_client, mocker):
     assert "DATABASE_URL=postgresql://test" in written_content
     assert "LLM_NUM_CTX=20000" in written_content
     assert "TTS_BASE_URL=http://kokoro" in written_content
-    assert "OPENAI_API_KEY=tts-secret" in written_content
     assert "OPENAI_API_KEY=tts-secret" in written_content
     assert "YOUTUBE_API_KEY=yt123" in written_content
 
@@ -637,10 +655,9 @@ def dcs_app():
     """Create a fresh app and database for DCS tests."""
     from app import create_app
     from app.core.extensions import db
+    from config import TestConfig
 
-    app = create_app()
-    app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    app = create_app(TestConfig)
 
     with app.app_context():
         db.create_all()

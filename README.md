@@ -2,6 +2,10 @@
 
 This is a Flask-based web application that serves as a proof-of-concept for a personalized learning tool. It uses a multi-agent AI system to create an interactive learning experience tailored to the user's chosen topic.
 
+# For live demo:
+ [https://pg-demo.samosa-ai.com/](https://pg-demo.samosa-ai.com)
+Use desktop computer for the best experience.
+
 ## Features
 
 - **User Accounts:** Secure sign-up, login, and profile management.
@@ -58,7 +62,9 @@ cd Personal-Guru
 
 ### Method 1: Automatic Setup (Recommended)
 
-Best for most users. An interactive script guides you through the process, setting up the environment and dependencies for you.
+Best for most users. An interactive script guides you through the process, allowing you to choose between:
+- **Standard Mode**: Runs Database and Audio services in Docker (Best performance/features).
+- **Local Lite Mode**: Runs entirely without Docker using SQLite and local audio libraries (Easiest setup).
 
 - **Linux/Mac**: `bash scripts/installation/setup.sh`
 - **Windows**: `scripts\installation\setup.bat`
@@ -95,7 +101,19 @@ If you prefer full control over your environment or want to contribute, please c
 Below is a quick summary for manual setup:
 
 1. **Create Environment**: `conda create -n Personal-Guru python=3.11 && conda activate Personal-Guru`
-2. **Install Dependencies**: `pip install -r requirements.txt`
+2. **Install Dependencies**: `pip install -e .` (or `pip install -e .[local]` for local features)
+    > **Linux Users**: If you encounter errors with `pip install -e .[local]` (e.g., "pkg-config is required"), install the necessary system libraries first:
+    > ```bash
+    > # Tip: Deactivate conda first if you see "ModuleNotFoundError: No module named 'apt_pkg'"
+    > conda deactivate
+    > sudo apt update && sudo apt install -y pkg-config libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev libswscale-dev libswresample-dev libavfilter-dev
+    > conda activate Personal-Guru
+    > ```
+    > **Tip (Save Space)**: If you don't have an NVIDIA GPU, you can avoid downloading ~1GB of CUDA libraries by installing the CPU-only version of PyTorch first:
+    > ```bash
+    > pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+    > pip install -e .[local]
+    > ```
 3. **Setup Environment Variables**:
     Creating a `.env` file is **optional** as the application has a built-in UI Wizard to help you configure these settings. However, you can configure it manually:
 
@@ -112,8 +130,14 @@ Below is a quick summary for manual setup:
       - **OpenAI**: `https://api.openai.com/v1`
       - **Gemini**: `https://generativelanguage.googleapis.com/v1beta/openai/`
     - `LLM_MODEL_NAME`: e.g., `llama3`, `gpt-4o`.
-    - `TTS_BASE_URL`: `http://localhost:8969/v1` (Replace `localhost` with your machine's actual LAN IP address if running on another machine).
-    - `STT_BASE_URL`: `http://localhost:8969/v1` (Same as TTS if using Speaches).
+    - `TTS_PROVIDER`:
+      - **`native`**: Uses built-in **Kokoro (ONNX)** library running directly in Python. (No Docker required).
+      - **`externalapi`**: Connects to an external OpenAI-compatible API (e.g., Docker container running Speaches, or actual OpenAI API).
+    - `TTS_BASE_URL`: `http://localhost:8969/v1` (Required only if `TTS_PROVIDER=externalapi`).
+    - `STT_PROVIDER`:
+      - **`native`**: Uses built-in **faster-whisper** library running in Python.
+      - **`externalapi`**: Connects to an external OpenAI-compatible API.
+    - `STT_BASE_URL`: `http://localhost:8969/v1` (Required only if `STT_PROVIDER=externalapi`).
 
 4. **Database Setup (Docker)**:
     Start the Postgres database using Docker:
