@@ -581,8 +581,8 @@ def export_topic(topic_name):
 def export_topic_pdf(topic_name):
     """Export the topic content as a PDF file."""
     if not WEASYPRINT_AVAILABLE:
-        return ("PDF export is not available. WeasyPrint requires GTK libraries "
-                "which are not installed. Please use Markdown export instead."), 503
+        return ("PDF export is not available (WeasyPrint/GTK libraries missing). "
+                "Please use 'Export as Markdown' instead."), 503
 
     topic_data = load_topic(topic_name)
     if not topic_data:
