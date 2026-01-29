@@ -4,6 +4,7 @@ from app.common.utils import log_telemetry
 from app.common.auth import create_jwe, decrypt_jwe
 from flask_login import login_user, logout_user, login_required, current_user
 import os
+import sys
 
 main_bp = Blueprint('main', __name__)
 
@@ -439,67 +440,100 @@ def settings():
             for key, value in config.items():
                 f.write(f"{key}={value}\n")
 
-        # Trigger Flask Reload by touching run.py
-        try:
-            os.utime('run.py', None)
-        except Exception as e:
-            print(f"Error triggering reload: {e}")
+        # Trigger Restart based on environment
+        # import sys # Removed to fix UnboundLocalError (sys is global)
 
-        # Return a page that polls for the server to come back up
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Restarting...</title>
-            <style>
-                body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f0f2f5; margin: 0; }
-                .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
-                h2 { color: #059669; margin-top: 0; }
-                p { color: #4b5563; }
-                .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 1rem auto; }
-                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-            </style>
-        </head>
-        <body>
-            <div class="card">
-                <h2>Configuration Saved!</h2>
-                <div class="loader"></div>
-                <p>Restarting server and applying changes...</p>
-                <p style="font-size:0.9rem">You will be redirected automatically.</p>
-            </div>
-            <script>
-                // Poll the server every 2 seconds to see if it's back up
-                const checkServer = async () => {
-                    try {
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        is_frozen = getattr(sys, 'frozen', False)
+        print(f"DEBUG: Saving Settings. Frozen state: {is_frozen}")
 
-                        // Try to fetch home page
-                        const response = await fetch('/', {
-                            method: 'HEAD',
-                            signal: controller.signal,
-                            cache: 'no-store'
-                        });
+        if is_frozen:
+            # Frozen Mode: Manual Restart Required
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Configuration Saved</title>
+                <style>
+                    body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f0f2f5; margin: 0; }
+                    .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); text-align: center; max-width: 450px; }
+                    h2 { color: #059669; margin-top: 0; }
+                    p { color: #4b5563; line-height: 1.6; }
+                    .icon { font-size: 3rem; margin-bottom: 1rem; }
+                    .btn { display: inline-block; margin-top: 1rem; padding: 0.75rem 1.5rem; background: #059669; color: white; text-decoration: none; border-radius: 8px; font-weight: 500; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="icon">✅</div>
+                    <h2>Configuration Saved!</h2>
+                    <p>Your settings have been saved successfully.</p>
+                    <p><strong>Please close this application and restart it</strong> to apply the new configuration.</p>
+                </div>
+            </body>
+            </html>
+            """
+        else:
+            # Development Mode: Auto-Reload
+            try:
+                os.utime('run.py', None)
+            except Exception as e:
+                print(f"Error triggering reload: {e}")
 
-                        if (response.ok) {
-                            window.location.href = '/';
+            # Return a page that polls for the server to come back up
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Restarting...</title>
+                <style>
+                    body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f0f2f5; margin: 0; }
+                    .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+                    h2 { color: #059669; margin-top: 0; }
+                    p { color: #4b5563; }
+                    .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 1rem auto; }
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h2>Configuration Saved!</h2>
+                    <div class="loader"></div>
+                    <p>Restarting server and applying changes...</p>
+                    <p style="font-size:0.9rem">You will be redirected automatically.</p>
+                </div>
+                <script>
+                    // Poll the server every 2 seconds to see if it's back up
+                    const checkServer = async () => {
+                        try {
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+                            // Try to fetch home page
+                            const response = await fetch('/', {
+                                method: 'HEAD',
+                                signal: controller.signal,
+                                cache: 'no-store'
+                            });
+
+                            if (response.ok) {
+                                window.location.href = '/';
+                            }
+                        } catch (e) {
+                            // Server still restarting, ignore error
+                            console.log('Waiting for server...');
                         }
-                    } catch (e) {
-                        // Server still restarting, ignore error
-                        console.log('Waiting for server...');
-                    }
-                };
+                    };
 
-                // Give it a moment to actually die first
-                setTimeout(() => {
-                    setInterval(checkServer, 2000);
-                }, 3000);
-            </script>
-        </body>
-        </html>
-        """
+                    // Give it a moment to actually die first
+                    setTimeout(() => {
+                        setInterval(checkServer, 2000);
+                    }, 3000);
+                </script>
+            </body>
+            </html>
+            """
 
-    return render_template('setup.html', defaults=defaults, show_back_button=True)
+    return render_template('setup.html', defaults=defaults, show_back_button=True, is_frozen=getattr(sys, 'frozen', False))
 
 
 @main_bp.route('/api/transcribe', methods=['POST'])
