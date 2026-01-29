@@ -568,7 +568,8 @@ def export_topic(topic_name):
     markdown_content = f"# {topic_name}\n\n"
     for i, step_data in enumerate(topic_data['chapter_mode']):
         markdown_content += f"## {topic_data['plan'][i]}\n\n"
-        markdown_content += step_data.get('teaching_material', '') + "\n\n"
+        teaching_material = step_data.get('teaching_material')
+        markdown_content += (teaching_material or '*Content not generated for this step*') + "\n\n"
 
     response = make_response(markdown_content)
     response.headers["Content-Disposition"] = f"attachment; filename={topic_name}.md"
@@ -722,8 +723,10 @@ def _get_topic_data_and_score(topic_name):
     total_score = 0
     answered_questions = 0
     for step in topic_data['chapter_mode']:
-        if 'teaching_material' in step:
+        if step.get('teaching_material'):
             step['teaching_material'] = md.render(step['teaching_material'])
+        else:
+            step['teaching_material'] = "<p><em>Content not generated for this step.</em></p>"
         if 'score' in step and step.get('user_answers'):
             total_score += step['score']
             answered_questions += 1
