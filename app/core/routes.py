@@ -444,7 +444,6 @@ def settings():
         # import sys # Removed to fix UnboundLocalError (sys is global)
 
         is_frozen = getattr(sys, 'frozen', False)
-        print(f"DEBUG: Saving Settings. Frozen state: {is_frozen}")
 
         if is_frozen:
             # Frozen Mode: Manual Restart Required

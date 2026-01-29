@@ -1,7 +1,9 @@
 from dotenv import load_dotenv
-from app.common.config_validator import validate_config
-
 load_dotenv(override=True)
+import os  # noqa: E402
+
+from app.common.config_validator import validate_config  # noqa: E402
+
 
 # Check configuration
 missing_vars = validate_config()
@@ -17,7 +19,7 @@ else:
     cleanup_old_sandboxes()
     app = create_app()
 
-import os  # noqa: E402
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5011))
     # Exclude sandbox directory from reloader monitoring to prevent restart loops
