@@ -16,34 +16,57 @@ SHARED_SANDBOX_ID = "shared_env"
 # Libraries that should be pre-installed in the shared sandbox
 PREINSTALLED_LIBS = ['numpy', 'pandas', 'matplotlib', 'scipy', 'seaborn']
 
+def _validate_python_executable(path):
+    """Checks if a given path points to a working Python interpreter."""
+    if not path or not os.path.isabs(path) or not os.path.isfile(path):
+        return False
+    try:
+        result = subprocess.run(
+            [path, "--version"],
+            capture_output=True,
+            timeout=5
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
 def get_system_python():
     """
     Finds a suitable system Python executable.
     Crucial for frozen app (PyInstaller) where sys.executable is the binary.
+    Returns an absolute path to a validated Python executable, or None.
     """
     # If not frozen, use current interpreter
     if not getattr(sys, 'frozen', False):
         return sys.executable
 
     # In frozen mode, search for system python
+    candidates = []
+
     # 1. Check PATH
     path_python = shutil.which('python')
     if path_python and 'windowsapps' not in path_python.lower():
-         return path_python
+        candidates.append(os.path.abspath(path_python))
 
     # 2. Common Windows Paths
     if os.name == 'nt':
-        common_paths = [
+        candidates.extend([
             r"C:\Python311\python.exe",
             r"C:\Python312\python.exe",
             r"C:\Python310\python.exe",
+            r"C:\Python39\python.exe",
             os.path.expandvars(r"%LOCALAPPDATA%\Programs\Python\Python311\python.exe"),
             os.path.expandvars(r"%LOCALAPPDATA%\Programs\Python\Python312\python.exe"),
-        ]
-        for p in common_paths:
-            if os.path.exists(p):
-                return p
+            os.path.expandvars(r"%LOCALAPPDATA%\Programs\Python\Python310\python.exe"),
+        ])
 
+    # Validate each candidate
+    for candidate in candidates:
+        if _validate_python_executable(candidate):
+            logger.info(f"Found valid system Python: {candidate}")
+            return candidate
+
+    logger.warning("No valid system Python found.")
     return None
 
 def is_sandbox_available():
@@ -323,6 +346,13 @@ except ImportError:
                      logger.info(f"Contents of {script_dir}: {os.listdir(script_dir)}")
                 else:
                      logger.error(f"Script directory {script_dir} does not exist!")
+
+                # Return error instead of crashing
+                return {
+                    "output": "",
+                    "error": "Python is not installed on this system. Code execution is disabled.",
+                    "images": []
+                }
 
             result = subprocess.run(
                 [python_path, "script.py"],
