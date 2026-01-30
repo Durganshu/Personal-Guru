@@ -104,8 +104,22 @@ def save_topic(topic_name, data):
 
             if step:
                 # Update existing
-                step.title = step_data.get('title', step.title)
-                step.content = step_data.get('content') or step_data.get('teaching_material') or step.content
+                new_title = step_data.get('title')
+                if new_title and new_title != step.title:
+                    step.title = new_title
+                    # If title changed and no new content provided, clear old content
+                    if not step_data.get('content') and not step_data.get('teaching_material'):
+                         step.content = None
+                         step.questions = None
+                         step.user_answers = None
+                         step.score = None
+                         step.time_spent = 0
+
+                # Update content if provided (respects empty string to clear)
+                if 'content' in step_data:
+                     step.content = step_data['content']
+                elif 'teaching_material' in step_data:
+                     step.content = step_data['teaching_material']
 
                 if 'questions' in step_data:
                     step.questions = step_data['questions']
