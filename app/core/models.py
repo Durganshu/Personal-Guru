@@ -198,6 +198,7 @@ class Installation(TimestampMixin, SyncMixin, db.Model):
 
     @validates('gpu_model', 'os_version')
     def validate_length(self, key, value):
+        """Truncate string fields to max 255 characters."""
         if value and len(value) > 255:
             return value[:255]
         return value

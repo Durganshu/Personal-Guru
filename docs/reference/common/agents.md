@@ -134,6 +134,14 @@ Initializes the ChatAgent.
 Args:
     system_message_generator (callable): A function that generates the system message.
 
+#### get\_welcome\_message
+
+```python
+def get_welcome_message(topic_name, user_background, plan=None)
+```
+
+Generate a welcome message for the chat session.
+
 #### get\_answer
 
 ```python

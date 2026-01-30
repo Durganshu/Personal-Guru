@@ -1,4 +1,5 @@
 def get_quiz_generation_prompt(topic, count, user_background):
+    """Generate the prompt for creating quiz questions."""
     return f"""
 You are an expert in creating educational quizzes. For the topic '{topic}', create a quiz with {count} multiple-choice questions.
 The user's background is: '{user_background}'
@@ -32,6 +33,7 @@ Now, generate a quiz with exactly {count} questions for the topic: '{topic}'.
 
 
 def get_quiz_count_prompt(topic, user_background):
+    """Generate the prompt for estimating quiz question count."""
     return f"""
 Analyze the complexity of the topic '{topic}' for a user with background: '{user_background}'.
 Based on the topic's breadth and depth, suggest an ideal number of quiz questions to generate for a comprehensive assessment.

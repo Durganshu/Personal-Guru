@@ -111,6 +111,7 @@ def index():
 
 @main_bp.route('/favicon.ico')
 def favicon():
+    """Serve the favicon.ico file."""
     from flask import current_app
     return current_app.send_static_file('favicon.ico')
 

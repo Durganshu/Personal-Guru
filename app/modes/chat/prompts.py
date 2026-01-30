@@ -1,4 +1,5 @@
 def get_welcome_prompt(topic_name, user_background, plan=None):
+    """Generate a welcome prompt for the chat session."""
     plan_text = ""
     if plan:
         plan_text = "Here is the structured study plan you have prepared for the user:\n" + \
@@ -29,6 +30,7 @@ def get_chat_system_message(
         user_background,
         is_guided_mode,
         plan=None):
+    """Generate the system message for chat interactions."""
     plan_text = ""
     if plan:
         plan_text = f"""
