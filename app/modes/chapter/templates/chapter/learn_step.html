@@ -101,11 +101,13 @@
 
             <div class="audio-controls">
                 <label for="read-aloud-switch" class="switch-label">Read Aloud</label>
-                <label class="switch">
-                    <input type="checkbox" id="read-aloud-switch">
-                    <span class="slider round"></span>
+                <label class="switch" {% if not tts_available %}title="TTS service is unreachable" {% endif %}>
+                    <input type="checkbox" id="read-aloud-switch" {% if not tts_available %}disabled{% endif %}>
+                    <span class="slider round" {% if not tts_available %}style="opacity: 0.5; cursor: not-allowed;" {%
+                        endif %}></span>
                 </label>
-                <button id="read-button" class="button">Read</button>
+                <button id="read-button" class="button" {% if not tts_available %}disabled
+                    title="TTS service is unreachable" {% endif %}>Read</button>
             </div>
 
 
