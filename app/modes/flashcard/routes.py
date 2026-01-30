@@ -185,8 +185,8 @@ def update_progress(topic_name):
 def export_pdf(topic_name):
     """Export flashcards as a PDF."""
     if not WEASYPRINT_AVAILABLE:
-        return ("PDF export is not available. WeasyPrint requires GTK libraries "
-                "which are not installed."), 503
+        return ("PDF export is not available (WeasyPrint/GTK libraries missing). "
+                "Please use 'Export as Markdown' instead."), 503
 
     topic_data = load_topic(topic_name)
     if not topic_data:

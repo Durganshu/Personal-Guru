@@ -125,11 +125,27 @@ function initFlashcardMode(config) {
         // Export PDF button handler
         const exportPdfBtn = document.getElementById('export-pdf-btn');
         if (exportPdfBtn) {
-            exportPdfBtn.addEventListener('click', (e) => {
+            exportPdfBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
-                // Use configured URL if available, fallback to constructing it
                 const url = config.urls.export_pdf || `/flashcards/${topicName}/export/pdf`;
-                window.open(url, '_blank');
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        const text = await response.text();
+                        alert(text);
+                    } else {
+                        const blob = await response.blob();
+                        const downloadUrl = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = `${topicName}_flashcards.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                    }
+                } catch (err) {
+                    alert("An unknown error occurred while trying to export.");
+                }
             });
         }
 
