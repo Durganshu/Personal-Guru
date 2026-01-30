@@ -778,22 +778,37 @@
         window.addEventListener('load', toggleAudioSettings);
 
         // --- Form Submit Handler (Loading Overlay) ---
-        document.querySelector('form').addEventListener('submit', function (e) {
-            const overlay = document.getElementById('loadingOverlay');
-            const sttMsg = document.getElementById('sttDownloadMessage');
-            const genericMsg = document.getElementById('genericMessage');
-            const sttProvider = document.getElementById('stt_provider');
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    const overlay = document.getElementById('loadingOverlay');
+                    const sttMsg = document.getElementById('sttDownloadMessage');
+                    const genericMsg = document.getElementById('genericMessage');
+                    const sttProvider = document.getElementById('stt_provider');
 
-            // Show overlay
-            overlay.style.display = 'flex';
+                    // Allow the submit to proceed if we've already triggered it programmatically (unlikely with this specific pattern, but good practice)
+                    // Actually, if we use e.preventDefault() and then form.submit(), form.submit() bypasses listeners in standard DOM.
 
-            // Check if native STT is selected
-            if (sttProvider && sttProvider.value === 'native') {
-                sttMsg.style.display = 'block';
-                genericMsg.style.display = 'none';
-            } else {
-                sttMsg.style.display = 'none';
-                genericMsg.style.display = 'block';
+                    e.preventDefault(); // Stop immediate submission
+
+                    // Show overlay
+                    overlay.style.display = 'flex';
+
+                    // Check if native STT is selected
+                    if (sttProvider && sttProvider.value === 'native') {
+                        sttMsg.style.display = 'block';
+                        genericMsg.style.display = 'none';
+                    } else {
+                        sttMsg.style.display = 'none';
+                        genericMsg.style.display = 'block';
+                    }
+
+                    // Let the UI reuse/render, then submit
+                    setTimeout(function () {
+                        form.submit();
+                    }, 100);
+                });
             }
         });
     </script>
