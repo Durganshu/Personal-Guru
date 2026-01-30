@@ -112,7 +112,8 @@ class OpenAISTT(STTService):
         with open(audio_path, "rb") as f:
             result = self.client.audio.transcriptions.create(
                 model=self.model,
-                file=f
+                file=f,
+                language="en"
             )
         return result.text
 
@@ -174,7 +175,7 @@ class WhisperSTT(STTService):
         Returns:
             str: Transcribed text.
         """
-        segments, _ = self.model.transcribe(audio_path, beam_size=5)
+        segments, _ = self.model.transcribe(audio_path, beam_size=5, language="en")
         return "".join([segment.text for segment in segments]).strip()
 
 
