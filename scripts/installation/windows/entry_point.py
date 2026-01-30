@@ -25,7 +25,7 @@ os.makedirs(data_dir, exist_ok=True)
 # Set environment variables for persistence before importing config
 # These will override the defaults in config.py which might point to temp dirs in frozen mode
 if 'DATABASE_URL' not in os.environ:
-    db_path = os.path.join(base_dir, 'site.db')
+    db_path = os.path.join(data_dir, 'site.db').replace('\\', '/')
     os.environ['DATABASE_URL'] = f"sqlite:///{db_path}"
 
 if 'SANDBOX_PATH' not in os.environ:

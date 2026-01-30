@@ -68,6 +68,19 @@ def create_setup_app():
             if not config['DATABASE_URL'] or not config['LLM_BASE_URL']:
                 return "Missing required fields", 400
 
+            # --- Convert relative SQLite paths to absolute paths in data folder ---
+            db_url = config['DATABASE_URL']
+            if db_url.startswith('sqlite:///') and not db_url.startswith('sqlite:////'):
+                # Extract the filename (e.g., 'site.db' from 'sqlite:///site.db')
+                db_filename = db_url.replace('sqlite:///', '')
+                # If it's not an absolute path, make it absolute in the data folder
+                if not os.path.isabs(db_filename):
+                    data_dir = os.path.join(os.path.dirname(env_file), 'data')
+                    os.makedirs(data_dir, exist_ok=True)
+                    db_path = os.path.join(data_dir, db_filename).replace('\\', '/')
+                    config['DATABASE_URL'] = f"sqlite:///{db_path}"
+                    print(f"--- SETUP: Converted SQLite path to: {config['DATABASE_URL']}")
+
             # --- Capture Audio Settings ---
             # Default: TTS=externalapi, STT=native (for both frozen and dev, as per recent changes)
             default_tts_provider = 'externalapi'
