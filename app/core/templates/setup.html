@@ -368,6 +368,25 @@
         </p>
     </div>
 
+    <!-- STT Confirmation Modal -->
+    <div id="sttConfirmModal" class="video-modal">
+        <div class="video-modal-content"
+            style="padding: 2rem; max-width: 480px; background: #fff; border-radius: 12px;">
+            <h3 style="margin: 0 0 1rem; color: #1a202c; font-size: 1.25rem;">⚠️ Local STT Selected</h3>
+            <p style="color: #4b5563; line-height: 1.6; margin-bottom: 1.5rem;">
+                You have selected <strong>Local STT</strong>. Models for that will be downloaded in the next step (~1.42
+                GB).
+                <br><br>
+                If you have an external STT API, you can add it in the <em>Advanced Settings</em> section.
+            </p>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" id="sttConfirmBack" class="btn-primary" style="background: #6b7280; flex: 1;">Go
+                    Back and Edit</button>
+                <button type="button" id="sttConfirmSave" class="btn-primary" style="flex: 1;">Save</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <h1>🛠️ Configure Personal Guru</h1>
 
@@ -780,38 +799,87 @@
         // --- Form Submit Handler (Loading Overlay) ---
         document.addEventListener('DOMContentLoaded', function () {
             const form = document.querySelector('form');
-            if (form) {
-                form.addEventListener('submit', function (e) {
-                    const overlay = document.getElementById('loadingOverlay');
-                    const sttMsg = document.getElementById('sttDownloadMessage');
-                    const genericMsg = document.getElementById('genericMessage');
-                    const sttProvider = document.getElementById('stt_provider');
+            const sttConfirmModal = document.getElementById('sttConfirmModal');
+            const sttConfirmSave = document.getElementById('sttConfirmSave');
+            const sttConfirmBack = document.getElementById('sttConfirmBack');
 
-                    // Allow the submit to proceed if we've already triggered it programmatically (unlikely with this specific pattern, but good practice)
-                    // Actually, if we use e.preventDefault() and then form.submit(), form.submit() bypasses listeners in standard DOM.
+            if (!form) return;
 
-                    e.preventDefault(); // Stop immediate submission
+            // Flag to track if confirmation was already shown
+            let confirmationPassed = false;
 
-                    // Show overlay
-                    overlay.style.display = 'flex';
+            function proceedWithSubmit() {
+                const overlay = document.getElementById('loadingOverlay');
+                const sttMsg = document.getElementById('sttDownloadMessage');
+                const genericMsg = document.getElementById('genericMessage');
+                const sttProvider = document.getElementById('stt_provider');
 
-                    // Check if native STT is selected
-                    if (sttProvider && sttProvider.value === 'native') {
-                        sttMsg.style.display = 'block';
-                        genericMsg.style.display = 'none';
-                    } else {
-                        sttMsg.style.display = 'none';
-                        genericMsg.style.display = 'block';
+                // Show overlay
+                overlay.style.display = 'flex';
+
+                // Check if native STT is selected
+                if (sttProvider && sttProvider.value === 'native') {
+                    sttMsg.style.display = 'block';
+                    genericMsg.style.display = 'none';
+                } else {
+                    sttMsg.style.display = 'none';
+                    genericMsg.style.display = 'block';
+                }
+
+                // Let the UI render, then submit
+                setTimeout(function () {
+                    form.submit();
+                }, 100);
+            }
+
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                const sttProvider = document.getElementById('stt_provider');
+
+                // Check if native STT is selected AND we haven't already confirmed
+                if (sttProvider && sttProvider.value === 'native' && !confirmationPassed) {
+                    // Show confirmation modal
+                    sttConfirmModal.classList.add('active');
+                } else {
+                    // Either not native, or already confirmed - proceed
+                    proceedWithSubmit();
+                }
+            });
+
+            // Modal button handlers
+            if (sttConfirmSave) {
+                sttConfirmSave.addEventListener('click', function () {
+                    sttConfirmModal.classList.remove('active');
+                    confirmationPassed = true;
+                    proceedWithSubmit();
+                });
+            }
+
+            if (sttConfirmBack) {
+                sttConfirmBack.addEventListener('click', function () {
+                    sttConfirmModal.classList.remove('active');
+                    // Scroll to advanced settings and make sure they're visible
+                    const advanced = document.getElementById('advanced');
+                    if (advanced && !advanced.classList.contains('visible')) {
+                        toggleAdvanced();
                     }
+                    const sttSection = document.getElementById('stt_provider');
+                    if (sttSection) {
+                        sttSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
+            }
 
-                    // Let the UI reuse/render, then submit
-                    setTimeout(function () {
-                        form.submit();
-                    }, 100);
+            // Close modal on background click
+            if (sttConfirmModal) {
+                sttConfirmModal.addEventListener('click', function (e) {
+                    if (e.target === this) {
+                        sttConfirmModal.classList.remove('active');
+                    }
                 });
             }
         });
     </script>
 </body>
-
 </html>
