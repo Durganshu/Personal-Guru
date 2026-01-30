@@ -96,7 +96,10 @@ async function executeCode(code) {
                 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'X-JWE-Token': document.querySelector('meta[name="jwe-token"]')?.getAttribute('content') || ''
             },
-            body: JSON.stringify({ code: code })
+            body: JSON.stringify({
+                code: code,
+                topic: config.topicName
+            })
         });
 
         const data = await response.json();

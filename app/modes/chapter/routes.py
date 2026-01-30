@@ -49,9 +49,11 @@ def mode(topic_name):
     topic_data = load_topic(topic_name)
 
     # Initialize Persistent Sandbox
-    from app.common.sandbox import Sandbox, SHARED_SANDBOX_ID
-    # Always use the shared environment
-    _ = Sandbox(sandbox_id=SHARED_SANDBOX_ID)
+    # Initialize Topic Sandbox (Background)
+    from app.common.sandbox import background_init_topic_sandbox
+    from flask_login import current_user
+    if current_user.is_authenticated:
+        background_init_topic_sandbox(current_user.userid, topic_name)
     # session['sandbox_id'] = sandbox.id  # No longer needed to store in session
 
     # If topic exists and has a plan, go directly to learning
@@ -713,8 +715,19 @@ def execute_code():
     dependencies = enhanced_data.get('dependencies', [])
 
     # 2. Run in Sandbox
-    from app.common.sandbox import Sandbox, SHARED_SANDBOX_ID
-    sandbox = Sandbox(sandbox_id=SHARED_SANDBOX_ID)
+    # 2. Run in Sandbox
+    from app.common.sandbox import Sandbox, SHARED_SANDBOX_ID, get_sandbox_id
+    from flask_login import current_user
+
+    topic_name = data.get('topic')
+    # If topic is not provided (legacy call), fallback to shared, but we should enforce topic
+    if topic_name and current_user.is_authenticated:
+        sandbox_id = get_sandbox_id(current_user.userid, topic_name)
+        # Use template_id to clone from shared if not exists
+        sandbox = Sandbox(sandbox_id=sandbox_id, template_id=SHARED_SANDBOX_ID)
+    else:
+        # Fallback for anon users or missing topic
+        sandbox = Sandbox(sandbox_id=SHARED_SANDBOX_ID)
 
     # Ensure ID is in session (if it was lost or new) - Not strictly needed if ID is constant,
     # but harmless to keep if other parts rely on it (though we are removing session usage).

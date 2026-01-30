@@ -14,9 +14,9 @@ if missing_vars:
     app = create_setup_app()
 else:
     from app import create_app  # noqa: E402
-    from app.common.sandbox import cleanup_old_sandboxes
-    # Cleanup old sandboxes on startup
-    cleanup_old_sandboxes()
+    from app.common.sandbox import ensure_shared_sandbox
+    # Ensure shared sandbox is ready
+    ensure_shared_sandbox()
     app = create_app()
 
 

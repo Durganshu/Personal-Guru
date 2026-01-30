@@ -258,6 +258,7 @@
             });
 
             initLearnStep({
+                topicName: "{{ topic.name }}",
                 urls: {
                     execute_code: "{{ url_for('chapter.execute_code') }}",
                     generate_audio: "{{ url_for('chapter.generate_audio_route', step_index=step_index) }}",

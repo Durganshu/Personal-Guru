@@ -105,8 +105,8 @@ def create_setup_app():
                 # --- Initialize Shared Sandbox ---
                 print("--- SETUP: Initializing Shared Sandbox environment ---")
                 try:
-                    from app.common.sandbox import Sandbox, SHARED_SANDBOX_ID
-                    Sandbox(sandbox_id=SHARED_SANDBOX_ID)
+                    from app.common.sandbox import ensure_shared_sandbox
+                    ensure_shared_sandbox()
                     print("--- SETUP: Shared Sandbox Ready ---")
                 except Exception as e:
                      print(f"--- SETUP WARNING: Failed to initialize shared sandbox: {e}")
