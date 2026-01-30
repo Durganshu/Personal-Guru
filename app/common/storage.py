@@ -116,10 +116,14 @@ def save_topic(topic_name, data):
                          step.time_spent = 0
 
                 # Update content if provided (respects empty string to clear)
-                if 'content' in step_data:
-                     step.content = step_data['content']
-                elif 'teaching_material' in step_data:
-                     step.content = step_data['teaching_material']
+                # Priority: teaching_material > content (since load_topic returns both keys)
+                new_content = step_data.get('teaching_material') or step_data.get('content')
+                if new_content:
+                    step.content = new_content
+                    logger.info(f"DEBUG save_topic: Step {step_index} - saved content, length: {len(step.content) if step.content else 0}")
+                else:
+                    logger.info(f"DEBUG save_topic: Step {step_index} - no content to save. Keys: {list(step_data.keys())}")
+
 
                 if 'questions' in step_data:
                     step.questions = step_data['questions']
