@@ -84,9 +84,9 @@ def main():
             app = create_setup_app()
         else:
             from app import create_app
-            from app.common.sandbox import cleanup_old_sandboxes
-            # Cleanup old sandboxes on startup
-            cleanup_old_sandboxes()
+            from app.common.sandbox import ensure_shared_sandbox
+            # Ensure shared sandbox is ready
+            ensure_shared_sandbox()
             app = create_app()
     except Exception as e:
         print(f"\n{'='*60}")

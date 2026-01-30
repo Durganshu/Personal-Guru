@@ -21,6 +21,12 @@ def get_sandbox_id(user_id, topic_name):
     safe_topic = "".join([c if c.isalnum() else "_" for c in topic_name])
     return f"user_{user_id}_{safe_topic}"
 
+def cleanup_old_sandboxes(base_path=None):
+    """Deprecated: Use _cleanup_user_sandboxes instead. Kept for backward compatibility with install scripts."""
+    # We can effectively do nothing here, or just basic cleanup of non-shared if absolutely needed.
+    # But since the new logic handles cleanup per-user, we can just log a warning.
+    logger.warning("cleanup_old_sandboxes is deprecated. Cleanup is now handled per-topic.")
+
 def ensure_shared_sandbox():
     """
     Ensures the shared sandbox exists and has essential libraries installed.

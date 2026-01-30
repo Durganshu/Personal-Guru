@@ -103,13 +103,9 @@ def create_setup_app():
                         print(f"--- SETUP WARNING: Failed to download STT models: {e}")
 
                 # --- Initialize Shared Sandbox ---
-                print("--- SETUP: Initializing Shared Sandbox environment ---")
-                try:
-                    from app.common.sandbox import ensure_shared_sandbox
-                    ensure_shared_sandbox()
-                    print("--- SETUP: Shared Sandbox Ready ---")
-                except Exception as e:
-                     print(f"--- SETUP WARNING: Failed to initialize shared sandbox: {e}")
+                # We skip this in setup because it can be slow/blocking.
+                # It will be handled on next startup by run.py or entry_point.py
+                print("--- SETUP: Sandbox initialization deferred to next startup ---")
 
             except Exception as e:
                 print(f"--- SETUP: Error during model pre-load: {e}")
