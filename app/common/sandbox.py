@@ -175,9 +175,53 @@ class Sandbox:
     def run_code(self, code):
         """Runs the provided code in the sandbox."""
         logger.info("Preparing to run code...")
+
+        # Clean up old images from previous runs to avoid showing stale plots
+        for img_path in glob.glob(os.path.join(self.path, "*.png")):
+            try:
+                os.remove(img_path)
+            except OSError:
+                pass
+
         script_path = os.path.join(self.path, "script.py")
+        # Inject custom matplotlib handler to capture static plots and allow interactive ones
+        setup_code = """
+import sys
+try:
+    import matplotlib
+    import matplotlib.pyplot as plt
+    import uuid
+
+    _original_show = plt.show
+
+    def _custom_show(*args, **kwargs):
+        is_interactive = False
+        try:
+            for fig_num in plt.get_fignums():
+                fig = plt.figure(fig_num)
+                for ax in fig.get_axes():
+                    if getattr(ax, 'name', '') == '3d':
+                        is_interactive = True
+                        break
+        except Exception:
+            pass
+
+        if is_interactive:
+            print("Interactive plot detected. Opening window...")
+            _original_show(*args, **kwargs)
+        else:
+            filename = f"plot_{uuid.uuid4().hex[:8]}.png"
+            plt.savefig(filename)
+            plt.close()
+
+    plt.show = _custom_show
+except ImportError:
+    pass
+"""
+        full_code = setup_code + "\n" + code
+
         with open(script_path, "w") as f:
-            f.write(code)
+            f.write(full_code)
 
         if os.name == 'nt':
             python_path = os.path.join(self.venv_path, "Scripts", "python")
@@ -191,7 +235,7 @@ class Sandbox:
                 cwd=self.path,
                 capture_output=True,
                 check=False,  # We handle errors in the output
-                timeout=30  # 30s timeout
+                timeout=600  # 600s timeout (10 mins) for interactive plots
             )
             output = result.stdout.decode()
             error = result.stderr.decode()
