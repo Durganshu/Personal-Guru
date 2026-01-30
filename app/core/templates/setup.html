@@ -293,6 +293,42 @@
         .video-modal-close:hover {
             transform: scale(1.1);
         }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #2563eb;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 
@@ -307,6 +343,29 @@
                 Your browser does not support the video tag.
             </video>
         </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loader"></div>
+        <h2 style="color: #0c4a6e; margin-bottom: 10px;">Applying Configuration...</h2>
+
+        <div id="sttDownloadMessage" style="display: none; max-width: 500px;">
+            <p style="font-size: 1.1rem; color: #4b5563; margin-bottom: 0.5rem; font-weight: 500;">
+                Downloading STT Model (Whisper)
+            </p>
+            <p style="color: #6b7280; line-height: 1.5;">
+                This ensures privacy and offline capability.<br>
+                <strong>Please wait, this may take a few minutes (~1.42 GB).</strong>
+            </p>
+            <p style="font-size: 0.85rem; color: #9ca3af; margin-top: 1rem;">
+                (Check terminal for detailed progress)
+            </p>
+        </div>
+
+        <p id="genericMessage" style="color: #6b7280; font-size: 1.1rem;">
+            Restarting server...
+        </p>
     </div>
 
     <div class="container">
@@ -404,7 +463,7 @@
                                 <label for="tts_provider">TTS Provider</label>
                                 <select id="tts_provider" name="tts_provider" onchange="toggleAudioSettings()">
                                     <option value="externalapi" {{ 'selected' if
-                                        defaults.get('TTS_PROVIDER', 'externalapi')=='externalapi' else '' }}>Docker /
+                                        defaults.get('TTS_PROVIDER', 'externalapi' )=='externalapi' else '' }}>Docker /
                                         External API (Default)</option>
                                     <option value="native" {{ 'selected' if defaults.get('TTS_PROVIDER', 'externalapi'
                                         )=='native' else '' }}>Local Library (No Docker)</option>
@@ -467,16 +526,18 @@
                             <div class="form-group">
                                 <label for="stt_provider">STT Provider</label>
                                 <select id="stt_provider" name="stt_provider" onchange="toggleAudioSettings()">
-                                    <option value="externalapi" {{ 'selected' if
-                                        defaults.get('STT_PROVIDER', 'native' if is_frozen else 'externalapi')=='externalapi' else '' }}>Docker /
+                                    <option value="externalapi" {{ 'selected' if defaults.get('STT_PROVIDER', 'native'
+                                        if is_frozen else 'externalapi' )=='externalapi' else '' }}>Docker /
                                         External API{% if not is_frozen %} (Default){% endif %}</option>
-                                    <option value="native" {{ 'selected' if defaults.get('STT_PROVIDER', 'native' if is_frozen else 'externalapi'
-                                        )=='native' else '' }}>Local Library (No Docker){% if is_frozen %} (Default){% endif %}</option>
+                                    <option value="native" {{ 'selected' if defaults.get('STT_PROVIDER', 'native' if
+                                        is_frozen else 'externalapi' )=='native' else '' }}>Local Library (No Docker){%
+                                        if is_frozen %} (Default){% endif %}</option>
                                 </select>
                                 <div class="hint">Local uses faster-whisper medium model (high quality).</div>
                                 {% if is_frozen %}
                                 <div class="hint">
-                                    When running from a bundled binary/AppImage, choosing the local provider will download
+                                    When running from a bundled binary/AppImage, choosing the local provider will
+                                    download
                                     Whisper models to your machine. This can use several GB of disk space and be
                                     CPU-intensive during transcription.
                                 </div>
@@ -715,6 +776,26 @@
 
         // Init Audio Settings on Load
         window.addEventListener('load', toggleAudioSettings);
+
+        // --- Form Submit Handler (Loading Overlay) ---
+        document.querySelector('form').addEventListener('submit', function (e) {
+            const overlay = document.getElementById('loadingOverlay');
+            const sttMsg = document.getElementById('sttDownloadMessage');
+            const genericMsg = document.getElementById('genericMessage');
+            const sttProvider = document.getElementById('stt_provider');
+
+            // Show overlay
+            overlay.style.display = 'flex';
+
+            // Check if native STT is selected
+            if (sttProvider && sttProvider.value === 'native') {
+                sttMsg.style.display = 'block';
+                genericMsg.style.display = 'none';
+            } else {
+                sttMsg.style.display = 'none';
+                genericMsg.style.display = 'block';
+            }
+        });
     </script>
 </body>
 
