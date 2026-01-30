@@ -153,9 +153,16 @@ else
     echo "📦 Installing development dependencies..."
     $ENV_PYTHON -m pip install -e ".[dev]"
 
+    # Ensure pre-commit is installed explicitly (in case of cache issues)
+    $ENV_PYTHON -m pip install pre-commit
+
     # Install pre-commit hooks
     echo "🪝 Installing pre-commit hooks..."
-    $ENV_PYTHON -m pre-commit install
+    if $ENV_PYTHON -m pre_commit --version &> /dev/null; then
+        $ENV_PYTHON -m pre_commit install
+    else
+        echo "⚠️  pre-commit not found. Skipping hook installation."
+    fi
 fi
 
 # Optional TTS (Removed)
