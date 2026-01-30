@@ -292,6 +292,8 @@ def learn_topic(topic_name, step_index):
     except Exception:
         tts_available = False
 
+    from app.common.sandbox import is_sandbox_available
+
     return render_template(
         'chapter/learn_step.html',
         topic=topic_data,
@@ -305,7 +307,8 @@ def learn_topic(topic_name, step_index):
             'questions',
             None),
         show_assessment=show_assessment,
-        tts_available=tts_available)
+        tts_available=tts_available,
+        sandbox_available=is_sandbox_available())
 
 
 @chapter_bp.route('/assess/<topic_name>/<int:step_index>', methods=['POST'])

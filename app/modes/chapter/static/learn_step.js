@@ -74,9 +74,18 @@ function setupCodeExecution(renderedContent) {
 
         const btn = document.createElement('button');
         btn.className = 'execute-button';
-        btn.innerText = 'Execute Code';
-        btn.title = 'Experimental feature: execution environment is in beta for only Python code';
-        btn.onclick = () => executeCode(block.textContent);
+
+        if (config.sandboxAvailable === false) {
+            btn.innerText = 'Execute Code (Unavailable)';
+            btn.title = 'Python is not installed on this system. Code execution is disabled.';
+            btn.disabled = true;
+            btn.style.opacity = '0.6';
+            btn.style.cursor = 'not-allowed';
+        } else {
+            btn.innerText = 'Execute Code';
+            btn.title = 'Experimental feature: execution environment is in beta for only Python code';
+            btn.onclick = () => executeCode(block.textContent);
+        }
         wrapper.appendChild(btn);
     });
 

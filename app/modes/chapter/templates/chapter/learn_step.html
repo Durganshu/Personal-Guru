@@ -259,18 +259,19 @@
 
             initLearnStep({
                 topicName: "{{ topic.name }}",
-                urls: {
-                    execute_code: "{{ url_for('chapter.execute_code') }}",
-                    generate_audio: "{{ url_for('chapter.generate_audio_route', step_index=step_index) }}",
-                    generate_podcast: "{{ url_for('chapter.generate_podcast_route', topic_name=topic.name, step_index=step_index) }}"
-                }
+                sandboxAvailable: {{ sandbox_available| tojson }},
+            urls: {
+            execute_code: "{{ url_for('chapter.execute_code') }}",
+            generate_audio: "{{ url_for('chapter.generate_audio_route', step_index=step_index) }}",
+            generate_podcast: "{{ url_for('chapter.generate_podcast_route', topic_name=topic.name, step_index=step_index) }}"
+        }
             });
 
-            initChatPopup({
-                urls: {
-                    chat: "{{ url_for('chat.chat', topic_name=topic.name, step_index=step_index) }}"
-                }
-            });
+        initChatPopup({
+            urls: {
+                chat: "{{ url_for('chat.chat', topic_name=topic.name, step_index=step_index) }}"
+            }
+        });
         });
     </script>
     {% endblock %}

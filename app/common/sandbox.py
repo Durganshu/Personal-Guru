@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess
 import venv
 import shutil
@@ -14,6 +15,40 @@ logger = logging.getLogger(__name__)
 SHARED_SANDBOX_ID = "shared_env"
 # Libraries that should be pre-installed in the shared sandbox
 PREINSTALLED_LIBS = ['numpy', 'pandas', 'matplotlib', 'scipy', 'seaborn']
+
+def get_system_python():
+    """
+    Finds a suitable system Python executable.
+    Crucial for frozen app (PyInstaller) where sys.executable is the binary.
+    """
+    # If not frozen, use current interpreter
+    if not getattr(sys, 'frozen', False):
+        return sys.executable
+
+    # In frozen mode, search for system python
+    # 1. Check PATH
+    path_python = shutil.which('python')
+    if path_python and 'windowsapps' not in path_python.lower():
+         return path_python
+
+    # 2. Common Windows Paths
+    if os.name == 'nt':
+        common_paths = [
+            r"C:\Python311\python.exe",
+            r"C:\Python312\python.exe",
+            r"C:\Python310\python.exe",
+            os.path.expandvars(r"%LOCALAPPDATA%\Programs\Python\Python311\python.exe"),
+            os.path.expandvars(r"%LOCALAPPDATA%\Programs\Python\Python312\python.exe"),
+        ]
+        for p in common_paths:
+            if os.path.exists(p):
+                return p
+
+    return None
+
+def is_sandbox_available():
+    """Checks if a valid Python interpreter is available for creating sandboxes."""
+    return get_system_python() is not None
 
 def get_sandbox_id(user_id, topic_name):
     """Generates a deterministic sandbox ID for a user and topic."""
@@ -32,6 +67,10 @@ def ensure_shared_sandbox():
     Ensures the shared sandbox exists and has essential libraries installed.
     Should be called on application startup.
     """
+    if not is_sandbox_available():
+        logger.warning("No system Python found. Sandbox creation skipped.")
+        return
+
     logger.info(f"Checking shared sandbox: {SHARED_SANDBOX_ID}")
 
     # We use the Sandbox class to handle creation
@@ -167,9 +206,24 @@ class Sandbox:
         # Ensure base path exists
         os.makedirs(self.path, exist_ok=True)
 
+        system_python = get_system_python()
+        if not system_python:
+             logger.error("FATAL: No valid system Python found. Cannot create sandbox.")
+             return
+
         try:
-             builder = venv.EnvBuilder(with_pip=True)
-             builder.create(self.venv_path)
+             # In frozen mode, we MUST run venv as a subprocess using the found system python
+             if getattr(sys, 'frozen', False):
+                 logger.info(f"Frozen mode detected. Creating venv using {system_python}")
+                 subprocess.check_call(
+                     [system_python, "-m", "venv", "--system-site-packages", self.venv_path],
+                     stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL
+                 )
+             else:
+                 builder = venv.EnvBuilder(with_pip=True)
+                 builder.create(self.venv_path)
+
              logger.info("Virtual environment created.")
         except Exception as e:
              logger.error(f"Failed to create venv: {e}")
