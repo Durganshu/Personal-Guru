@@ -197,6 +197,8 @@ def save_topic(topic_name, data):
                          time_spent=q_data.get('time_spent', 0)
                      )
                      db.session.add(quiz)
+        elif topic.quiz_mode:
+             db.session.delete(topic.quiz_mode)
 
         # --- Handle Flashcards ---
         incoming_cards = data.get('flashcard_mode') or data.get('flashcards') or []
