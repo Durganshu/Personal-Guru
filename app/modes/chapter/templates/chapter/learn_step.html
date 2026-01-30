@@ -48,7 +48,12 @@
         <div class="podcast-section" style="margin-bottom: 20px;">
             <div class="podcast-header">
                 <h3>AI Podcast</h3>
-                {% if topic.chapter_mode[step_index].podcast_audio_content %}
+                {% if not tts_available %}
+                <button id="generate-podcast-btn" class="generate-podcast-btn" disabled
+                    title="TTS service is unreachable or not configured. Please checks your settings.">
+                    <span style="opacity: 0.6;">Generate Podcast (Unavailable)</span>
+                </button>
+                {% elif topic.chapter_mode[step_index].podcast_audio_content %}
                 <button id="generate-podcast-btn" class="generate-podcast-btn" style="display: none;">
                     <span>Generate Podcast</span>
                 </button>

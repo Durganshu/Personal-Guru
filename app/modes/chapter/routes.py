@@ -284,6 +284,12 @@ def learn_topic(topic_name, step_index):
 
     show_assessment = current_step_data.get(
         'questions') and not current_step_data.get('user_answers')
+    from app.common.audio_service import get_tts
+    try:
+        tts_available = get_tts().is_available()
+    except Exception:
+        tts_available = False
+
     return render_template(
         'chapter/learn_step.html',
         topic=topic_data,
@@ -296,7 +302,8 @@ def learn_topic(topic_name, step_index):
         question_data=current_step_data.get(
             'questions',
             None),
-        show_assessment=show_assessment)
+        show_assessment=show_assessment,
+        tts_available=tts_available)
 
 
 @chapter_bp.route('/assess/<topic_name>/<int:step_index>', methods=['POST'])
