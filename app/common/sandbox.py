@@ -258,6 +258,18 @@ except ImportError:
         images = []
         try:
             logger.info(f"Executing script in {self.id}")
+            logger.info(f"Python Executable: {python_path}")
+            logger.info(f"CWD: {self.path}")
+
+            if not os.path.exists(python_path):
+                logger.error(f"FATAL: Python executable not found at {python_path}")
+                # List the Scripts/bin dir to see what's there
+                script_dir = os.path.dirname(python_path)
+                if os.path.exists(script_dir):
+                     logger.info(f"Contents of {script_dir}: {os.listdir(script_dir)}")
+                else:
+                     logger.error(f"Script directory {script_dir} does not exist!")
+
             result = subprocess.run(
                 [python_path, "script.py"],
                 cwd=self.path,
