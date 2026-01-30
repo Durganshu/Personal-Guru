@@ -8,11 +8,41 @@
 
 <div class="feedback-summary">
     {% for result in feedback_results %}
-    <div class="feedback-item {% if result.is_correct %}correct{% else %}incorrect{% endif %}">
-        <h3>{{ result.question }}</h3>
-        <p>Your answer: {{ result.user_answer }}</p>
-        <p>Correct answer: {{ result.correct_answer }}</p>
-        <p>Feedback: {{ result.feedback }}</p>
+    <div class="feedback-card {{ 'is-correct' if result.is_correct else 'is-incorrect' }}">
+        <div class="feedback-header">
+            <div class="feedback-status-icon">
+                {% if result.is_correct %}
+                <svg viewBox="0 0 24 24" class="icon-svg">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                </svg>
+                {% else %}
+                <svg viewBox="0 0 24 24" class="icon-svg">
+                    <path
+                        d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                </svg>
+                {% endif %}
+            </div>
+            <h3 class="feedback-question">{{ result.question }}</h3>
+        </div>
+
+        <div class="feedback-details">
+            <div class="feedback-row user-answer">
+                <span class="label">Your Answer:</span>
+                <span class="value">{{ result.user_answer }}</span>
+            </div>
+
+            {% if not result.is_correct %}
+            <div class="feedback-row correct-answer">
+                <span class="label">Correct Answer:</span>
+                <span class="value">{{ result.correct_answer }}</span>
+            </div>
+            {% endif %}
+
+            <div class="feedback-row explanation">
+                <span class="label">Analysis:</span>
+                <span class="value">{{ result.feedback }}</span>
+            </div>
+        </div>
     </div>
     {% endfor %}
 </div>
