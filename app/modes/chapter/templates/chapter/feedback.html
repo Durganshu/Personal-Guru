@@ -21,11 +21,21 @@
                 </svg>
                 {% endif %}
             </div>
-            <h3 class="feedback-question" style="margin: 0; align-self: center;">
-                {{ 'Correct!' if result.is_correct else 'Incorrect' }}
-            </h3>
+            <h3 class="feedback-question">{{ result.question }}</h3>
         </div>
         <div class="feedback-details">
+            <div class="feedback-row user-answer">
+                <span class="label">Your Answer:</span>
+                <span class="value">{{ result.user_answer }}</span>
+            </div>
+
+            {% if not result.is_correct %}
+            <div class="feedback-row correct-answer">
+                <span class="label">Correct Answer:</span>
+                <span class="value">{{ result.correct_answer }}</span>
+            </div>
+            {% endif %}
+
             <div class="feedback-row explanation">
                 <span class="label">Analysis:</span>
                 <span class="value">{{ result.feedback }}</span>

@@ -329,9 +329,29 @@ def assess_step(topic_name, step_index):
     for i, question in enumerate(questions):
         user_answer = user_answers[i]
 
-        if user_answer:  # Only score answered questions
+        if user_answer:
+            # Pass the full question object so the agent can generate detailed feedback
             feedback_data, _ = feedback_agent.evaluate_answer(
-                question.get('correct_answer'), user_answer)
+                question, user_answer)
+
+            # Enrich feedback with display text
+            feedback_data['question'] = question.get('question')
+
+            # Get User Answer Text
+            try:
+                user_idx = ord(str(user_answer).upper()) - ord('A')
+                feedback_data['user_answer'] = question['options'][user_idx]
+            except (ValueError, IndexError, TypeError):
+                feedback_data['user_answer'] = user_answer
+
+            # Get Correct Answer Text
+            try:
+                corr = question.get('correct_answer')
+                corr_idx = ord(str(corr).upper()) - ord('A')
+                feedback_data['correct_answer'] = question['options'][corr_idx]
+            except (ValueError, IndexError, TypeError):
+                feedback_data['correct_answer'] = str(question.get('correct_answer'))
+
             if feedback_data['is_correct']:
                 num_correct += 1
             else:
