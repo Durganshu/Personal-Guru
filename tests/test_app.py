@@ -85,7 +85,7 @@ def test_full_learning_flow(auth_client, mocker, logger):
     mocker.patch('app.modes.chapter.routes.load_topic', return_value=topic_data)
     response = auth_client.post(f'/chapter/assess/{topic_name}/0', data={'option_0': 'A'})
     assert response.status_code == 200
-    assert b"Your Score: 100.0%" in response.data
+    assert b"Your Score: 100.00%" in response.data
 
     # 4. User continues to the next step
     logger.step("4. User continues to the next step")
