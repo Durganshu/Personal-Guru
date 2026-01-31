@@ -1,4 +1,5 @@
 def get_flashcard_generation_prompt(topic, count, user_background):
+    """Generate the prompt for creating flashcards."""
     return f"""
 You are an expert educator. Generate {count} concise flashcards for the topic '{topic}', tailored to a user with background: '{user_background}'.
 Return a JSON object with key "flashcards" which is an array of objects with keys "term" and "definition".
@@ -12,6 +13,7 @@ def get_additional_flashcards_prompt(
         remaining,
         user_background,
         seen_terms):
+    """Generate the prompt for requesting additional flashcards."""
     return f"""
 Generate {remaining} additional concise flashcards for the topic '{topic}', tailored to a user with background: '{user_background}'.
 Do NOT repeat any of these terms: {', '.join(sorted(seen_terms))}.
@@ -20,6 +22,7 @@ Return a JSON object with key "flashcards" which is an array of objects with key
 
 
 def get_flashcard_count_prompt(topic, user_background):
+    """Generate the prompt for estimating flashcard count."""
     return f"""
 Analyze the complexity of the topic '{topic}' for a user with background: '{user_background}'.
 Based on the topic's breadth and depth, suggest an ideal number of flashcards to generate for a comprehensive review.

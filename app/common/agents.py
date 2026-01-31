@@ -330,6 +330,7 @@ class ChatAgent:
         self.system_message_generator = system_message_generator
 
     def get_welcome_message(self, topic_name, user_background, plan=None):
+        """Generate a welcome message for the chat session."""
         # This might be mode specific, but for now we can keep it generic
         # or require a welcome_prompt_generator.
         # Let's assume the subclass might override or we use a standard one.

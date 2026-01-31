@@ -43,7 +43,6 @@ The executable **does not** contain the database or AI models. Before running th
 
 ### Prerequisites
 *   **Conda** (Miniconda or Anaconda) - for managing Python environments.
-*   **Python 3.11** - required for compatibility with `av`, `spacy`, and other native dependencies.
 *   **Git** - for cloning the repository.
 
 ### Step 1: Create Conda Environment

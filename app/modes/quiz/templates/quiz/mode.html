@@ -20,7 +20,16 @@
 {% endblock %}
 
 {% block content %}
-<h1>Quiz on {{ topic_name }}</h1>
+<div class="header-actions"
+    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h1>Quiz on {{ topic_name }}</h1>
+    <form action="{{ url_for('quiz.reset_quiz', topic_name=topic_name) }}" method="post" style="margin: 0;"
+        onsubmit="return confirm('Are you sure? This will delete your current quiz and start a new one.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="jwe_token" value="{{ jwe_token if jwe_token else '' }}">
+        <button type="submit" class="button secondary">Regenerate Quiz</button>
+    </form>
+</div>
 <form method="post" action="{{ url_for('quiz.submit_quiz', topic_name=topic_name) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
     <input type="hidden" name="jwe_token" value="{{ jwe_token if jwe_token else '' }}">

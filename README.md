@@ -2,7 +2,8 @@
 
 This is a Flask-based web application that serves as a proof-of-concept for a personalized learning tool. It uses a multi-agent AI system to create an interactive learning experience tailored to the user's chosen topic.
 
-# For live demo:
+# For live demo
+
  [https://pg-demo.samosa-ai.com/](https://pg-demo.samosa-ai.com)
 Use desktop computer for the best experience.
 
@@ -17,7 +18,7 @@ Use desktop computer for the best experience.
 - **Podcast Generation:** transform any topic into a dialogue-based audio podcast for on-the-go learning.
 - **Voice Input (STT):** Use your microphone to interact with the AI assistant and navigation.
 - **Flashcards:** Review vocabulary and key concepts with interactive flashcards.
-- **Code Sandbox:** Execute Python code securely within the application for interactive learning.
+- **Code Sandbox:** Execute Python code securely within the application for interactive learning. (Requires Python installed on the system for Windows standalone builds.)
 - **Knowledge Assessment:** Answer multiple-choice questions after each step to test your understanding.
 - **Personalized Background:** Set your own background (e.g., "I am a beginner") to tailor the learning content to your level.
 - **Adaptive Learning:** The study plan adapts to your performance on the "Check Your Understanding" questions.
@@ -28,7 +29,6 @@ Use desktop computer for the best experience.
 - **Export to Markdown:** At the end of a course, you can export the entire study plan and content to a markdown file, perfect for importing into note-taking apps like Notion, Obsidian, or NotebookLM.
 - **Reel Mode:** A TikTok/Reel-style interface for browsing educational short videos.
 - **Comprehensive Test Suite:** Includes a full suite of unit tests to verify application logic.
-
 
 ## Installation & Setup
 
@@ -63,6 +63,7 @@ cd Personal-Guru
 ### Method 1: Automatic Setup (Recommended)
 
 Best for most users. An interactive script guides you through the process, allowing you to choose between:
+
 - **Standard Mode**: Runs Database and Audio services in Docker (Best performance/features).
 - **Local Lite Mode**: Runs entirely without Docker using SQLite and local audio libraries (Easiest setup).
 
@@ -103,17 +104,21 @@ Below is a quick summary for manual setup:
 1. **Create Environment**: `conda create -n Personal-Guru python=3.11 && conda activate Personal-Guru`
 2. **Install Dependencies**: `pip install -e .` (or `pip install -e .[local]` for local features)
     > **Linux Users**: If you encounter errors with `pip install -e .[local]` (e.g., "pkg-config is required"), install the necessary system libraries first:
+>
     > ```bash
     > # Tip: Deactivate conda first if you see "ModuleNotFoundError: No module named 'apt_pkg'"
     > conda deactivate
     > sudo apt update && sudo apt install -y pkg-config libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev libswscale-dev libswresample-dev libavfilter-dev
     > conda activate Personal-Guru
     > ```
+>
     > **Tip (Save Space)**: If you don't have an NVIDIA GPU, you can avoid downloading ~1GB of CUDA libraries by installing the CPU-only version of PyTorch first:
+>
     > ```bash
     > pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
     > pip install -e .[local]
     > ```
+>
 3. **Setup Environment Variables**:
     Creating a `.env` file is **optional** as the application has a built-in UI Wizard to help you configure these settings. However, you can configure it manually:
 
@@ -122,7 +127,7 @@ Below is a quick summary for manual setup:
     ```
 
     **Key Variables:**
-    - `DATABASE_URL`: Connection string (e.g., `postgresql://postgres:postgres@localhost:5433/personal_guru`).
+    - `DATABASE_URL`: Connection string (e.g., `postgresql://postgres:postgres@localhost:5433/personal_guru`). For SQLite, relative paths like `sqlite:///site.db` are automatically converted to absolute paths in the `data/` folder for persistence.
     - `PORT`: Default `5011`.
     - `LLM_BASE_URL`:
       - **Ollama**: `http://localhost:11434/v1`
@@ -340,7 +345,7 @@ The `scripts/` folder contains several utility scripts to assist with developmen
 
 ## For Developers: API Documentation
 
-You can access the interactive API documentation (Swagger UI) at **http://localhost:5011/apidocs/#/** to explore endpoints and test requests.
+You can access the interactive API documentation (Swagger UI) at **<http://localhost:5011/apidocs/#/>** to explore endpoints and test requests.
 
 ## For Developers: Running Tests
 

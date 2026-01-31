@@ -65,6 +65,7 @@ class OpenAITTS(TTSService):
 
     def __init__(self, base_url: str, api_key: str, model: str, default_voice: str):
         from openai import OpenAI
+        self.base_url = base_url  # Store for availability check
         self.client = OpenAI(base_url=base_url, api_key=api_key)
         self.model = model
         self.default_voice = default_voice
@@ -89,6 +90,30 @@ class OpenAITTS(TTSService):
         )
         return response.content, None
 
+    def is_available(self) -> bool:
+        """Check if external API is reachable."""
+        try:
+            import requests
+            # Simple health check - try listing models or just hitting base URL
+            # Use short timeout to avoid blocking UI
+            # Removing /v1 if present to check root or /health if known, but /models is standard
+            # for openai compatible apis
+            url = self.base_url.rstrip('/')
+            if url.endswith('/v1'):
+                # Try specific models endpoint if standard
+                check_url = f"{url}/models"
+            else:
+                 check_url = url
+
+            # If it's a dummy value or empty
+            if not url or "localhost" not in url and "http" not in url:
+                 return False
+
+            requests.get(check_url, timeout=1.0)
+            return True
+        except Exception:
+            return False
+
 
 class OpenAISTT(STTService):
     """STT using OpenAI-compatible API (Docker or remote)."""
@@ -112,7 +137,8 @@ class OpenAISTT(STTService):
         with open(audio_path, "rb") as f:
             result = self.client.audio.transcriptions.create(
                 model=self.model,
-                file=f
+                file=f,
+                language="en"
             )
         return result.text
 
@@ -174,7 +200,7 @@ class WhisperSTT(STTService):
         Returns:
             str: Transcribed text.
         """
-        segments, _ = self.model.transcribe(audio_path, beam_size=5)
+        segments, _ = self.model.transcribe(audio_path, beam_size=5, language="en")
         return "".join([segment.text for segment in segments]).strip()
 
 

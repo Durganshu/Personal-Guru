@@ -49,9 +49,11 @@ def mode(topic_name):
     topic_data = load_topic(topic_name)
 
     # Initialize Persistent Sandbox
-    from app.common.sandbox import Sandbox, SHARED_SANDBOX_ID
-    # Always use the shared environment
-    _ = Sandbox(sandbox_id=SHARED_SANDBOX_ID)
+    # Initialize Topic Sandbox (Background)
+    from app.common.sandbox import background_init_topic_sandbox
+    from flask_login import current_user
+    if current_user.is_authenticated:
+        background_init_topic_sandbox(current_user.userid, topic_name)
     # session['sandbox_id'] = sandbox.id  # No longer needed to store in session
 
     # If topic exists and has a plan, go directly to learning
@@ -284,6 +286,14 @@ def learn_topic(topic_name, step_index):
 
     show_assessment = current_step_data.get(
         'questions') and not current_step_data.get('user_answers')
+    from app.common.audio_service import get_tts
+    try:
+        tts_available = get_tts().is_available()
+    except Exception:
+        tts_available = False
+
+    from app.common.sandbox import is_sandbox_available
+
     return render_template(
         'chapter/learn_step.html',
         topic=topic_data,
@@ -296,7 +306,9 @@ def learn_topic(topic_name, step_index):
         question_data=current_step_data.get(
             'questions',
             None),
-        show_assessment=show_assessment)
+        show_assessment=show_assessment,
+        tts_available=tts_available,
+        sandbox_available=is_sandbox_available())
 
 
 @chapter_bp.route('/assess/<topic_name>/<int:step_index>', methods=['POST'])
@@ -322,9 +334,29 @@ def assess_step(topic_name, step_index):
     for i, question in enumerate(questions):
         user_answer = user_answers[i]
 
-        if user_answer:  # Only score answered questions
+        if user_answer:
+            # Pass the full question object so the agent can generate detailed feedback
             feedback_data, _ = feedback_agent.evaluate_answer(
-                question.get('correct_answer'), user_answer)
+                question, user_answer)
+
+            # Enrich feedback with display text
+            feedback_data['question'] = question.get('question')
+
+            # Get User Answer Text
+            try:
+                user_idx = ord(str(user_answer).upper()) - ord('A')
+                feedback_data['user_answer'] = question['options'][user_idx]
+            except (ValueError, IndexError, TypeError):
+                feedback_data['user_answer'] = user_answer
+
+            # Get Correct Answer Text
+            try:
+                corr = question.get('correct_answer')
+                corr_idx = ord(str(corr).upper()) - ord('A')
+                feedback_data['correct_answer'] = question['options'][corr_idx]
+            except (ValueError, IndexError, TypeError):
+                feedback_data['correct_answer'] = str(question.get('correct_answer'))
+
             if feedback_data['is_correct']:
                 num_correct += 1
             else:
@@ -568,7 +600,8 @@ def export_topic(topic_name):
     markdown_content = f"# {topic_name}\n\n"
     for i, step_data in enumerate(topic_data['chapter_mode']):
         markdown_content += f"## {topic_data['plan'][i]}\n\n"
-        markdown_content += step_data.get('teaching_material', '') + "\n\n"
+        teaching_material = step_data.get('teaching_material')
+        markdown_content += (teaching_material or '*Content not generated for this step*') + "\n\n"
 
     response = make_response(markdown_content)
     response.headers["Content-Disposition"] = f"attachment; filename={topic_name}.md"
@@ -580,8 +613,8 @@ def export_topic(topic_name):
 def export_topic_pdf(topic_name):
     """Export the topic content as a PDF file."""
     if not WEASYPRINT_AVAILABLE:
-        return ("PDF export is not available. WeasyPrint requires GTK libraries "
-                "which are not installed. Please use Markdown export instead."), 503
+        return ("PDF export is not available (WeasyPrint/GTK libraries missing). "
+                "Please use 'Export as Markdown' instead."), 503
 
     topic_data = load_topic(topic_name)
     if not topic_data:
@@ -685,8 +718,19 @@ def execute_code():
     dependencies = enhanced_data.get('dependencies', [])
 
     # 2. Run in Sandbox
-    from app.common.sandbox import Sandbox, SHARED_SANDBOX_ID
-    sandbox = Sandbox(sandbox_id=SHARED_SANDBOX_ID)
+    # 2. Run in Sandbox
+    from app.common.sandbox import Sandbox, SHARED_SANDBOX_ID, get_sandbox_id
+    from flask_login import current_user
+
+    topic_name = data.get('topic')
+    # If topic is not provided (legacy call), fallback to shared, but we should enforce topic
+    if topic_name and current_user.is_authenticated:
+        sandbox_id = get_sandbox_id(current_user.userid, topic_name)
+        # Use template_id to clone from shared if not exists
+        sandbox = Sandbox(sandbox_id=sandbox_id, template_id=SHARED_SANDBOX_ID)
+    else:
+        # Fallback for anon users or missing topic
+        sandbox = Sandbox(sandbox_id=SHARED_SANDBOX_ID)
 
     # Ensure ID is in session (if it was lost or new) - Not strictly needed if ID is constant,
     # but harmless to keep if other parts rely on it (though we are removing session usage).
@@ -722,8 +766,10 @@ def _get_topic_data_and_score(topic_name):
     total_score = 0
     answered_questions = 0
     for step in topic_data['chapter_mode']:
-        if 'teaching_material' in step:
+        if step.get('teaching_material'):
             step['teaching_material'] = md.render(step['teaching_material'])
+        else:
+            step['teaching_material'] = "<p><em>Content not generated for this step.</em></p>"
         if 'score' in step and step.get('user_answers'):
             total_score += step['score']
             answered_questions += 1

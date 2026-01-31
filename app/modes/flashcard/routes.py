@@ -1,4 +1,4 @@
-from flask import render_template, request, make_response
+from flask import render_template, request, make_response, redirect, url_for
 from . import flashcard_bp
 from app.common.storage import load_topic, save_topic
 from .agent import FlashcardTeachingAgent
@@ -185,8 +185,8 @@ def update_progress(topic_name):
 def export_pdf(topic_name):
     """Export flashcards as a PDF."""
     if not WEASYPRINT_AVAILABLE:
-        return ("PDF export is not available. WeasyPrint requires GTK libraries "
-                "which are not installed."), 503
+        return ("PDF export is not available (WeasyPrint/GTK libraries missing). "
+                "Please use 'Export as Markdown' instead."), 503
 
     topic_data = load_topic(topic_name)
     if not topic_data:
@@ -204,3 +204,13 @@ def export_pdf(topic_name):
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename={topic_name}_flashcards.pdf'
     return response
+
+
+@flashcard_bp.route('/<topic_name>/reset', methods=['POST'])
+def reset_flashcards(topic_name):
+    """Reset the flashcards to allow regeneration."""
+    topic_data = load_topic(topic_name)
+    if topic_data and 'flashcard_mode' in topic_data:
+        del topic_data['flashcard_mode']
+        save_topic(topic_name, topic_data)
+    return redirect(url_for('flashcard.mode', topic_name=topic_name))

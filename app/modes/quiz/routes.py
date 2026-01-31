@@ -1,4 +1,4 @@
-from flask import render_template, request, session, make_response
+from flask import render_template, request, session, make_response, redirect, url_for
 from . import quiz_bp
 from app.common.storage import load_topic, save_topic
 from app.common.agents import FeedbackAgent
@@ -83,6 +83,7 @@ def mode(topic_name):
 
 @quiz_bp.route('/<topic_name>/submit', methods=['POST'])
 def submit_quiz(topic_name):
+    """Evaluate and save quiz submissions."""
     user_answers_indices = [request.form.get(f'answers_{i}') for i in range(
         len(session.get('quiz_questions', [])))]
     questions = session.get('quiz_questions', [])
@@ -177,24 +178,36 @@ def submit_quiz(topic_name):
 
 @quiz_bp.route('/<topic_name>/update_time', methods=['POST'])
 def update_time(topic_name):
+    """Update total time spent on the quiz."""
     try:
         time_spent = int(request.form.get('time_spent', 0))
     except (ValueError, TypeError):
         time_spent = 0
 
     if time_spent > 0:
-        topic_data = load_topic(topic_name)
-        if topic_data and topic_data.get('quiz_mode'):
-            existing_time = topic_data['quiz_mode'].get('time_spent', 0) or 0
-            topic_data['quiz_mode']['time_spent'] = max(existing_time, time_spent)
-            save_topic(topic_name, topic_data)
+        # Avoid load_topic/save_topic race condition by updating DB directly
+        from app.core.models import Topic, QuizMode
+        from app.core.extensions import db
+        from flask_login import current_user
+
+        if current_user.is_authenticated:
+            # Join Topic and QuizMode to find the specific quiz
+            quiz = QuizMode.query.join(Topic).filter(
+                Topic.name == topic_name,
+                Topic.user_id == current_user.userid
+            ).first()
+
+            if quiz:
+                quiz.time_spent = max((quiz.time_spent or 0), time_spent)
+                db.session.commit()
     return '', 204
 
 @quiz_bp.route('/<topic_name>/export/pdf')
 def export_quiz_pdf(topic_name):
+    """Export the most recent quiz results as a PDF."""
     if not WEASYPRINT_AVAILABLE:
-        return ("PDF export is not available. WeasyPrint requires GTK libraries "
-                "which are not installed. Please export as HTML instead."), 503
+        return ("PDF export is not available (WeasyPrint/GTK libraries missing). "
+                "Please use 'Export as Markdown' instead."), 503
 
     topic_data = load_topic(topic_name)
     quiz_results = topic_data.get('last_quiz_result') if topic_data else None
@@ -217,3 +230,14 @@ def export_quiz_pdf(topic_name):
         "Content-Disposition"] = f"attachment; filename=quiz_results_{topic_name}.pdf"
     response.headers["Content-Type"] = "application/pdf"
     return response
+
+
+@quiz_bp.route('/<topic_name>/reset', methods=['POST'])
+def reset_quiz(topic_name):
+    """Reset the quiz to allow regeneration."""
+    topic_data = load_topic(topic_name)
+    if topic_data and 'quiz_mode' in topic_data:
+        del topic_data['quiz_mode']
+        save_topic(topic_name, topic_data)
+        session.pop('quiz_questions', None)
+    return redirect(url_for('quiz.mode', topic_name=topic_name))

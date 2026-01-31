@@ -48,7 +48,12 @@
         <div class="podcast-section" style="margin-bottom: 20px;">
             <div class="podcast-header">
                 <h3>AI Podcast</h3>
-                {% if topic.chapter_mode[step_index].podcast_audio_content %}
+                {% if not tts_available %}
+                <button id="generate-podcast-btn" class="generate-podcast-btn" disabled
+                    title="TTS service is unreachable or not configured. Please checks your settings.">
+                    <span style="opacity: 0.6;">Generate Podcast (Unavailable)</span>
+                </button>
+                {% elif topic.chapter_mode[step_index].podcast_audio_content %}
                 <button id="generate-podcast-btn" class="generate-podcast-btn" style="display: none;">
                     <span>Generate Podcast</span>
                 </button>
@@ -96,11 +101,13 @@
 
             <div class="audio-controls">
                 <label for="read-aloud-switch" class="switch-label">Read Aloud</label>
-                <label class="switch">
-                    <input type="checkbox" id="read-aloud-switch">
-                    <span class="slider round"></span>
+                <label class="switch" {% if not tts_available %}title="TTS service is unreachable" {% endif %}>
+                    <input type="checkbox" id="read-aloud-switch" {% if not tts_available %}disabled{% endif %}>
+                    <span class="slider round" {% if not tts_available %}style="opacity: 0.5; cursor: not-allowed;" {%
+                        endif %}></span>
                 </label>
-                <button id="read-button" class="button">Read</button>
+                <button id="read-button" class="button" {% if not tts_available %}disabled
+                    title="TTS service is unreachable" {% endif %}>Read</button>
             </div>
 
 
@@ -150,11 +157,32 @@
                         {% if topic.chapter_mode[step_index].feedback and
                         topic.chapter_mode[step_index].feedback[loop.index0] %}
                         <div
-                            class="feedback-item {{ 'correct' if topic.chapter_mode[step_index].feedback[loop.index0].is_correct else 'incorrect' }}">
-                            <strong>{{ 'Correct!' if topic.chapter_mode[step_index].feedback[loop.index0].is_correct
-                                else
-                                'Incorrect.' }}</strong>
-                            {{ topic.chapter_mode[step_index].feedback[loop.index0].explanation }}
+                            class="feedback-card {{ 'is-correct' if topic.chapter_mode[step_index].feedback[loop.index0].is_correct else 'is-incorrect' }}">
+                            <div class="feedback-header">
+                                <div class="feedback-status-icon">
+                                    {% if topic.chapter_mode[step_index].feedback[loop.index0].is_correct %}
+                                    <svg viewBox="0 0 24 24" class="icon-svg">
+                                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                                    </svg>
+                                    {% else %}
+                                    <svg viewBox="0 0 24 24" class="icon-svg">
+                                        <path
+                                            d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                                    </svg>
+                                    {% endif %}
+                                </div>
+                                <h3 class="feedback-question" style="margin: 0; align-self: center;">
+                                    {{ 'Correct!' if topic.chapter_mode[step_index].feedback[loop.index0].is_correct
+                                    else 'Incorrect' }}
+                                </h3>
+                            </div>
+                            <div class="feedback-details">
+                                <div class="feedback-row explanation">
+                                    <span class="label">Analysis:</span>
+                                    <span class="value">{{
+                                        topic.chapter_mode[step_index].feedback[loop.index0].explanation }}</span>
+                                </div>
+                            </div>
                         </div>
                         {% endif %}
 
@@ -230,18 +258,20 @@
             });
 
             initLearnStep({
-                urls: {
-                    execute_code: "{{ url_for('chapter.execute_code') }}",
-                    generate_audio: "{{ url_for('chapter.generate_audio_route', step_index=step_index) }}",
-                    generate_podcast: "{{ url_for('chapter.generate_podcast_route', topic_name=topic.name, step_index=step_index) }}"
-                }
+                topicName: "{{ topic.name }}",
+                sandboxAvailable: {{ sandbox_available| tojson }},
+            urls: {
+            execute_code: "{{ url_for('chapter.execute_code') }}",
+            generate_audio: "{{ url_for('chapter.generate_audio_route', step_index=step_index) }}",
+            generate_podcast: "{{ url_for('chapter.generate_podcast_route', topic_name=topic.name, step_index=step_index) }}"
+        }
             });
 
-            initChatPopup({
-                urls: {
-                    chat: "{{ url_for('chat.chat', topic_name=topic.name, step_index=step_index) }}"
-                }
-            });
+        initChatPopup({
+            urls: {
+                chat: "{{ url_for('chat.chat', topic_name=topic.name, step_index=step_index) }}"
+            }
+        });
         });
     </script>
     {% endblock %}

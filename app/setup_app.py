@@ -68,6 +68,19 @@ def create_setup_app():
             if not config['DATABASE_URL'] or not config['LLM_BASE_URL']:
                 return "Missing required fields", 400
 
+            # --- Convert relative SQLite paths to absolute paths in data folder ---
+            db_url = config['DATABASE_URL']
+            if db_url.startswith('sqlite:///') and not db_url.startswith('sqlite:////'):
+                # Extract the filename (e.g., 'site.db' from 'sqlite:///site.db')
+                db_filename = db_url.replace('sqlite:///', '')
+                # If it's not an absolute path, make it absolute in the data folder
+                if not os.path.isabs(db_filename):
+                    data_dir = os.path.join(os.path.dirname(env_file), 'data')
+                    os.makedirs(data_dir, exist_ok=True)
+                    db_path = os.path.join(data_dir, db_filename).replace('\\', '/')
+                    config['DATABASE_URL'] = f"sqlite:///{db_path}"
+                    print(f"--- SETUP: Converted SQLite path to: {config['DATABASE_URL']}")
+
             # --- Capture Audio Settings ---
             # Default: TTS=externalapi, STT=native (for both frozen and dev, as per recent changes)
             default_tts_provider = 'externalapi'
@@ -79,8 +92,8 @@ def create_setup_app():
                 'TTS_MODEL': request.form.get('tts_model', 'tts-1'),
                 'TTS_LANGUAGE': request.form.get('tts_language', 'en'),
                 'TTS_VOICE_DEFAULT': request.form.get('tts_voice_default', 'af_bella'),
-                'TTS_VOICE_PODCAST_HOST': request.form.get('tts_voice_host', 'am_michael'),
-                'TTS_VOICE_PODCAST_GUEST': request.form.get('tts_voice_guest', 'af_nicole'),
+                'TTS_VOICE_PODCAST_HOST': request.form.get('tts_voice_host', 'af_bella'),
+                'TTS_VOICE_PODCAST_GUEST': request.form.get('tts_voice_guest', 'am_puck'),
                 'STT_PROVIDER': request.form.get('stt_provider', default_stt_provider),
                 'STT_BASE_URL': request.form.get('stt_url', ''),
                 'STT_MODEL': request.form.get('stt_model', 'Systran/faster-whisper-medium.en')
@@ -103,13 +116,9 @@ def create_setup_app():
                         print(f"--- SETUP WARNING: Failed to download STT models: {e}")
 
                 # --- Initialize Shared Sandbox ---
-                print("--- SETUP: Initializing Shared Sandbox environment ---")
-                try:
-                    from app.common.sandbox import Sandbox, SHARED_SANDBOX_ID
-                    Sandbox(sandbox_id=SHARED_SANDBOX_ID)
-                    print("--- SETUP: Shared Sandbox Ready ---")
-                except Exception as e:
-                     print(f"--- SETUP WARNING: Failed to initialize shared sandbox: {e}")
+                # We skip this in setup because it can be slow/blocking.
+                # It will be handled on next startup by run.py or entry_point.py
+                print("--- SETUP: Sandbox initialization deferred to next startup ---")
 
             except Exception as e:
                 print(f"--- SETUP: Error during model pre-load: {e}")

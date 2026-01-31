@@ -104,8 +104,26 @@ def save_topic(topic_name, data):
 
             if step:
                 # Update existing
-                step.title = step_data.get('title', step.title)
-                step.content = step_data.get('content') or step_data.get('teaching_material') or step.content
+                new_title = step_data.get('title')
+                if new_title and new_title != step.title:
+                    step.title = new_title
+                    # If title changed and no new content provided, clear old content
+                    if not step_data.get('content') and not step_data.get('teaching_material'):
+                         step.content = None
+                         step.questions = None
+                         step.user_answers = None
+                         step.score = None
+                         step.time_spent = 0
+
+                # Update content if provided (respects empty string to clear)
+                # Priority: teaching_material > content (since load_topic returns both keys)
+                new_content = step_data.get('teaching_material') or step_data.get('content')
+                if new_content:
+                    step.content = new_content
+                    logger.info(f"DEBUG save_topic: Step {step_index} - saved content, length: {len(step.content) if step.content else 0}")
+                else:
+                    logger.info(f"DEBUG save_topic: Step {step_index} - no content to save. Keys: {list(step_data.keys())}")
+
 
                 if 'questions' in step_data:
                     step.questions = step_data['questions']
@@ -197,6 +215,8 @@ def save_topic(topic_name, data):
                          time_spent=q_data.get('time_spent', 0)
                      )
                      db.session.add(quiz)
+        elif topic.quiz_mode:
+             db.session.delete(topic.quiz_mode)
 
         # --- Handle Flashcards ---
         incoming_cards = data.get('flashcard_mode') or data.get('flashcards') or []

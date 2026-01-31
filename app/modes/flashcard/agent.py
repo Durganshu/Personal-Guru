@@ -3,6 +3,8 @@ from app.common.agents import TopicTeachingAgent
 
 
 class FlashcardTeachingAgent(TopicTeachingAgent):
+    """Agent responsible for generating flashcard-based teaching materials."""
+
     def generate_teaching_material(
             self,
             topic,
