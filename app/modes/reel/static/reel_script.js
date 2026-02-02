@@ -223,6 +223,9 @@ async function fetchMoreReels() {
             });
 
             console.log(`Added ${data.reels.length} more reels. Total: ${currentReels.length}`);
+
+            // Update all reel counters with new total
+            updateReelCounters();
         }
 
         if (!nextPageToken) {
@@ -245,14 +248,32 @@ function createReelElement(reel, index) {
     reelItem.innerHTML = `
         <div class="reel-video-wrapper" data-video-id="${reel.id}">
             <div id="${playerDivId}" class="youtube-player-placeholder"></div>
+
+            <!-- Top Info Overlay -->
             <div class="reel-info-overlay">
                 <h3 class="reel-title">${escapeHtml(reel.title)}</h3>
                 <p class="reel-channel">📺 ${escapeHtml(reel.channel)}</p>
-                <div class="reel-actions">
-                    <button class="action-btn watch-on-yt" onclick="window.open('${reel.url}', '_blank')">
-                        ▶ Watch on YouTube
+            </div>
+
+            <!-- Side Action Buttons -->
+            <div class="reel-side-actions">
+                <div>
+                    <button class="side-action-btn youtube-btn" onclick="window.open('${reel.url}', '_blank')" title="Watch on YouTube">
+                        ▶
                     </button>
+                    <div class="side-action-label">YouTube</div>
                 </div>
+                <div>
+                    <button class="side-action-btn" onclick="shareReel('${reel.url}', '${escapeHtml(reel.title).replace(/'/g, "\\'")}')" title="Share">
+                        ↗
+                    </button>
+                    <div class="side-action-label">Share</div>
+                </div>
+            </div>
+
+            <!-- Reel Counter -->
+            <div class="reel-counter">
+                <span class="counter-current">${index + 1}</span> / <span class="counter-total">${currentReels.length}</span>
             </div>
         </div>
     `;
@@ -419,4 +440,73 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Share functionality using Web Share API or fallback to clipboard
+function shareReel(url, title) {
+    const shareData = {
+        title: title,
+        text: `Check out this video: ${title}`,
+        url: url
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        navigator.share(shareData).catch(err => {
+            console.log('Share cancelled:', err);
+        });
+    } else {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(url).then(() => {
+            showToast('Link copied to clipboard!');
+        }).catch(() => {
+            // Final fallback: prompt user
+            prompt('Copy this link:', url);
+        });
+    }
+}
+
+// Toast notification for feedback
+function showToast(message) {
+    const existing = document.querySelector('.toast-notification');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 25px;
+        font-size: 0.9rem;
+        z-index: 1000;
+        animation: fadeInOut 2.5s forwards;
+        backdrop-filter: blur(10px);
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.remove(), 2500);
+}
+
+// Add toast animation
+const toastStyle = document.createElement('style');
+toastStyle.textContent = `
+    @keyframes fadeInOut {
+        0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+        15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+    }
+`;
+document.head.appendChild(toastStyle);
+
+// Update all reel counters (called when more reels are loaded)
+function updateReelCounters() {
+    document.querySelectorAll('.counter-total').forEach(el => {
+        el.textContent = currentReels.length;
+    });
 }
