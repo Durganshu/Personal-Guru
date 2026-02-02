@@ -45,69 +45,52 @@ if ($Clean) {
     Remove-Directory-Force ".build_venv"
 }
 
-# Detect Python Executable (Strictly Conda Python 3.11)
+# Detect Python Executable (Force Python 3.11)
 $TargetVersion = "3.11"
 $PythonExe = $null
 
-Write-Host "Searching for Conda Python $TargetVersion..."
-
-# Helper to check version
-function Get-PythonVersion ($exe) {
-    if (-not (Test-Path $exe)) { return $null }
-    try {
-        $ver = & $exe -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
-        return $ver
-    } catch {
-        return $null
-    }
-}
-
-# 1. Check Active Conda Env
+# 1. Try to use the active environment (Conda or PATH) if it matches 3.11
 if ($Env:CONDA_PREFIX) {
-    Write-Host "Checking active Conda env: $Env:CONDA_PREFIX"
-    $Candidate = Join-Path $Env:CONDA_PREFIX "python.exe"
-    $Ver = Get-PythonVersion $Candidate
-    if ($Ver -eq $TargetVersion) {
-        $PythonExe = $Candidate
-        Write-Host "  -> Match found in active env!"
-    } else {
-        Write-Host "  -> Version mismatch: Found '$Ver', required '$TargetVersion'"
-    }
-}
-
-# 2. If not found, scan all Conda environments via 'conda info'
-if (-not $PythonExe) {
-    if (Get-Command "conda" -ErrorAction SilentlyContinue) {
-        Write-Host "Scanning local Conda environments..."
+    $CondaPython = Join-Path $Env:CONDA_PREFIX "python.exe"
+    if (Test-Path $CondaPython) {
         try {
-            $JsonOutput = conda info --json 2>$null | Out-String
-            $CondaInfo = $JsonOutput | ConvertFrom-Json
-            
-            foreach ($EnvPath in $CondaInfo.envs) {
-                if ($Env:CONDA_PREFIX -and ($EnvPath -eq $Env:CONDA_PREFIX)) { continue }
-                
-                $Candidate = Join-Path $EnvPath "python.exe"
-                $Ver = Get-PythonVersion $Candidate
-                if ($Ver -eq $TargetVersion) {
-                    $PythonExe = $Candidate
-                    Write-Host "  -> Found suitable environment: $EnvPath"
-                    break 
-                }
+            $Ver = & $CondaPython -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+            if ($Ver -eq $TargetVersion) {
+                $PythonExe = $CondaPython
+                Write-Host "Using Active Conda Environment ($TargetVersion): $Env:CONDA_PREFIX"
+            } else {
+                Write-Host "Skipping Active Conda Environment ($Ver) - Required: $TargetVersion"
             }
-        } catch {
-            Write-Host "  -> Warning: Failed to query/parse 'conda info'. Is Conda installed?"
-        }
-    } else {
-        Write-Host "  -> 'conda' command not found in PATH."
+        } catch {}
     }
 }
 
+# 2. If checking Conda failed or didn't match, check 'python' on PATH
 if (-not $PythonExe) {
-    Write-Error "BUILD FAILED: Strictly Conda Python $TargetVersion required.`nCould not find a Conda environment with Python $TargetVersion.`nPlease activate one or create one: conda create -n py311 python=3.11"
+    try {
+        $Ver = & python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+        if ($Ver -eq $TargetVersion) {
+            $PythonExe = "python"
+            Write-Host "Using 'python' from PATH ($TargetVersion)"
+        }
+    } catch {}
+}
+
+# 3. Last resort: Try 'py -3.11' launcher
+if (-not $PythonExe) {
+    try {
+        $LauncherPy = & py -$TargetVersion -c "import sys; print(sys.executable)" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $LauncherPy) {
+            $PythonExe = $LauncherPy.Trim()
+            Write-Host "Using Python $TargetVersion via py launcher: $PythonExe"
+        }
+    } catch {}
+}
+
+if (-not $PythonExe) {
+    Write-Error "Could not find a Python $TargetVersion executable. Please install Python 3.11 or activate a Conda environment with 3.11."
     exit 1
 }
-
-Write-Host "Using Python Executable: $PythonExe"
 
 Write-Host "Creating virtual environment (.build_venv)..."
 # Print python version for debugging
