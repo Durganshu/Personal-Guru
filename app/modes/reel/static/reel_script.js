@@ -255,22 +255,6 @@ function createReelElement(reel, index) {
                 <p class="reel-channel">📺 ${escapeHtml(reel.channel)}</p>
             </div>
 
-            <!-- Side Action Buttons -->
-            <div class="reel-side-actions">
-                <div>
-                    <button class="side-action-btn youtube-btn" onclick="window.open('${reel.url}', '_blank')" title="Watch on YouTube">
-                        ▶
-                    </button>
-                    <div class="side-action-label">YouTube</div>
-                </div>
-                <div>
-                    <button class="side-action-btn" onclick="shareReel('${reel.url}', '${escapeHtml(reel.title).replace(/'/g, "\\'")}')" title="Share">
-                        ↗
-                    </button>
-                    <div class="side-action-label">Share</div>
-                </div>
-            </div>
-
             <!-- Reel Counter -->
             <div class="reel-counter">
                 <span class="counter-current">${index + 1}</span> / <span class="counter-total">${currentReels.length}</span>
