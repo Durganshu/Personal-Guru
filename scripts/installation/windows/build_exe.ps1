@@ -45,15 +45,51 @@ if ($Clean) {
     Remove-Directory-Force ".build_venv"
 }
 
-# Detect Python Executable
-$PythonExe = "python"
+# Detect Python Executable (Force Python 3.11)
+$TargetVersion = "3.11"
+$PythonExe = $null
+
+# 1. Try to use the active environment (Conda or PATH) if it matches 3.11
 if ($Env:CONDA_PREFIX) {
     $CondaPython = Join-Path $Env:CONDA_PREFIX "python.exe"
     if (Test-Path $CondaPython) {
-        $PythonExe = $CondaPython
-        Write-Host "Detected Active Conda Environment: $Env:CONDA_PREFIX"
-        Write-Host "Using Python Executable: $PythonExe"
+        try {
+            $Ver = & $CondaPython -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+            if ($Ver -eq $TargetVersion) {
+                $PythonExe = $CondaPython
+                Write-Host "Using Active Conda Environment ($TargetVersion): $Env:CONDA_PREFIX"
+            } else {
+                Write-Host "Skipping Active Conda Environment ($Ver) - Required: $TargetVersion"
+            }
+        } catch {}
     }
+}
+
+# 2. If checking Conda failed or didn't match, check 'python' on PATH
+if (-not $PythonExe) {
+    try {
+        $Ver = & python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+        if ($Ver -eq $TargetVersion) {
+            $PythonExe = "python"
+            Write-Host "Using 'python' from PATH ($TargetVersion)"
+        }
+    } catch {}
+}
+
+# 3. Last resort: Try 'py -3.11' launcher
+if (-not $PythonExe) {
+    try {
+        $LauncherPy = & py -$TargetVersion -c "import sys; print(sys.executable)" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $LauncherPy) {
+            $PythonExe = $LauncherPy.Trim()
+            Write-Host "Using Python $TargetVersion via py launcher: $PythonExe"
+        }
+    } catch {}
+}
+
+if (-not $PythonExe) {
+    Write-Error "Could not find a Python $TargetVersion executable. Please install Python 3.11 or activate a Conda environment with 3.11."
+    exit 1
 }
 
 Write-Host "Creating virtual environment (.build_venv)..."
