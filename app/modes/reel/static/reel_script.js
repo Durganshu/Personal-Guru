@@ -4,6 +4,10 @@ let players = {}; // Store YT.Player instances
 let isScrolling = false;
 let apiReady = false;
 let currentSessionId = null; // Track current search session
+let nextPageToken = null; // Pagination token for endless scrolling
+let currentTopic = null; // Current search topic
+let isLoadingMore = false; // Prevent duplicate fetch requests
+const REELS_AHEAD_THRESHOLD = 10; // Trigger loading when less than 10 reels remain ahead
 
 // Load YouTube Iframe API
 const tag = document.createElement('script');
@@ -87,6 +91,8 @@ async function performSearch(topic) {
         } else {
             currentReels = data.reels;
             currentSessionId = data.session_id; // Store session ID
+            nextPageToken = data.next_page_token; // Store pagination token
+            currentTopic = topic; // Store topic for more-reels requests
             displayReels();
         }
     } catch (error) {
@@ -145,12 +151,88 @@ function setupIntersectionObserver() {
                 } else if (!isNaN(index) && index === currentIndex) {
                     playReelVideo(index);
                 }
+                // Check if we need to load more reels (endless scrolling)
+                checkAndLoadMoreReels();
             }
         });
     }, options);
 
     const reels = document.querySelectorAll('.reel-item');
     reels.forEach(reel => observer.observe(reel));
+}
+
+// Check if we need to load more reels for endless scrolling
+function checkAndLoadMoreReels() {
+    const reelsAhead = currentReels.length - currentIndex - 1;
+    if (reelsAhead < REELS_AHEAD_THRESHOLD && nextPageToken && !isLoadingMore) {
+        console.log(`Only ${reelsAhead} reels ahead. Loading more...`);
+        fetchMoreReels();
+    }
+}
+
+// Fetch more reels from backend for endless scrolling
+async function fetchMoreReels() {
+    if (isLoadingMore || !currentSessionId || !nextPageToken) return;
+
+    isLoadingMore = true;
+    console.log('Fetching more reels...');
+
+    try {
+        const response = await fetch('/reels/api/more-reels', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-JWE-Token': document.querySelector('meta[name="jwe-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ session_id: currentSessionId })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error('Failed to fetch more reels:', data.error);
+            return;
+        }
+
+        // Update pagination token
+        nextPageToken = data.next_page_token;
+
+        if (data.reels && data.reels.length > 0) {
+            const reelsContainer = document.getElementById('reelsContainer');
+            const startIndex = currentReels.length;
+
+            // Append new reels to our array
+            currentReels = currentReels.concat(data.reels);
+
+            // Create and append reel elements
+            data.reels.forEach((reel, i) => {
+                const index = startIndex + i;
+                const reelItem = createReelElement(reel, index);
+                reelsContainer.appendChild(reelItem);
+
+                // Initialize player for this reel
+                if (apiReady) {
+                    initializePlayer(index, reel.id);
+                }
+
+                // Observe the new reel with IntersectionObserver
+                if (observer) {
+                    observer.observe(reelItem);
+                }
+            });
+
+            console.log(`Added ${data.reels.length} more reels. Total: ${currentReels.length}`);
+        }
+
+        if (!nextPageToken) {
+            console.log('No more reels available.');
+        }
+    } catch (error) {
+        console.error('Error fetching more reels:', error);
+    } finally {
+        isLoadingMore = false;
+    }
 }
 
 function createReelElement(reel, index) {

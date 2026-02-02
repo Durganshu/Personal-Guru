@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def search_youtube_reels(topic, max_results=12):
+def search_youtube_reels(topic, max_results=12, page_token=None):
     """
     Search YouTube for reels matching the given topic.
     Fetches multiple pages if needed to collect the desired number of videos.
@@ -23,9 +23,10 @@ def search_youtube_reels(topic, max_results=12):
     Args:
         topic: Search query/topic
         max_results: Maximum number of results to return (default: 12)
+        page_token: Optional pagination token for fetching more results
 
     Returns:
-        List of reel data dictionaries containing title, url, thumbnail, etc.
+        Dict with 'reels' list and 'next_page_token' for pagination
     """
     if not YOUTUBE_API_KEY:
         raise ValueError("YOUTUBE_API_KEY not found in .env file")
@@ -35,12 +36,12 @@ def search_youtube_reels(topic, max_results=12):
 
         reels = []
         skipped_count = 0
-        next_page_token = None
+        next_page_token = page_token
         attempts = 0
 
         # Keep fetching pages until we collect `max_results` reels or run out of pages
-        # "Fetch significantly more videos since ~80%+ won't be actually embeddable"--> not true anymore
-        # "YouTube API embeddable flag is unreliable, will be caught by VLM validation"--> not true anymore
+        # "Fetch significantly more videos since ~80%+ won't be actually embeddable"-->not true anymore
+        # "YouTube API embeddable flag is unreliable, will be caught by VLM validation"-->not true anymore
         # Fetch +2 to account for filtering
         target_fetch = max(int(max_results + 2), 12)
 
@@ -69,6 +70,7 @@ def search_youtube_reels(topic, max_results=12):
             search_response = search_call.execute()
             items = search_response.get('items', [])
             if not items:
+                next_page_token = None
                 break
 
             # Batch status lookup for privacy check only
@@ -152,6 +154,9 @@ def search_youtube_reels(topic, max_results=12):
 
         logger.info(
             f"Search '{topic}': fetched {len(reels)} videos (will filter via VLM to find embeddable ones), skipped {skipped_count} private videos")
-        return reels
+        return {
+            'reels': reels,
+            'next_page_token': next_page_token
+        }
     except Exception as e:
         raise Exception(f"YouTube API error: {str(e)}")
