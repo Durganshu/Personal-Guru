@@ -450,9 +450,9 @@ def settings():
             'STT_BASE_URL': request.form.get('stt_url', ''),
             'STT_MODEL': request.form.get('stt_model', 'Systran/faster-whisper-medium.en'),
             'TTS_LANGUAGE': request.form.get('tts_language', 'en'),
-            'TTS_VOICE_DEFAULT': request.form.get('tts_voice_default', 'af_bella'),
-            'TTS_VOICE_PODCAST_HOST': request.form.get('tts_voice_host', 'af_bella'),
-            'TTS_VOICE_PODCAST_GUEST': request.form.get('tts_voice_guest', 'am_puck'),
+            'TTS_VOICE_DEFAULT': request.form.get('tts_voice_default', 'af_heart'),
+            'TTS_VOICE_PODCAST_HOST': request.form.get('tts_voice_host', 'af_heart'),
+            'TTS_VOICE_PODCAST_GUEST': request.form.get('tts_voice_guest', 'am_michael'),
             'OPENAI_API_KEY': request.form.get('openai_key', ''),
             'YOUTUBE_API_KEY': request.form.get('youtube_key', '')
         }

@@ -178,7 +178,7 @@ Below is a quick summary for manual setup:
       --data '{
         "input": "Hello! This is a test of local text to speech.",
         "model": "speaches-ai/Kokoro-82M-v1.0-ONNX",
-        "voice": "af_bella",
+        "voice": "af_heart",
         "speed": 1.0
       }'
     ```

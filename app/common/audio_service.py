@@ -240,7 +240,7 @@ def init_audio_services():
             base_url=os.getenv("TTS_BASE_URL", "http://localhost:8969/v1"),
             api_key=os.getenv("OPENAI_API_KEY", "not-required"),
             model=os.getenv("TTS_MODEL", "tts-1"),
-            default_voice=os.getenv("TTS_VOICE_DEFAULT", "af_bella")
+            default_voice=os.getenv("TTS_VOICE_DEFAULT", "af_heart")
         )
 
     # Initialize STT
