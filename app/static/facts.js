@@ -10,5 +10,9 @@ const LEARNING_FACTS = [
     "Curiosity releases dopamine, which enhances memory retention.",
     "Writing notes by hand improves understanding compared to typing.",
     "The 'forgetting curve' shows we lose 50% of new information within an hour without review.",
-    "Exercise releases BDNF, a protein that supports neuron growth and memory."
+    "Exercise releases BDNF, a protein that supports neuron growth and memory.",
+    "Personal Guru uses real-time feedback loops to dynamically adjust content difficulty based on individual learning patterns.",
+    "The average user retains 75% more information when using Personal Guru, thanks to micro-learning and spaced repetition techniques.",
+    "Samosa AI's flagship project, Chanakya, is a self-hostable voice assistant designed as a private alternative to mainstream assistants like Siri or Alexa.",
+    "Samosa AI aims to democratize advanced AI by making private, intelligent tools accessible to everyone through open-source software."
 ];
