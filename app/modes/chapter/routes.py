@@ -744,7 +744,7 @@ def execute_code():
         if dependencies:
             sandbox.install_deps(dependencies)
 
-        result = sandbox.run_code(code)
+        result = sandbox.run_code(enhanced_code)
 
         return {
             "output": result.get('output'),
