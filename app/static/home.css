@@ -112,9 +112,11 @@
 }
 
 .topics-search-wrapper {
-    flex: 1 1 300px;
-    /* Grow, shrink, base width 300px */
+    flex: 1 1 auto;
+    /* Allow flexible width without forcing large basis */
     min-width: 200px;
+    max-width: 400px;
+    /* Prevent it from becoming too wide on large screens */
 }
 
 .topics-search-wrapper input {
