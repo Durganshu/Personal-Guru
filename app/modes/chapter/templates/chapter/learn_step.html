@@ -246,7 +246,7 @@
     {% endblock %}
 
     {% block scripts %}
-    <script src="{{ url_for('chapter.static', filename='learn_step.js') }}"></script>
+    <script src="{{ url_for('chapter.static', filename='learn_step.js', v=3) }}"></script>
     <script src="{{ url_for('common.static', filename='js/time_tracker.js') }}"></script>
     <script src="{{ url_for('common.static', filename='js/chat_popup.js') }}"></script>
     <script>

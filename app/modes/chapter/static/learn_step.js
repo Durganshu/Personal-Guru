@@ -639,9 +639,9 @@ function setInteractiveElementsDisabled(disabled) {
     if (planInput) planInput.disabled = disabled;
     if (planBtn) planBtn.disabled = disabled;
 
-    // 4. Code Execution Buttons
-    const execBtns = document.querySelectorAll('.execute-button');
-    execBtns.forEach(btn => btn.disabled = disabled);
+    // 4. Code Execution Buttons - REMOVED to allow execution during podcast generation
+    // const execBtns = document.querySelectorAll('.execute-button');
+    // execBtns.forEach(btn => btn.disabled = disabled);
 
     // 5. Read Aloud Controls
     const readBtn = document.getElementById('read-button');
