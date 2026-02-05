@@ -131,19 +131,6 @@ body.dark-mode .code-execution-wrapper {
     overflow-y: auto;
 }
 
-.resize-handle {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 5px;
-    cursor: col-resize;
-    background-color: transparent;
-}
-
-.resize-handle:hover {
-    background-color: #007bff;
-}
 
 /* Code Output */
 .output-block {
