@@ -134,6 +134,7 @@ def get_podcast_script_prompt(context, user_background):
             4. Use the audience's background to decide the level of difficulty of the content.
             5. Start the episode with Jamie welcoming the listener by name (extracting the Name from the audience's background) and introducing the topic of discussion with Jamie.
             6. Jamie is the HOST and Alex is the GUEST.
+            7. Don't use any code blocks or special formatting.
 
             FORMAT RULES:
             1. Use the standard script format: Name: Dialogue

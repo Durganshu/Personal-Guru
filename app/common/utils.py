@@ -624,24 +624,9 @@ def generate_podcast_audio(transcript, output_filename):
 
     start_time = time.time()
 
-    # DEBUG: Save raw transcript for verification
-    try:
-        with open("podcast_raw.txt", "w", encoding="utf-8") as f:
-            f.write(transcript)
-    except Exception as e:
-        print(f"Failed to save debug raw script: {e}")
-
     # 1. Parse Transcript
     print("Parsing transcript...")
     lines = parse_podcast_script(transcript)
-
-    # DEBUG: Save final processed script for verification
-    try:
-        with open("podcast_final.txt", "w", encoding="utf-8") as f:
-            for speaker, text in lines:
-                f.write(f"{speaker}: {text}\n")
-    except Exception as e:
-        print(f"Failed to save debug final script: {e}")
 
     if not lines:
         return False, "No dialogue lines found in transcript"
