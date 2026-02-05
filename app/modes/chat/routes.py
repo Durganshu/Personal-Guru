@@ -15,7 +15,7 @@ popup_agent = ChatModeChatPopupAgent()
 def mode(topic_name):
     """Render the main chat interface for a topic."""
     # Try to load from DB first
-    topic_data = load_topic(topic_name)
+    topic_data = load_topic(topic_name, update_timestamp=True)
     if not topic_data:
         topic_data = {"name": topic_name}
         save_topic(topic_name, topic_data)
@@ -201,11 +201,18 @@ def send_message(topic_name):
 
     except Exception as error:
         # Add an error message to the chat instead of crashing
-        error_msg = f"Sorry, I encountered an error: {error}"
-        chat_history.append({"role": "assistant", "content": error_msg})
-        chat_history_summary.append({"role": "assistant", "content": error_msg})
+        answer = f"Sorry, I encountered an error: {error}"
+        chat_history.append({"role": "assistant", "content": answer})
+        chat_history_summary.append({"role": "assistant", "content": answer})
 
     save_chat_history(topic_name, chat_history, history_summary=chat_history_summary, time_spent=time_spent)
+
+    # Check for AJAX request (JSON accepted or X-Requested-With header)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+              (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html)
+
+    if is_ajax:
+        return {"answer": answer}
 
     return redirect(url_for('chat.mode', topic_name=topic_name))
 

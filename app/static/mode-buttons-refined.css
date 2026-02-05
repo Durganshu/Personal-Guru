@@ -1,0 +1,19 @@
+﻿/* Smaller, refined mode buttons and label */
+.modes-label {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-right: 8px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.mode-buttons .button {
+    font-size: 0.85rem;
+    padding: 6px 12px;
+}
+
+.mode-buttons .button i {
+    margin-right: 5px;
+    font-size: 0.85rem;
+}

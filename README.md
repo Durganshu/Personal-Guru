@@ -18,7 +18,7 @@ Use desktop computer for the best experience.
 - **Podcast Generation:** transform any topic into a dialogue-based audio podcast for on-the-go learning.
 - **Voice Input (STT):** Use your microphone to interact with the AI assistant and navigation.
 - **Flashcards:** Review vocabulary and key concepts with interactive flashcards.
-- **Code Sandbox:** Execute Python code securely within the application for interactive learning. (Requires Python installed on the system for Windows standalone builds.)
+- **Code Sandbox:** Execute Python code securely within the application for interactive learning. (Requires a Python interpreter available on the system).
 - **Knowledge Assessment:** Answer multiple-choice questions after each step to test your understanding.
 - **Personalized Background:** Set your own background (e.g., "I am a beginner") to tailor the learning content to your level.
 - **Adaptive Learning:** The study plan adapts to your performance on the "Check Your Understanding" questions.
@@ -178,7 +178,7 @@ Below is a quick summary for manual setup:
       --data '{
         "input": "Hello! This is a test of local text to speech.",
         "model": "speaches-ai/Kokoro-82M-v1.0-ONNX",
-        "voice": "af_bella",
+        "voice": "af_heart",
         "speed": 1.0
       }'
     ```

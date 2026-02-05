@@ -163,6 +163,10 @@ function initFlashcardMode(config) {
             btnElement.disabled = true;
             btnElement.textContent = '...';
 
+            if (typeof showLoader === 'function') {
+                showLoader('Generating flashcards...');
+            }
+
             // Disable all other buttons during generation
             const allBtns = document.querySelectorAll('.button');
             allBtns.forEach(b => b.disabled = true);
@@ -196,6 +200,9 @@ function initFlashcardMode(config) {
                 // Re-enable buttons (though controls might be hidden if successful)
                 allBtns.forEach(b => b.disabled = false);
                 btnElement.textContent = originalText;
+                if (typeof hideLoader === 'function') {
+                    hideLoader();
+                }
             }
         }
 

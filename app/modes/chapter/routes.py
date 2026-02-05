@@ -29,6 +29,7 @@ assessor = AssessorAgent()
 feedback_agent = FeedbackAgent()
 md = MarkdownIt()
 podcast_agent = PodcastAgent()
+code_agent = CodeExecutionAgent()
 
 
 def _log_plan_generated(topic_name: str, plan_steps: list) -> None:
@@ -46,7 +47,7 @@ def _log_plan_generated(topic_name: str, plan_steps: list) -> None:
 @chapter_bp.route('/<topic_name>')
 def mode(topic_name):
     """Render the chapter mode page for a specific topic."""
-    topic_data = load_topic(topic_name)
+    topic_data = load_topic(topic_name, update_timestamp=True)
 
     # Initialize Persistent Sandbox
     # Initialize Topic Sandbox (Background)
@@ -712,12 +713,11 @@ def execute_code():
     if not code:
         return {"error": "No code provided"}, 400
 
-    # 1. Enhance code
+    # 1. Enhance Code
     enhanced_data = code_agent.enhance_code(code)
-    enhanced_code = enhanced_data.get('code')
+    enhanced_code = enhanced_data.get('code', code)
     dependencies = enhanced_data.get('dependencies', [])
 
-    # 2. Run in Sandbox
     # 2. Run in Sandbox
     from app.common.sandbox import Sandbox, SHARED_SANDBOX_ID, get_sandbox_id
     from flask_login import current_user

@@ -8,9 +8,47 @@ import glob
 import logging
 import threading
 import base64
+import hashlib
+import time
+import stat
 from config import Config
 
 logger = logging.getLogger(__name__)
+
+def force_rmtree(path):
+    """
+    Robustly removes a directory, handling platform-specific issues like file locks and readonly attributes.
+    """
+    if not os.path.exists(path):
+        return
+
+    def on_error(func, path, exc_info):
+        """Error handler for shutil.rmtree to handle readonly files."""
+        # Check if it's a 'permission denied' error
+        if not os.access(path, os.W_OK):
+            os.chmod(path, stat.S_IWRITE)
+            func(path)
+        else:
+            raise
+
+    # Try up to 3 times with a small delay for OS file locks to clear
+    for i in range(3):
+        try:
+            shutil.rmtree(path, onerror=on_error)
+            return
+        except Exception as e:
+            if i < 2:
+                logger.warning(f"rmtree failed for {path}, retrying... ({e})")
+                time.sleep(1)
+            else:
+                logger.error(f"Final rmtree attempt failed for {path}: {e}")
+                # Fallback: rename the folder to "marked_for_deletion" so it doesn't block recreation
+                try:
+                    trash_path = path + f"_old_{int(time.time())}"
+                    os.rename(path, trash_path)
+                    logger.info(f"Renamed stuck folder to {trash_path}")
+                except Exception as rename_e:
+                    logger.error(f"Even rename failed: {rename_e}")
 
 SHARED_SANDBOX_ID = "shared_env"
 # Libraries that should be pre-installed in the shared sandbox
@@ -75,9 +113,10 @@ def is_sandbox_available():
 
 def get_sandbox_id(user_id, topic_name):
     """Generates a deterministic sandbox ID for a user and topic."""
-    # Sanitize topic name: keep alphanumeric, replace others with underscore
-    safe_topic = "".join([c if c.isalnum() else "_" for c in topic_name])
-    return f"user_{user_id}_{safe_topic}"
+    # Hash the entire combo to keep paths ultra-short to ensure compatibility with all OS path limits
+    combined = f"{user_id}_{topic_name}"
+    short_hash = hashlib.md5(combined.encode()).hexdigest()[:16]
+    return f"sb_{short_hash}"
 
 def cleanup_old_sandboxes(base_path=None):
     """Deprecated: Use _cleanup_user_sandboxes instead. Kept for backward compatibility with install scripts."""
@@ -98,8 +137,14 @@ def ensure_shared_sandbox():
 
     # We use the Sandbox class to handle creation
     sb = Sandbox(sandbox_id=SHARED_SANDBOX_ID)
+    ready_file = os.path.join(sb.path, ".ready")
 
-    # Check if libraries are actually usable (simple import check)
+    # If it's already ready, just skip
+    if os.path.exists(ready_file):
+        logger.info("Shared sandbox is already marked as READY.")
+        return
+
+    # Check if libraries are actually usable
     check_script = "import numpy; import pandas; import matplotlib; print('Libs OK')"
     result = sb.run_code(check_script)
 
@@ -107,11 +152,17 @@ def ensure_shared_sandbox():
         logger.info(f"Shared sandbox missing libraries. Installing: {PREINSTALLED_LIBS}")
         try:
             sb.install_deps(PREINSTALLED_LIBS)
-            logger.info("Shared sandbox libraries installed successfully.")
+            # Create the sentinel file when truly done
+            with open(ready_file, "w") as f:
+                f.write("ready")
+            logger.info("Shared sandbox libraries installed and marked as READY.")
         except Exception as e:
             logger.error(f"Failed to install shared libs: {e}")
     else:
-        logger.info("Shared sandbox libraries verified.")
+        # If it was already OK but missing the file for some reason, create it
+        with open(ready_file, "w") as f:
+            f.write("ready")
+        logger.info("Shared sandbox libraries verified and marked as READY.")
 
 def background_init_topic_sandbox(user_id, topic_name):
     """
@@ -158,7 +209,7 @@ def _cleanup_user_sandboxes(user_id, active_sandbox_id):
 
         try:
             logger.info(f"Cleaning up inactive sandbox: {folder_name}")
-            shutil.rmtree(path)
+            force_rmtree(path)
         except Exception as e:
             logger.warning(f"Failed to remove sandbox {folder_name}: {e}")
 
@@ -188,15 +239,30 @@ class Sandbox:
         if not os.path.exists(self.base_path):
             os.makedirs(self.base_path)
 
-        # Create/Resurrect/Clone venv if not exists
-        if not os.path.exists(self.venv_path):
-            self._create_venv()
-
-        # Set paths
+        # Set paths for the local venv (might not exist yet)
         if os.name == 'nt':
-            self.python_executable = os.path.join(self.venv_path, "Scripts", "python.exe")
+            self.local_python = os.path.join(self.venv_path, "Scripts", "python.exe")
         else:
-            self.python_executable = os.path.join(self.venv_path, "bin", "python")
+            self.local_python = os.path.join(self.venv_path, "bin", "python")
+
+    @property
+    def python_executable(self):
+        """Returns the best available python executable (local or shared fallback)."""
+        if os.path.exists(self.local_python):
+            return self.local_python
+
+        # Fallback to template if we haven't created a local venv yet
+        if self.template_id:
+            template_path = os.path.join(self.base_path, self.template_id, "venv")
+            if os.name == 'nt':
+                fallback = os.path.join(template_path, "Scripts", "python.exe")
+            else:
+                fallback = os.path.join(template_path, "bin", "python")
+
+            if os.path.exists(fallback):
+                return fallback
+
+        return get_system_python()
 
     def _create_venv(self):
         """Creates the environment, optionally cloning from template."""
@@ -205,12 +271,26 @@ class Sandbox:
         if self.template_id:
             template_path = os.path.join(self.base_path, self.template_id, "venv")
             if os.path.exists(template_path):
+                # Wait for .ready file if cloning from shared_env
+                if self.template_id == SHARED_SANDBOX_ID:
+                    ready_file = os.path.join(os.path.dirname(template_path), ".ready")
+                    import time
+                    attempts = 0
+                    while not os.path.exists(ready_file) and attempts < 10:
+                        logger.info(f"Waiting for shared sandbox to be READY (attempt {attempts+1})...")
+                        time.sleep(5)
+                        attempts += 1
+
                 logger.info(f"Cloning sandbox {self.id} from template {self.template_id}...")
                 try:
-                    # 1. Copy the venv directory
+                    # 1. Clear target if it exists (partial failed clone)
+                    if os.path.exists(self.venv_path):
+                        force_rmtree(self.venv_path)
+
+                    # 2. Copy the venv directory
                     shutil.copytree(template_path, self.venv_path, symlinks=True)
 
-                    # 2. Fix the venv scripts by running venv update on top
+                    # 3. Fix the venv scripts by running venv update on top
                     builder = venv.EnvBuilder(with_pip=True, clear=False)
                     builder.create(self.venv_path)
 
@@ -219,7 +299,7 @@ class Sandbox:
                 except Exception as e:
                     logger.error(f"Clone failed: {e}. Falling back to fresh install.")
                     if os.path.exists(self.venv_path):
-                         shutil.rmtree(self.venv_path)
+                         force_rmtree(self.venv_path)
             else:
                 logger.warning(f"Template {self.template_id} not found. Creating fresh.")
 
@@ -258,22 +338,39 @@ class Sandbox:
 
         logger.info(f"Installing dependencies in {self.id}: {dependencies}")
 
-        if os.name == 'nt':
-            pip_path = os.path.join(self.venv_path, "Scripts", "pip")
-        else:
-            pip_path = os.path.join(self.venv_path, "bin", "pip")
+        # Ensure local venv exists before installing
+        if not os.path.exists(self.local_python):
+            logger.info(f"Local venv missing for {self.id}. Creating/Cloning now for dependencies...")
+            self._create_venv()
 
         try:
-            # Install
-            subprocess.check_call(
-                [pip_path, "install"] + dependencies,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+            # Use python -m pip for cross-platform reliability
+            # Capture output so we can log it on failure
+            # Use Popen to stream output so we don't look stuck
+            process = subprocess.Popen(
+                [self.python_executable, "-m", "pip", "install"] + dependencies,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding='utf-8',
+                errors='replace'  # Crucial for Windows to avoid crashing on weird chars
             )
+
+            # Read line by line
+            for line in process.stdout:
+                if line.strip():
+                    logger.info(f"pip: {line.strip()}")
+
+            process.wait()
+
+            if process.returncode != 0:
+                raise subprocess.CalledProcessError(process.returncode, process.args)
             logger.info("Dependencies installed.")
         except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to install dependencies: {e}")
-            raise
+            error_msg = e.stderr or e.stdout or str(e)
+            logger.error(f"Failed to install dependencies: {error_msg}")
+            # Raise a clear error that will be caught by the route handler
+            raise Exception(f"Dependency installation failed: {error_msg}")
 
     def run_code(self, code):
         """Runs the provided code in the sandbox."""
@@ -289,7 +386,7 @@ class Sandbox:
         script_path = os.path.join(self.path, "script.py")
 
         # Custom matplotlib handler
-        setup_code = """
+        setup_code = """# -*- coding: utf-8 -*-
 import sys
 try:
     import matplotlib
@@ -322,15 +419,31 @@ try:
 except ImportError:
     pass
 """
-        full_code = setup_code + "\n" + code
 
-        with open(script_path, "w") as f:
+        # Auto-display wrapper for simple assignments (Jupyter-style behavior)
+        # Detect if code has simple assignments but no print/output statements
+        import re
+        has_assignment = bool(re.search(r'^\s*\w+\s*=\s*.+$', code, re.MULTILINE))
+        has_output = 'print(' in code or 'plt.' in code or 'display(' in code
+
+        auto_display_code = ""
+        if has_assignment and not has_output:
+            # Extract variable names from assignments
+            var_names = re.findall(r'^\s*(\w+)\s*=', code, re.MULTILINE)
+            if var_names:
+                auto_display_code = "\n# Auto-display variables\n"
+                for var in var_names:
+                    auto_display_code += f"print(f'{var} = {{{var}}}')\n"
+
+        full_code = setup_code + "\n" + code + auto_display_code
+
+        if not os.path.exists(self.path):
+            os.makedirs(self.path, exist_ok=True)
+
+        with open(script_path, "w", encoding='utf-8') as f:
             f.write(full_code)
 
-        if os.name == 'nt':
-            python_path = os.path.join(self.venv_path, "Scripts", "python")
-        else:
-            python_path = os.path.join(self.venv_path, "bin", "python")
+        python_path = self.python_executable
 
         images = []
         try:
@@ -393,4 +506,4 @@ except ImportError:
         """Removes the sandbox directory."""
         if os.path.exists(self.path):
             logger.info(f"Cleaning up sandbox: {self.path}")
-            shutil.rmtree(self.path)
+            force_rmtree(self.path)

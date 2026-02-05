@@ -32,9 +32,9 @@ TTS_MODEL = os.getenv("TTS_MODEL", "tts-1")
 STT_BASE_URL = os.getenv("STT_BASE_URL", "http://localhost:8969/v1")
 STT_MODEL = os.getenv("STT_MODEL", "Systran/faster-whisper-medium.en")
 TTS_LANGUAGE = os.getenv("TTS_LANGUAGE", "en")
-TTS_VOICE_DEFAULT = os.getenv("TTS_VOICE_DEFAULT", "af_bella")
-TTS_VOICE_PODCAST_HOST = os.getenv("TTS_VOICE_PODCAST_HOST", "af_bella")
-TTS_VOICE_PODCAST_GUEST = os.getenv("TTS_VOICE_PODCAST_GUEST", "am_puck")
+TTS_VOICE_DEFAULT = os.getenv("TTS_VOICE_DEFAULT", "af_heart")
+TTS_VOICE_PODCAST_HOST = os.getenv("TTS_VOICE_PODCAST_HOST", "af_heart")
+TTS_VOICE_PODCAST_GUEST = os.getenv("TTS_VOICE_PODCAST_GUEST", "am_michael")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "not-required")
 
 
@@ -436,7 +436,7 @@ def generate_audio(text, step_index):
             with os.fdopen(list_file_fd, 'w') as f:
                 for tf in temp_files:
                     # Escape paths for ffmpeg concat demuxer
-                    # Windows paths need careful escaping, but forward slashes usually work or simple quoting
+                    # Normalizing paths for ffmpeg concat compatibility (forward slashes are safer across platforms)
                     safe_path = tf.replace("\\", "/")
                     f.write(f"file '{safe_path}'\n")
 
@@ -605,8 +605,8 @@ def generate_podcast_audio(transcript, output_filename):
     available_voices = [
         TTS_VOICE_PODCAST_HOST,
         TTS_VOICE_PODCAST_GUEST,
-        'af_bella', 'af_sarah', 'af_nicole', 'af_sky',
-        'am_adam', 'am_michael', 'am_puck',
+        'af_heart', 'af_sarah', 'af_nicole', 'af_sky',
+        'am_adam', 'am_michael', 'am_michael',
         'bf_emma', 'bf_isabella',
         'bm_george', 'bm_lewis'
     ]
