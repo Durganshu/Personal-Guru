@@ -131,6 +131,36 @@ body.dark-mode .code-execution-wrapper {
     overflow-y: auto;
 }
 
+/* Specific Resize Handle for Site Panel (Overrides common .resize-handle) */
+#resize-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 10px !important;
+    /* Wider for easier grabbing */
+    height: 100% !important;
+    cursor: ew-resize !important;
+    z-index: 3000 !important;
+    /* Ensure it's above side-panel (2000) and everything else */
+    background: transparent !important;
+    /* Invisible by default */
+    transition: background 0.2s;
+}
+
+#resize-handle:hover {
+    background: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Dark mode adjustment */
+body.dark-mode #resize-handle:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Hide the corner triangle indicator from the generic class */
+#resize-handle::after {
+    display: none !important;
+}
+
 
 /* Code Output */
 .output-block {
