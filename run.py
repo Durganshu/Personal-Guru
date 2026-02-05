@@ -1,6 +1,15 @@
 from dotenv import load_dotenv
 load_dotenv(override=True)
 import os  # noqa: E402
+import logging  # noqa: E402
+import sys  # noqa: E402
+
+# Configure logging at the entry point to ensure visibility of startup tasks
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 
 from app.common.config_validator import validate_config  # noqa: E402
 

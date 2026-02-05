@@ -346,12 +346,25 @@ class Sandbox:
         try:
             # Use python -m pip for cross-platform reliability
             # Capture output so we can log it on failure
-            subprocess.run(
+            # Use Popen to stream output so we don't look stuck
+            process = subprocess.Popen(
                 [self.python_executable, "-m", "pip", "install"] + dependencies,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 text=True,
-                check=True
+                encoding='utf-8',
+                errors='replace'  # Crucial for Windows to avoid crashing on weird chars
             )
+
+            # Read line by line
+            for line in process.stdout:
+                if line.strip():
+                    logger.info(f"pip: {line.strip()}")
+
+            process.wait()
+
+            if process.returncode != 0:
+                raise subprocess.CalledProcessError(process.returncode, process.args)
             logger.info("Dependencies installed.")
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr or e.stdout or str(e)
@@ -423,6 +436,9 @@ except ImportError:
                     auto_display_code += f"print(f'{var} = {{{var}}}')\n"
 
         full_code = setup_code + "\n" + code + auto_display_code
+
+        if not os.path.exists(self.path):
+            os.makedirs(self.path, exist_ok=True)
 
         with open(script_path, "w", encoding='utf-8') as f:
             f.write(full_code)
