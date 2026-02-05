@@ -250,9 +250,30 @@ function setupSidePanel() {
         if (newWidth > 300 && newWidth < window.innerWidth - 100) {
             sidePanel.style.width = `${newWidth}px`;
             document.body.style.paddingRight = `${newWidth}px`;
+            updateLayoutMode();
         }
     }
 }
+
+function updateLayoutMode() {
+    let sidePanelWidth = 0;
+    const sidePanel = document.getElementById('execution-side-panel');
+    if (sidePanel && sidePanel.classList.contains('open')) {
+        sidePanelWidth = sidePanel.offsetWidth;
+    }
+
+    // Check purely based on remaining width logic
+    const availableWidth = window.innerWidth - sidePanelWidth;
+
+    if (availableWidth <= 900) {
+        document.body.classList.add('layout-compact');
+    } else {
+        document.body.classList.remove('layout-compact');
+    }
+}
+
+// Ensure layout updates on window resize too
+window.addEventListener('resize', updateLayoutMode);
 
 function openSidePanel() {
     if (!sidePanel) sidePanel = document.getElementById('execution-side-panel');
@@ -260,12 +281,14 @@ function openSidePanel() {
     const width = sidePanel.offsetWidth;
     document.body.style.transition = "padding-right 0.3s ease-in-out";
     document.body.style.paddingRight = width + "px";
+    setTimeout(updateLayoutMode, 300); // Wait for transition
 }
 
 function closeSidePanel() {
     if (!sidePanel) sidePanel = document.getElementById('execution-side-panel');
     sidePanel.classList.remove('open');
     document.body.style.paddingRight = "0";
+    setTimeout(updateLayoutMode, 300); // Wait for transition
 }
 
 // Audio / Read Aloud Logic
