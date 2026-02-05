@@ -68,6 +68,10 @@ function hideLoader() {
     }
 }
 
+// Expose loader functions globally for use by other scripts
+window.showLoader = showLoader;
+window.hideLoader = hideLoader;
+
 // Fix for bfcache (back/forward cache)
 window.addEventListener('pageshow', (event) => {
     if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
