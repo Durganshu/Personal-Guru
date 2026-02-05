@@ -594,22 +594,23 @@ def parse_podcast_script(transcript):
             speaker = match.group(1).strip()
             # Remove markdown bolding or quotes from the speaker name
             speaker = speaker.replace('*', '').replace('"', '').replace("'", "")
+            # Remove parentheticals like "Jamie (Host)"
+            speaker = re.sub(r'\(.*?\)', '', speaker).strip()
 
             content = match.group(2).strip()
             # Clean content: remove surrounding quotes and extra asterisks
             content = content.strip('"').strip('*').strip()
 
             if content:
-                # Standardize speaker names to ensure they match our voice map
+                # Strictly filter allowed speakers
                 if speaker.lower() == HOST_NAME.lower():
                     lines.append((HOST_NAME, content))
                 elif speaker.lower() == GUEST_NAME.lower():
                     lines.append((GUEST_NAME, content))
                 else:
-                    # Keep unexpected speakers as is, or could filter them out.
-                    # For now, keeping them allows the process to not fail silently,
-                    # but they might get a default voice.
-                    lines.append((speaker, content))
+                    # Ignore other speakers or malformed lines (e.g. code like 'print("foo": bar)')
+                    # This prevents code blocks from leaking into the script
+                    continue
     return lines
 
 
@@ -623,9 +624,24 @@ def generate_podcast_audio(transcript, output_filename):
 
     start_time = time.time()
 
+    # DEBUG: Save raw transcript for verification
+    try:
+        with open("podcast_raw.txt", "w", encoding="utf-8") as f:
+            f.write(transcript)
+    except Exception as e:
+        print(f"Failed to save debug raw script: {e}")
+
     # 1. Parse Transcript
     print("Parsing transcript...")
     lines = parse_podcast_script(transcript)
+
+    # DEBUG: Save final processed script for verification
+    try:
+        with open("podcast_final.txt", "w", encoding="utf-8") as f:
+            for speaker, text in lines:
+                f.write(f"{speaker}: {text}\n")
+    except Exception as e:
+        print(f"Failed to save debug final script: {e}")
 
     if not lines:
         return False, "No dialogue lines found in transcript"

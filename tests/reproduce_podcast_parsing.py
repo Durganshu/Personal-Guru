@@ -49,6 +49,20 @@ alex: Hi for having me.
     assert parsed4[0][0] == "Jamie"
     assert parsed4[1][0] == "Alex"
 
+    # Test Case 5: Garbage / Code Blocks (from User Log)
+    script5 = """
+Jamie: Real dialogue.
+# Outputs: 5 4 3 2 1
+print("Valid:", score)
+1️⃣ Trying to loop over an integer (`for i in 5: `)
+Alex: Another real dialogue.
+    """
+    parsed5 = parse_podcast_script(script5)
+    print(f"Test 5 (Garbage Filtering): {parsed5}")
+    assert len(parsed5) == 2
+    assert parsed5[0] == ("Jamie", "Real dialogue.")
+    assert parsed5[1] == ("Alex", "Another real dialogue.")
+
     print("\nAll Tests Passed!")
 
 if __name__ == "__main__":
