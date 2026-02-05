@@ -48,7 +48,7 @@
     /* Text must be dark since bg is always white */
     color: var(--primary-blue);
     font-size: 1rem;
-    font-weight: 600;
+    font-weight: 500;
     /* Collapse width so it doesn't push the logo off-center */
     max-width: 0;
     margin-left: 0;
