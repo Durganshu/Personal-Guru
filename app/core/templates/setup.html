@@ -467,8 +467,8 @@
                             <div class="form-group">
                                 <label for="llm_ctx">Context Window Size</label>
                                 <input type="number" id="llm_ctx" name="llm_ctx"
-                                    value="{{ defaults.get('LLM_NUM_CTX', '4096') }}">
-                                <div class="hint">Higher values allow more text memory but use more RAM.</div>
+                                    value="{{ defaults.get('LLM_MAX_OUTPUT_TOKENS', '8192') }}">
+                                <div class="hint">This is the maximum number of tokens the model can generate at once.</div>
                             </div>
                         </div>
 
