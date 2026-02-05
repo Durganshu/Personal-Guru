@@ -1,14 +1,132 @@
 const loader = document.getElementById('loader');
-function showLoader() {
-    if (loader) {
-        loader.style.display = 'block';
+const loaderText = document.getElementById('loader-text');
+const factText = document.getElementById('fact-text');
+const loaderBg = document.getElementById('loader-bg');
+
+/* Uses LEARNING_FACTS from static/facts.js */
+const facts = (typeof LEARNING_FACTS !== 'undefined') ? LEARNING_FACTS : [
+    "Learning is a journey, not a destination.",
+    "Practice makes progress."
+];
+
+const icons = ['fa-brain', 'fa-lightbulb', 'fa-book-open', 'fa-atom', 'fa-rocket', 'fa-puzzle-piece', 'fa-layer-group', 'fa-magic'];
+
+function setupFloatingIcons() {
+    if (!loaderBg || loaderBg.children.length > 0) return;
+
+    // Create 15 floating icons
+    for (let i = 0; i < 15; i++) {
+        const icon = document.createElement('i');
+        const randomIcon = icons[Math.floor(Math.random() * icons.length)];
+        icon.className = `fas ${randomIcon} floating-icon`;
+
+        // Randomize position and animation properties
+        icon.style.left = `${Math.random() * 100}%`;
+        icon.style.animationDuration = `${10 + Math.random() * 20}s`; // 10-30s
+        icon.style.animationDelay = `${Math.random() * 5}s`;
+        icon.style.opacity = Math.random() * 0.5 + 0.1; // Varied opacity
+        icon.style.fontSize = `${1 + Math.random() * 2}rem`; // Varied size
+
+        loaderBg.appendChild(icon);
     }
 }
+
+let hookInterval;
+const hooks = ["Analyzing complexity...", "Finding resources...", "Structuring content...", "Almost there..."];
+
+function showLoader(message = "Preparing your experience...") {
+    if (loader) {
+        setupFloatingIcons();
+        if (loaderText) loaderText.textContent = message;
+
+        // Set Random Fact
+        if (factText) {
+            factText.textContent = facts[Math.floor(Math.random() * facts.length)];
+        }
+
+        loader.style.display = 'flex';
+
+        // Cycle hook messages if generic
+        if (message === "Preparing your experience...") {
+            let i = 0;
+            if (hookInterval) clearInterval(hookInterval);
+            hookInterval = setInterval(() => {
+                if (loaderText) loaderText.textContent = hooks[i % hooks.length];
+                i++;
+            }, 3000);
+        }
+
+        // Set flag for next page
+        localStorage.setItem('loader_active', 'true');
+    }
+}
+
 function hideLoader() {
     if (loader) {
         loader.style.display = 'none';
+        if (hookInterval) clearInterval(hookInterval);
     }
 }
+
+// Check for transition on load
+document.addEventListener('DOMContentLoaded', () => {
+    if (localStorage.getItem('loader_active') === 'true') {
+        localStorage.removeItem('loader_active');
+
+        // Show "Ready!" state manually before hiding
+        if (loader && loaderText) {
+            setupFloatingIcons();
+            loader.style.display = 'flex';
+            loaderText.textContent = "Ready!";
+
+            // Hide fact for success state
+            const factBox = document.getElementById('loader-fact');
+            if (factBox) factBox.style.display = 'none';
+
+            // Replace spinner with checkmark
+            const spinner = loader.querySelector('.spinner');
+            if (spinner) {
+                spinner.style.display = 'none';
+
+                const check = document.createElement('i');
+                check.className = 'fas fa-check-circle';
+                check.style.fontSize = '4rem';
+                check.style.color = '#4ade80';
+                check.style.marginBottom = '20px';
+                check.style.animation = 'scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+
+                // Insert checkmark where spinner was
+                spinner.parentNode.insertBefore(check, spinner);
+
+                // Keep "Done" visible for 800ms
+                setTimeout(() => {
+                    loader.style.opacity = '0';
+                    loader.style.transition = 'opacity 0.5s ease';
+                    setTimeout(() => {
+                        loader.style.display = 'none';
+                        loader.style.opacity = '1'; // Reset for next time
+                        check.remove(); // Cleanup
+                        spinner.style.display = 'block'; // Restore spinner
+                        if (factBox) factBox.style.display = ''; // Restore fact box
+                    }, 500);
+                }, 800);
+            } else {
+                hideLoader();
+            }
+        }
+    } else {
+        // Normal load (hide just in case)
+        hideLoader(); // CSS hides it by default but good to be sure
+    }
+
+    // Theme logic...
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        body.classList.remove('dark-mode');
+    } else {
+        body.classList.add('dark-mode');
+    }
+});
 
 const themeSwitcher = document.getElementById('theme-switcher');
 const body = document.body;

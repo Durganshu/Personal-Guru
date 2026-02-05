@@ -436,7 +436,7 @@ def generate_audio(text, step_index):
             with os.fdopen(list_file_fd, 'w') as f:
                 for tf in temp_files:
                     # Escape paths for ffmpeg concat demuxer
-                    # Windows paths need careful escaping, but forward slashes usually work or simple quoting
+                    # Normalizing paths for ffmpeg concat compatibility (forward slashes are safer across platforms)
                     safe_path = tf.replace("\\", "/")
                     f.write(f"file '{safe_path}'\n")
 

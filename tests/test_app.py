@@ -139,7 +139,11 @@ def test_delete_topic(auth_client, mocker, logger):
     """Test deleting a topic."""
     logger.section("test_delete_topic")
     topic_name = "delete_test"
-    mocker.patch('app.core.routes.get_all_topics', return_value=[topic_name])
+
+    # Mock get_topics_metadata to return topic metadata (not just names)
+    topic_metadata = [{'name': topic_name, 'has_plan': True, 'has_chat': False,
+                       'has_quiz': False, 'has_flashcards': False, 'has_reels': False}]
+    mocker.patch('app.common.storage.get_topics_metadata', return_value=topic_metadata)
 
     # Check that the topic is listed
     response = auth_client.get('/')
@@ -153,7 +157,7 @@ def test_delete_topic(auth_client, mocker, logger):
     assert response.headers['Location'] == '/'
 
     # Check that the topic is no longer listed
-    mocker.patch('app.core.routes.get_all_topics', return_value=[])
+    mocker.patch('app.common.storage.get_topics_metadata', return_value=[])
     response = auth_client.get('/')
     assert bytes(topic_name, 'utf-8') not in response.data
 

@@ -409,7 +409,7 @@ def save_chat_history(topic_name, history, history_summary=None, time_spent=0, p
         )
 
 
-def load_topic(topic_name):
+def load_topic(topic_name, update_timestamp=False):
     """
     Load topic data from PostgreSQL and reconstruct dictionary structure.
     Returns None if topic doesn't exist or user not authenticated (normal behavior for new topics).
@@ -420,13 +420,12 @@ def load_topic(topic_name):
     if not topic:
         return None
 
-    # User requested Modified At to update when opened ("any time")
-    try:
-        topic.modified_at = datetime.datetime.utcnow()
-        db.session.commit()
-    except Exception as e:
-        logging.warning(f"Failed to update modify time on read for {topic_name}: {e}")
-        # Don't block loading
+    if update_timestamp:
+        try:
+            topic.modified_at = datetime.datetime.utcnow()
+            db.session.commit()
+        except Exception as e:
+            logging.warning(f"Failed to update modify time for {topic_name}: {e}")
 
     data = {
         "name": topic.name,
@@ -554,7 +553,8 @@ def get_all_topics():
 
         topics = Topic.query.with_entities(
             Topic.name).filter_by(
-            user_id=current_user.userid).all()
+            user_id=current_user.userid).order_by(
+            Topic.modified_at.desc()).all()
         return [t.name for t in topics]
 
     except OperationalError as e:
@@ -572,6 +572,34 @@ def get_all_topics():
             operation="get_all_topics",
             error_code="DB108"
         )
+
+def get_topics_metadata():
+    """
+    Get metadata for all topics belonging to the current user.
+    Returns a list of dictionaries with name and status flags (has_plan, has_chat, etc.).
+    Sorted by modified_at DESC (Recently Opened/Modified).
+    """
+    if not current_user.is_authenticated:
+        return []
+
+    try:
+        topics = Topic.query.filter_by(user_id=current_user.userid).order_by(Topic.modified_at.desc()).all()
+
+        metadata = []
+        for t in topics:
+            metadata.append({
+                'name': t.name,
+                'has_plan': bool(t.study_plan),
+                'has_chat': bool(t.chat_mode and t.chat_mode.history),
+                'has_quiz': bool(t.quiz_mode),
+                'has_flashcards': bool(t.flashcard_mode),
+                'has_reels': False # Reels not yet persistent in separate table
+            })
+        return metadata
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error fetching topics metadata: {e}")
+        return []
 
 def delete_topic(topic_name):
     """Delete a topic and all its related  data."""

@@ -3,104 +3,150 @@
 {% block title %}Personalized Learning App{% endblock %}
 
 {% block content %}
-<h1>What would you like to learn today?</h1>
-<div style="text-align: right; margin-top: -30px; margin-bottom: 20px;">
-    <a href="{{ url_for('main.settings') }}" class="button secondary"
-        style="font-size: 0.9rem; padding: 0.5rem 1rem;">⚙️ Setup Environment</a>
-</div>
-<form method="post" onsubmit="showLoader()">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-    <input type="hidden" name="jwe_token" value="{{ jwe_token if jwe_token else '' }}">
-    <input type="text" name="topic" size="50" placeholder="Enter a new topic..." required maxlength="255">
-    {% if error %}
-    <p class="error error-text">{{ error }}</p>
-    {% endif %}
-    <div id="suggestions-container" style="display: none; margin-top: 10px; margin-bottom: 20px;">
-        <h4 class="suggestions-heading">Suggested Topics:</h4>
-        <div id="suggestions-list" class="suggestions-chips">
-            <!-- Suggestions will be populated here -->
-        </div>
-        <div id="suggestions-loading" class="suggestions-loader">
-            <div class="skeleton-chip"></div>
-            <div class="skeleton-chip"></div>
-            <div class="skeleton-chip"></div>
-        </div>
+<section id="new-topic-section" class="new-topic-card">
+    <div style="text-align: right; margin-bottom: 15px;">
+        <a href="{{ url_for('main.settings') }}" class="button secondary"
+            style="font-size: 0.9rem; padding: 0.5rem 1rem;">⚙️ Setup Environment</a>
     </div>
+    <h1>What would you like to learn today?</h1>
+    <form method="post" onsubmit="showLoader()">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <input type="hidden" name="jwe_token" value="{{ jwe_token if jwe_token else '' }}">
 
-    <div class="learning-modes">
-        <p>Choose a learning mode:</p>
-        <label>
-            <input type="radio" name="mode" value="chapter" checked> Chapter Mode
-        </label>
-        <label>
-            <input type="radio" name="mode" value="chat"> Chat Mode
-        </label>
-        <label>
-            <input type="radio" name="mode" value="quiz"> Quiz Mode
-        </label>
-        <label>
-            <input type="radio" name="mode" value="flashcard"> Flash Card Mode
-        </label>
-        <label title="Experimental feature: usage may be unstable">
-            <input type="radio" name="mode" value="reel"> Reel Mode (Experimental)
-        </label>
-    </div>
-    <input type="submit" value="Start Learning" class="button">
-</form>
-
-<h2>Your Saved Topics</h2>
-{% if topics %}
-<div class="topics-list">
-    <ul>
-        {% for topic in topics %}
-        <li>
-            <span class="topic-name"><strong>{{ topic.name }}</strong></span>
-
-            <div class="mode-buttons">
-                <!-- Chapter Mode -->
-                <a href="{{ url_for('chapter.mode', topic_name=topic.name) }}"
-                    class="button {% if not topic.has_plan %}secondary{% endif %}">
-                    Chapter
-                </a>
-
-                <!-- Chat Mode -->
-                <a href="{{ url_for('chat.mode', topic_name=topic.name) }}"
-                    class="button {% if not topic.has_chat %}secondary{% endif %}">
-                    Chat
-                </a>
-
-                <!-- Quiz Mode -->
-                <a href="{{ url_for('quiz.mode', topic_name=topic.name) }}"
-                    class="button {% if not topic.has_quiz %}secondary{% endif %}">
-                    Quiz
-                </a>
-
-                <!-- Flashcard Mode -->
-                <a href="{{ url_for('flashcard.mode', topic_name=topic.name) }}"
-                    class="button {% if not topic.has_flashcards %}secondary{% endif %}">
-                    Flashcard
-                </a>
-
-                <!-- Reel Mode -->
-                <a href="{{ url_for('reel.mode', topic_name=topic.name) }}"
-                    class="button {% if not topic.has_reels %}secondary{% endif %}"
-                    title="Experimental feature: usage may be unstable">
-                    Reel
-                </a>
+        <div class="learning-modes">
+            <p class="modes-heading">Choose a learning mode:</p>
+            <div class="mode-options">
+                <label class="mode-option">
+                    <input type="radio" name="mode" value="chapter" checked>
+                    <span class="mode-label"><i class="fas fa-book-open"></i> Chapter Mode</span>
+                </label>
+                <label class="mode-option">
+                    <input type="radio" name="mode" value="chat">
+                    <span class="mode-label"><i class="fas fa-comments"></i> Chat Mode</span>
+                </label>
+                <label class="mode-option">
+                    <input type="radio" name="mode" value="quiz">
+                    <span class="mode-label"><i class="fas fa-question-circle"></i> Quiz Mode</span>
+                </label>
+                <label class="mode-option">
+                    <input type="radio" name="mode" value="flashcard">
+                    <span class="mode-label"><i class="fas fa-clone"></i> Flash Card Mode</span>
+                </label>
+                <label class="mode-option" title="Experimental feature: usage may be unstable">
+                    <input type="radio" name="mode" value="reel">
+                    <span class="mode-label"><i class="fas fa-play-circle"></i> Reel Mode <span
+                            class="experimental-badge">Beta</span></span>
+                </label>
             </div>
+        </div>
 
-            <a href="{{ url_for('main.delete_topic_route', topic_name=topic.name) }}"
-                class="button delete-button">Delete</a>
-        </li>
-        {% endfor %}
-    </ul>
+        <input type="text" name="topic" size="50" placeholder="Enter a new topic..." required maxlength="255">
+        {% if error %}
+        <p class="error error-text">{{ error }}</p>
+        {% endif %}
 
-</div>
-{% else %}
-<p>You don't have any saved topics yet.</p>
-{% endif %}
+        <div id="suggestions-container" style="display: none; margin-top: 10px; margin-bottom: 20px;">
+            <h4 class="suggestions-heading">Suggested Topics:</h4>
+            <div id="suggestions-list" class="suggestions-chips">
+                <!-- Suggestions will be populated here -->
+            </div>
+            <div id="suggestions-loading" class="suggestions-loader">
+                <div class="skeleton-chip"></div>
+                <div class="skeleton-chip"></div>
+                <div class="skeleton-chip"></div>
+            </div>
+        </div>
+
+        <input type="submit" value="Start Learning" class="button submit-centered">
+    </form>
+</section>
+
+<section id="saved-topics">
+    <h2>Your Saved Topics</h2>
+    {% if topics %}
+    <div class="topics-controls-toolbar">
+        <div class="topics-search-wrapper">
+            <input type="text" id="topic-search" placeholder="🔍 Search topics..." autocomplete="off">
+        </div>
+        <div class="topics-pagination-controls">
+            <span id="topics-count" class="topics-count"></span>
+            <select id="topics-page-size" class="page-size-select" title="Items per page">
+                <option value="5">5 per page</option>
+                <option value="10">10 per page</option>
+                <option value="20">20 per page</option>
+                <option value="all">Show All</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="topics-list">
+        <ul>
+            {% for topic in topics %}
+            <li title="Select a mode to continue">
+                <span class="topic-name"><strong>{{ topic.name }}</strong></span>
+
+                <div class="mode-buttons">
+                    <span class="modes-label">Guru Modes:</span>
+
+                    <!-- Chapter Mode -->
+                    <a href="{{ url_for('chapter.mode', topic_name=topic.name) }}"
+                        onclick="showLoader('Drafting your chapter...')"
+                        class="button {% if not topic.has_plan %}secondary{% endif %}" title="Study Guide">
+                        <i class="fas fa-book-open"></i> Chapter
+                    </a>
+
+                    <!-- Chat Mode -->
+                    <a href="{{ url_for('chat.mode', topic_name=topic.name) }}"
+                        onclick="showLoader('Summoning AI Tutor...')"
+                        class="button {% if not topic.has_chat %}secondary{% endif %}" title="Chat with AI">
+                        <i class="fas fa-comments"></i> Chat
+                    </a>
+
+                    <!-- Quiz Mode -->
+                    <a href="{{ url_for('quiz.mode', topic_name=topic.name) }}"
+                        onclick="showLoader('Curating your quiz...')"
+                        class="button {% if not topic.has_quiz %}secondary{% endif %}" title="Take Quiz">
+                        <i class="fas fa-question-circle"></i> Quiz
+                    </a>
+
+                    <!-- Flashcard Mode -->
+                    <a href="{{ url_for('flashcard.mode', topic_name=topic.name) }}"
+                        onclick="showLoader('Creating flashcards...')"
+                        class="button {% if not topic.has_flashcards %}secondary{% endif %}" title="Review Flashcards">
+                        <i class="fas fa-clone"></i> Flashcard
+                    </a>
+
+                    <!-- Reel Mode -->
+                    <a href="{{ url_for('reel.mode', topic_name=topic.name) }}"
+                        onclick="showLoader('Preparing reel...')"
+                        class="button {% if not topic.has_reels %}secondary{% endif %}"
+                        title="Experimental feature: usage may be unstable">
+                        <i class="fas fa-play-circle"></i> Reel
+                    </a>
+
+                    <a href="{{ url_for('main.delete_topic_route', topic_name=topic.name) }}"
+                        onclick="showLoader('Deleting topic...')" class="button delete-button icon-only"
+                        title="Delete Topic" aria-label="Delete {{ topic.name }}">
+                        <i class="fas fa-trash-alt"></i>
+                    </a>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <!-- Pagination Container -->
+        <div id="topics-pagination" class="pagination-container"></div>
+    </div>
+    {% else %}
+    <p>You don't have any saved topics yet.</p>
+    {% endif %}
+</section>
 
 <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='learning-modes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='section-separation.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='mode-buttons-refined.css') }}">
 
 <script src="{{ url_for('static', filename='suggestions.js') }}"></script>
+<script src="{{ url_for('static', filename='topics-manager.js') }}"></script>
 {% endblock %}

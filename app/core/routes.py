@@ -22,29 +22,63 @@ def index():
             pass  # Ignore cleanup errors
         session.pop('sandbox_id', None)
 
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+
+    # Manual Pagination Helper Class
+    class MockPagination:
+        def __init__(self, items, page, per_page, total):
+            self.items = items
+            self.page = page
+            self.per_page = per_page
+            self.total = total
+            self.pages = (total + per_page - 1) // per_page
+            self.has_prev = page > 1
+            self.has_next = page < self.pages
+            self.prev_num = page - 1
+            self.next_num = page + 1
+
     if request.method == 'POST':
         topic_name = request.form.get('topic', '').strip()
         mode = request.form.get('mode', 'chapter')
 
         if not topic_name:
-            topics = get_all_topics()
+            all_topics = get_all_topics()
+            # Default to first page on error
+            start = 0
+            end = per_page
+            paginated_items = all_topics[start:end]
+            pagination = MockPagination(paginated_items, 1, per_page, len(all_topics))
+
             topics_data = []
-            for topic in topics:
+            for topic in paginated_items:
                 data = load_topic(topic)
                 if data:
                     has_plan = bool(data.get('plan'))
                     topics_data.append({'name': topic, 'has_plan': has_plan})
                 else:
                     topics_data.append({'name': topic, 'has_plan': True})
+
             return render_template(
                 'index.html',
                 topics=topics_data,
+                pagination=pagination,
+                per_page=per_page,
                 error="Please enter a topic name.")
 
         # Telemetry Hook: Topic Created/Opened (Intent)
         try:
-            log_telemetry(
-                event_type='topic_created' if topic_name not in get_all_topics() else 'topic_opened',
+             # Check existence using get_all_topics since we have the list
+             # Note: get_all_topics() hits DB, but we need it eventually?
+             # For specific topic check, Model query is better but we want to avoid raw queries if possible.
+             # But here we are just logging log_telemetry.
+             # Let's just use load_topic check which is safe or assume new.
+             # Actually, simpler:
+             all_existing = get_all_topics()
+             exists = topic_name in all_existing
+
+             log_telemetry(
+                event_type='topic_created' if not exists else 'topic_opened',
                 triggers={'source': 'web_ui', 'action': 'form_submit'},
                 payload={'topic_name': topic_name, 'mode': mode}
             )
@@ -68,45 +102,39 @@ def index():
                 return redirect(url_for('reel.mode', topic_name=topic_name))
 
             elif mode == 'chat':
-                # Chat doesn't have a 'mode' route yet, but we will add/fix it.
                 return redirect(url_for('chat.mode', topic_name=topic_name))
 
             else:
+                # Valid existing topics needed for re-render
+                all_topics = get_all_topics()
+                start = 0
+                end = per_page
+                paginated_items = all_topics[start:end]
+                pagination = MockPagination(paginated_items, 1, per_page, len(all_topics))
+
+                topics_data = []
+                for t in paginated_items:
+                     topics_data.append({'name': t, 'has_plan': True})
+
                 return render_template(
                     'index.html',
-                    topics=get_all_topics(),
+                    topics=topics_data,
+                    pagination=pagination,
+                    per_page=per_page,
                     error=f"Mode {mode} not available")
 
 
-    topics = get_all_topics()
-    topics_data = []
-    for topic in topics:
-        data = load_topic(topic)
-        if data:
-            plan = data.get('plan')
-            flashcard_mode = data.get('flashcard_mode')
-            quiz = data.get('quiz_mode')
-            chat_history = data.get('chat_history')
+    from app.common.storage import get_topics_metadata
+    all_topics_meta = get_topics_metadata()
 
-            topics_data.append({
-                'name': topic,
-                'has_plan': bool(plan),
-                'has_flashcards': bool(flashcard_mode),
-                'has_quiz': bool(quiz),
-                'has_chat': bool(chat_history),
-                'has_reels': False  # Placeholder as reels aren't stored in topic currently
-            })
-        else:
-            topics_data.append({
-                'name': topic,
-                'has_plan': False,
-                'has_flashcards': False,
-                'has_quiz': False,
-                'has_chat': False,
-                'has_reels': False
-            })
+    total = len(all_topics_meta)
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_items = all_topics_meta[start:end]
 
-    return render_template('index.html', topics=topics_data)
+    pagination = MockPagination(paginated_items, page, per_page, total)
+
+    return render_template('index.html', topics=paginated_items, pagination=pagination, per_page=per_page)
 
 
 @main_bp.route('/favicon.ico')
