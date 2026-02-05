@@ -17,7 +17,7 @@ teacher = FlashcardTeachingAgent()
 @flashcard_bp.route('/<topic_name>')
 def mode(topic_name):
     """Display flashcard mode with saved flashcards or generation UI."""
-    topic_data = load_topic(topic_name)
+    topic_data = load_topic(topic_name, update_timestamp=True)
     if not topic_data:
         # Topic doesn't exist yet, allow user to generate content
         flashcards = []

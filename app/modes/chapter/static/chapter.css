@@ -16,28 +16,81 @@
 
 /* Code Execution Styles */
 .code-execution-wrapper {
-    position: relative;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+body.dark-mode .code-execution-wrapper {
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+.code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #2d2d2d;
+    padding: 8px 15px;
+    color: #a9a9a9;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.code-lang-label {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    color: #888;
+}
+
+.code-header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.copy-button,
+.execute-button {
+    background: none !important;
+    border: none !important;
+    color: #a9a9a9 !important;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    position: static !important;
+    /* Overriding previous absolute styles */
+    width: auto !important;
+    opacity: 1 !important;
+}
+
+.copy-button:hover,
+.execute-button:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
 }
 
 .execute-button {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 10;
-    padding: 5px 10px;
-    font-size: 0.8rem;
-    background-color: #28a745;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    opacity: 0.8;
-    transition: opacity 0.2s;
+    color: #28a745 !important;
 }
 
 .execute-button:hover {
-    opacity: 1;
+    background-color: rgba(40, 167, 69, 0.1) !important;
+    color: #34ce57 !important;
+}
+
+.copy-button.copied {
+    color: #34ce57 !important;
+}
+
+.code-execution-wrapper pre {
+    margin-top: 0 !important;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
 }
 
 /* Side Panel */
@@ -78,19 +131,36 @@
     overflow-y: auto;
 }
 
-.resize-handle {
+/* Specific Resize Handle for Site Panel (Overrides common .resize-handle) */
+#resize-handle {
     position: absolute;
-    left: 0;
     top: 0;
-    bottom: 0;
-    width: 5px;
-    cursor: col-resize;
-    background-color: transparent;
+    left: 0;
+    width: 10px !important;
+    /* Wider for easier grabbing */
+    height: 100% !important;
+    cursor: ew-resize !important;
+    z-index: 3000 !important;
+    /* Ensure it's above side-panel (2000) and everything else */
+    background: transparent !important;
+    /* Invisible by default */
+    transition: background 0.2s;
 }
 
-.resize-handle:hover {
-    background-color: #007bff;
+#resize-handle:hover {
+    background: rgba(0, 0, 0, 0.1) !important;
 }
+
+/* Dark mode adjustment */
+body.dark-mode #resize-handle:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Hide the corner triangle indicator from the generic class */
+#resize-handle::after {
+    display: none !important;
+}
+
 
 /* Code Output */
 .output-block {
@@ -112,22 +182,22 @@
 
 /* Dark Mode Overrides */
 body.dark-mode .side-panel {
-    background-color: #2c2c2c;
-    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
+    background-color: #1C212C;
+    box-shadow: -2px 0 10px rgba(144, 39, 161, 0.15);
 }
 
 body.dark-mode .side-panel-header {
-    background-color: #3a3a3a;
-    border-bottom: 1px solid #555;
-    color: #e0e0e0;
+    background-color: #0D1117;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: #F2EBE9;
 }
 
 body.dark-mode .side-panel-content {
-    color: #e0e0e0;
+    color: #F2EBE9;
 }
 
 body.dark-mode .output-image {
-    border-color: #555;
+    border-color: rgba(255, 255, 255, 0.05);
 }
 
 /* Plan Sidebar (Unified) */
@@ -148,8 +218,9 @@ body.dark-mode .output-image {
 }
 
 body.dark-mode #plan-sidebar {
-    background: #2d2d2d;
-    color: #e0e0e0;
+    background: #1C212C;
+    color: #F2EBE9;
+    border-color: rgba(255, 255, 255, 0.05);
 }
 
 #plan-sidebar.collapsed {
@@ -225,8 +296,8 @@ body.dark-mode #plan-sidebar {
 }
 
 body.dark-mode #plan-sidebar li.active {
-    color: #8b9af0;
-    background-color: rgba(139, 154, 240, 0.15);
+    color: #1A5CBF;
+    background-color: rgba(26, 92, 191, 0.15);
 }
 
 /* Plan Modification Form */
@@ -262,8 +333,8 @@ body.dark-mode #plan-sidebar li.active {
 }
 
 body.dark-mode #plan-modification-input {
-    background: #404040;
-    border-color: #555;
+    background: #0D1117;
+    border-color: rgba(255, 255, 255, 0.05);
 }
 
 #plan-modification-input:read-only {
@@ -316,8 +387,8 @@ body.dark-mode #plan-modification-input {
 }
 
 body.dark-mode .podcast-player {
-    background: #333;
-    border-color: #444;
+    background: #1C212C;
+    border-color: rgba(255, 255, 255, 0.05);
 }
 
 .podcast-control-btn {
@@ -383,7 +454,7 @@ body.dark-mode .podcast-progress-bar {
 }
 
 .generate-podcast-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1A5CBF 0%, #9027A1 100%);
     color: white;
     border: none;
     padding: 8px 16px;
@@ -426,7 +497,7 @@ body.dark-mode .podcast-progress-bar {
     position: fixed;
     /* Fixed to keep it relative to viewport */
     z-index: 1000;
-    background: linear-gradient(135deg, #6e8efb, #a777e3);
+    background: linear-gradient(135deg, #1A5CBF, #9027A1);
     color: white;
     padding: 8px 16px;
     border-radius: 20px;

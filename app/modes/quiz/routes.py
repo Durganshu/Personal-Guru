@@ -54,7 +54,7 @@ def generate_quiz(topic_name, count):
 @quiz_bp.route('/<topic_name>')
 def mode(topic_name):
     """Load quiz from saved data or generate new one."""
-    topic_data = load_topic(topic_name)
+    topic_data = load_topic(topic_name, update_timestamp=True)
 
     # If quiz exists in saved data, use it
     if topic_data and topic_data.get('quiz_mode'):

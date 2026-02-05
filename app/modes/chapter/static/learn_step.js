@@ -70,23 +70,62 @@ function setupCodeExecution(renderedContent) {
         const wrapper = document.createElement('div');
         wrapper.className = 'code-execution-wrapper';
         pre.parentNode.insertBefore(wrapper, pre);
-        wrapper.appendChild(pre);
 
-        const btn = document.createElement('button');
-        btn.className = 'execute-button';
+        // Create Header
+        const header = document.createElement('div');
+        header.className = 'code-header';
 
-        if (config.sandboxAvailable === false) {
-            btn.innerText = 'Execute Code (Unavailable)';
-            btn.title = 'Python is not installed on this system. Code execution is disabled.';
-            btn.disabled = true;
-            btn.style.opacity = '0.6';
-            btn.style.cursor = 'not-allowed';
-        } else {
-            btn.innerText = 'Execute Code';
-            btn.title = 'Experimental feature: execution environment is in beta for only Python code';
-            btn.onclick = () => executeCode(block.textContent);
+        // Language Label
+        const lang = pre.getAttribute('data-lang') || 'code';
+        const langLabel = document.createElement('span');
+        langLabel.className = 'code-lang-label';
+        langLabel.innerText = lang.toUpperCase();
+        header.appendChild(langLabel);
+
+        const actions = document.createElement('div');
+        actions.className = 'code-header-actions';
+
+        // Copy Button
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-button';
+        copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+        copyBtn.onclick = async () => {
+            try {
+                await navigator.clipboard.writeText(block.textContent);
+                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                copyBtn.classList.add('copied');
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+            }
+        };
+        actions.appendChild(copyBtn);
+
+        // Execute Button
+        const execBtn = document.createElement('button');
+        execBtn.className = 'execute-button';
+
+        // Only show execute button for Python and Shell code
+        const executableLangs = ['python', 'py', 'bash', 'sh', 'shell'];
+        if (executableLangs.includes(lang.toLowerCase())) {
+            if (config.sandboxAvailable === false) {
+                execBtn.innerHTML = '<i class="fas fa-play"></i> Execute (Unavailable)';
+                execBtn.title = 'Python is not installed on this system. Code execution is disabled.';
+                execBtn.disabled = true;
+            } else {
+                execBtn.innerHTML = '<i class="fas fa-play"></i> Execute';
+                execBtn.title = 'Experimental feature: execution environment is in beta for only Python code';
+                execBtn.onclick = () => executeCode(block.textContent);
+            }
+            actions.appendChild(execBtn);
         }
-        wrapper.appendChild(btn);
+
+        header.appendChild(actions);
+        wrapper.appendChild(header);
+        wrapper.appendChild(pre);
     });
 
     setupSidePanel();
@@ -211,9 +250,30 @@ function setupSidePanel() {
         if (newWidth > 300 && newWidth < window.innerWidth - 100) {
             sidePanel.style.width = `${newWidth}px`;
             document.body.style.paddingRight = `${newWidth}px`;
+            updateLayoutMode();
         }
     }
 }
+
+function updateLayoutMode() {
+    let sidePanelWidth = 0;
+    const sidePanel = document.getElementById('execution-side-panel');
+    if (sidePanel && sidePanel.classList.contains('open')) {
+        sidePanelWidth = sidePanel.offsetWidth;
+    }
+
+    // Check purely based on remaining width logic
+    const availableWidth = window.innerWidth - sidePanelWidth;
+
+    if (availableWidth <= 900) {
+        document.body.classList.add('layout-compact');
+    } else {
+        document.body.classList.remove('layout-compact');
+    }
+}
+
+// Ensure layout updates on window resize too
+window.addEventListener('resize', updateLayoutMode);
 
 function openSidePanel() {
     if (!sidePanel) sidePanel = document.getElementById('execution-side-panel');
@@ -221,12 +281,14 @@ function openSidePanel() {
     const width = sidePanel.offsetWidth;
     document.body.style.transition = "padding-right 0.3s ease-in-out";
     document.body.style.paddingRight = width + "px";
+    setTimeout(updateLayoutMode, 300); // Wait for transition
 }
 
 function closeSidePanel() {
     if (!sidePanel) sidePanel = document.getElementById('execution-side-panel');
     sidePanel.classList.remove('open');
     document.body.style.paddingRight = "0";
+    setTimeout(updateLayoutMode, 300); // Wait for transition
 }
 
 // Audio / Read Aloud Logic
@@ -234,9 +296,22 @@ function setupReadAloud(markdownContent) {
     const readAloudSwitch = document.getElementById('read-aloud-switch');
     const readButton = document.getElementById('read-button');
     const audioPlayer = document.getElementById('audio-player');
+    const audioControls = document.querySelector('.audio-controls');
+
+    // Create loading bar for the audio controls
+    let loadingBar = audioControls.querySelector('.audio-loading-bar');
+    if (!loadingBar) {
+        audioControls.style.position = 'relative';
+        loadingBar = document.createElement('div');
+        loadingBar.className = 'audio-loading-bar';
+        audioControls.appendChild(loadingBar);
+    }
 
     async function generateAndPlayAudio() {
-        showLoader();
+        loadingBar.classList.add('active');
+        readButton.disabled = true;
+        readButton.textContent = 'Generating...';
+
         try {
             const response = await fetch(config.urls.generate_audio, {
                 method: 'POST',
@@ -253,7 +328,9 @@ function setupReadAloud(markdownContent) {
                 audioPlayer.play();
             }
         } finally {
-            hideLoader();
+            loadingBar.classList.remove('active');
+            readButton.disabled = false;
+            readButton.textContent = 'Read';
         }
     }
 
@@ -562,9 +639,9 @@ function setInteractiveElementsDisabled(disabled) {
     if (planInput) planInput.disabled = disabled;
     if (planBtn) planBtn.disabled = disabled;
 
-    // 4. Code Execution Buttons
-    const execBtns = document.querySelectorAll('.execute-button');
-    execBtns.forEach(btn => btn.disabled = disabled);
+    // 4. Code Execution Buttons - REMOVED to allow execution during podcast generation
+    // const execBtns = document.querySelectorAll('.execute-button');
+    // execBtns.forEach(btn => btn.disabled = disabled);
 
     // 5. Read Aloud Controls
     const readBtn = document.getElementById('read-button');

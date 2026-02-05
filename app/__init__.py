@@ -300,6 +300,13 @@ def create_app(config_class=Config):
         except Exception as e:
             logger.error(f"Failed to start SyncManager: {e}")
 
+        # Initialize Shared Sandbox for code execution
+        try:
+            from app.common.sandbox import ensure_shared_sandbox
+            ensure_shared_sandbox()
+        except Exception as e:
+            logger.error(f"Failed to initialize shared sandbox: {e}")
+
         # Initialize Audio Services (TTS/STT)
         try:
             from app.common.audio_service import init_audio_services

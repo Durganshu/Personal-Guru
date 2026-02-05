@@ -9,7 +9,7 @@
     <title>{% block title %}Personalized Learning App{% endblock %}</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=2) }}">
     {% block head %}{% endblock %}
     <!-- Allow child templates to inject custom styles (e.g., Chat mode) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -18,7 +18,15 @@
 
 <body class="dark-mode">
     <div id="loader">
-        <div class="spinner"></div>
+        <div id="loader-bg"></div>
+        <div class="loader-content">
+            <div class="spinner"></div>
+            <h2 id="loader-text">Loading...</h2>
+            <div id="loader-fact">
+                <span class="fact-label">Did you know?</span>
+                <p id="fact-text"></p>
+            </div>
+        </div>
     </div>
     <div class="container">
         <nav class="navbar">
@@ -36,6 +44,10 @@
                 <a href="https://samosa-ai.com/personal-guru/docs" target="_blank" class="nav-link icon-link"
                     title="Documentation">
                     <i class="fas fa-book"></i> Docs
+                </a>
+                <a href="{{ url_for('main.index', _anchor='saved-topics') }}" class="nav-link icon-link"
+                    title="View your saved topics">
+                    <i class="fas fa-list"></i> Saved Topics
                 </a>
                 <a href="https://github.com/Rishabh-Bajpai/Personal-Guru" target="_blank" class="nav-link icon-link"
                     title="GitHub">
@@ -120,6 +132,17 @@
         </div>
     </div>
 
+    <style>
+        /* Loader Layout Fixes */
+        .loader-content {
+            transform: translateY(-5%);
+        }
+
+        #loader-fact {
+            margin-top: 150px;
+        }
+    </style>
+    <script src="{{ url_for('static', filename='facts.js') }}"></script>
     <script src="{{ url_for('static', filename='base.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>

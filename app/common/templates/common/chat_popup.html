@@ -4,10 +4,10 @@
 </button>
 
 <div id="chat-popup" class="chat-popup" style="display: none;">
+    <div class="resize-handle"></div>
     <div id="chat-header-popup" class="chat-header">
         <span>Ask a Question</span>
         <div class="chat-controls">
-            <button id="chat-maximize-btn" title="Maximize" aria-label="Maximize chat window">□</button>
             <button id="chat-toggle-btn" title="Minimize" aria-label="Minimize chat window">−</button>
         </div>
     </div>
@@ -18,9 +18,8 @@
                 <textarea id="chat-input-popup" placeholder="Type your question..." required maxlength="1000" rows="1"
                     style="resize: none;"></textarea>
             </div>
-            <button type="button" id="mic-button-popup" class="button secondary" title="Voice Input"
-                style="margin-right: 5px;">🎙️</button>
-            <button type="submit" class="button">Send</button>
+            <button type="button" id="mic-button-popup" title="Voice Input" aria-label="Use voice input">🎙️</button>
+            <button type="submit" class="button" aria-label="Send message"><i class="fas fa-paper-plane"></i></button>
         </form>
     </div>
 </div>

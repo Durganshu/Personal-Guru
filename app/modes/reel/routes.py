@@ -3,6 +3,7 @@ from . import reel_bp
 from .services.youtube_search import search_youtube_reels
 from .services.validator import validate_videos_batch
 from .services.logger import SessionLogger
+from app.common.storage import load_topic
 
 # Store active session loggers (keyed by session ID) for Reel mode
 active_sessions = {}
@@ -11,6 +12,8 @@ active_sessions = {}
 @reel_bp.route('/<topic_name>')
 def mode(topic_name):
     """Render the Reel mode interface."""
+    # Ensure Last Opened/Modified is updated
+    load_topic(topic_name, update_timestamp=True)
     return render_template('reel/mode.html', topic_name=topic_name)
 
 

@@ -5,14 +5,13 @@
     border-radius: 10px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     border: 1px solid transparent;
-    /* Prepare for border transition */
 }
 
-/* Explicit Dark Mode Support for Question Container */
+/* Dark Mode Support for Question Container */
 body.dark-mode .question {
-    background-color: #2c2c2c;
-    border: 1px solid #555;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    background-color: #1C212C;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 32px rgba(144, 39, 161, 0.15);
 }
 
 .question h2 {
@@ -23,14 +22,13 @@ body.dark-mode .question {
 }
 
 body.dark-mode .question h2 {
-    color: #ECDFCC;
+    color: #F2EBE9;
 }
 
 .options {
     display: grid;
     grid-template-columns: 1fr;
     gap: 8px;
-    /* Reduced gap */
 }
 
 .option {
@@ -43,24 +41,23 @@ body.dark-mode .question h2 {
 }
 
 body.dark-mode .option {
-    background-color: #3a3a3a;
-    border-color: #555;
-    color: #e0e0e0;
+    background-color: #0D1117;
+    border-color: rgba(255, 255, 255, 0.05);
+    color: #F2EBE9;
 }
 
 .option:hover {
     border-color: var(--primary-color);
     background-color: rgba(var(--primary-color-rgb), 0.05);
-    /* Assuming var exists, fallbacks handled by specific overrides below */
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     z-index: 1;
 }
 
 body.dark-mode .option:hover {
-    border-color: #697565;
-    background-color: #4a4a4a;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+    border-color: #1A5CBF;
+    background-color: rgba(26, 92, 191, 0.1);
+    box-shadow: 0 4px 12px rgba(144, 39, 161, 0.2);
 }
 
 .option.selected {
@@ -70,10 +67,9 @@ body.dark-mode .option:hover {
 }
 
 body.dark-mode .option.selected {
-    border-color: #697565;
-    background-color: rgba(105, 117, 101, 0.2);
-    /* #697565 with opacity */
-    box-shadow: 0 0 0 1px #697565;
+    border-color: #1A5CBF;
+    background-color: rgba(26, 92, 191, 0.15);
+    box-shadow: 0 0 0 1px #1A5CBF;
 }
 
 .option label {
