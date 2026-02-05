@@ -567,6 +567,52 @@ def get_user_context():
     return os.getenv("USER_BACKGROUND", "a beginner")
 
 
+def parse_podcast_script(transcript):
+    """
+    Parses a podcast transcript into a list of (speaker, content) tuples.
+    Robustly handles bolding, extra spaces, and different quote styles.
+    Strictly standardizes speakers to 'Jamie' (Host) and 'Alex' (Guest).
+    """
+    lines = []
+    HOST_NAME = "Jamie"
+    GUEST_NAME = "Alex"
+
+    # Regex breakdown:
+    # ^\** -> Optional bolding asterisks at start
+    # ([^:]+)     -> Capture group 1: The speaker's name (anything before the colon)
+    # \**\s*:\s* -> Optional bolding, then the colon, plus any surrounding whitespace
+    # (.*)        -> Capture group 2: The actual dialogue text
+    pattern = re.compile(r"^\**([^:]+)\**\s*:\s*(.*)", re.IGNORECASE)
+
+    for line in transcript.strip().split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+
+        match = pattern.match(line)
+        if match:
+            speaker = match.group(1).strip()
+            # Remove markdown bolding or quotes from the speaker name
+            speaker = speaker.replace('*', '').replace('"', '').replace("'", "")
+
+            content = match.group(2).strip()
+            # Clean content: remove surrounding quotes and extra asterisks
+            content = content.strip('"').strip('*').strip()
+
+            if content:
+                # Standardize speaker names to ensure they match our voice map
+                if speaker.lower() == HOST_NAME.lower():
+                    lines.append((HOST_NAME, content))
+                elif speaker.lower() == GUEST_NAME.lower():
+                    lines.append((GUEST_NAME, content))
+                else:
+                    # Keep unexpected speakers as is, or could filter them out.
+                    # For now, keeping them allows the process to not fail silently,
+                    # but they might get a default voice.
+                    lines.append((speaker, content))
+    return lines
+
+
 def generate_podcast_audio(transcript, output_filename):
     """
     Generates a full podcast audio file from a transcript using the configured TTS service.
@@ -578,17 +624,8 @@ def generate_podcast_audio(transcript, output_filename):
     start_time = time.time()
 
     # 1. Parse Transcript
-    lines = []
     print("Parsing transcript...")
-    for line in transcript.strip().split('\n'):
-        if ':' in line:
-            parts = line.split(':', 1)
-            speaker = parts[0].strip()
-            # Normalize speaker name (remove parentheticals like "(Host)")
-            speaker = re.sub(r'\(.*?\)', '', speaker).strip()
-            content = parts[1].strip()
-            if content:
-                lines.append((speaker, content))
+    lines = parse_podcast_script(transcript)
 
     if not lines:
         return False, "No dialogue lines found in transcript"

@@ -121,7 +121,7 @@ def get_podcast_script_prompt(context, user_background):
     """
     return f"""
             You are an expert podcast script writer for podcast "Personal-Guru".
-            Your goal is to generate a engaging podcast script between two speakers, Alex and Jamie to teach the audience about current learning material.
+            Your goal is to generate a engaging podcast script between two speakers, Jamie (Host) and Alex (Guest) to teach the audience about current learning material.
 
             The audience's background is: '{user_background}'.
             The learning material is:
@@ -131,12 +131,17 @@ def get_podcast_script_prompt(context, user_background):
             1. Keep it concise but highly informative.
             2. Use simple and easy to understand language.
             3. Don't repeat the same point multiple times.
-            4. Use the audience's background to decide the level of difficulty of the content only.
+            4. Use the audience's background to decide the level of difficulty of the content.
             5. Start the episode with Jamie welcoming the listener by name (extracting the Name from the audience's background) and introducing the topic of discussion with Jamie.
-            6. Jamie should be the host and Alex should be the guest.
-            7. Format the output exactly as follows:\n
-            "Jamie: [text]\n"
-            "Alex: [text]\n"
-            "Jamie: [text]\n"
-            "...and so on."
+            6. Jamie is the HOST and Alex is the GUEST.
+
+            FORMAT RULES:
+            1. Use the standard script format: Name: Dialogue
+            2. Speakers MUST use the names "Jamie" and "Alex".
+            3. Do NOT include stage directions like [Laughter] or [Sighs] unless specifically asked.
+            4. Format the output exactly as follows:
+
+            Jamie: [text]
+            Alex: [text]
+            ...
             """
