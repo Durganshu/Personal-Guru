@@ -30,7 +30,8 @@
         <button type="submit" class="button secondary">Regenerate Quiz</button>
     </form>
 </div>
-<form method="post" action="{{ url_for('quiz.submit_quiz', topic_name=topic_name) }}">
+<form method="post" action="{{ url_for('quiz.submit_quiz', topic_name=topic_name) }}"
+    onsubmit="showLoader('Submitting your quiz...');">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
     <input type="hidden" name="jwe_token" value="{{ jwe_token if jwe_token else '' }}">
     {% for i in range(quiz_data.questions|length) %}
