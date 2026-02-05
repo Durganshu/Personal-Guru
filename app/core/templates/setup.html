@@ -404,7 +404,7 @@
             <!-- LLM Settings Card -->
             <div class="card">
                 <div class="card-header">
-                    <span class="icon">🤖</span> LLM AI Settings
+                    <span class="icon">🤖</span> AI Provider Settings
                 </div>
                 <div class="card-body">
                     <div class="form-group">
@@ -459,11 +459,11 @@
                         Settings</button>
 
                     <div id="advanced" class="advanced-section">
-                        <!-- Section: Advanced LLM -->
+                        <!-- Section: Advanced LLM Settings -->
                         <div class="settings-group">
                             <h4
                                 style="margin: 0.5rem 0; color: #4b5563; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem;">
-                                Advanced LLM</h4>
+                                Advanced LLM Settings</h4>
                             <div class="form-group">
                                 <label for="llm_ctx">Maximum Output Tokens</label>
                                 <input type="number" id="llm_ctx" name="llm_ctx"
@@ -494,7 +494,7 @@
                                 <label for="tts_url">API Endpoint</label>
                                 <input type="url" id="tts_url" name="tts_url"
                                     value="{{ defaults.get('TTS_BASE_URL', 'http://localhost:8969/v1') }}">
-                                <div class="hint">Endpoint for OpenAI-compatible TTS (e.g. Speaches/Kokoro).</div>
+                                <div class="hint">Endpoint for OpenAI-compatible TTS (e.g. Speaches/Kokoro). Currently only supports Kokoro</div>
                             </div>
 
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
@@ -593,7 +593,7 @@
                                 value="{{ defaults.get('DATABASE_URL', 'sqlite:///site.db') }}">
                             <div class="hint">
                                 <strong>Examples:</strong><br>
-                                - SQLite (Local): <code>sqlite:///site.db</code><br>
+                                - SQLite (No Docker): <code>sqlite:///site.db</code><br>
                                 - PostgreSQL (Docker):
                                 <code>postgresql://postgres:postgres@localhost:5433/personal_guru</code>
                             </div>

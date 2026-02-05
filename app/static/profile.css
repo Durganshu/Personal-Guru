@@ -145,3 +145,14 @@ body:not(.dark-mode) .section-title {
         padding: 20px;
     }
 }
+
+.hint-text {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+body:not(.dark-mode) .hint-text {
+    color: #666;
+}

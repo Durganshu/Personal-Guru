@@ -155,6 +155,15 @@
         <p>Help us personalize your learning journey</p>
     </div>
 
+    <div
+        style="background: rgba(0, 123, 255, 0.1); border-left: 4px solid #007bff; padding: 15px; margin-bottom: 25px; border-radius: 4px;">
+        <p style="margin: 0; font-size: 0.95rem;">
+            <strong>Why does Personal Guru need this?</strong> This information helps Personal Guru generate learning
+            material
+            specifically tailored to your background and goals. You can always come back and update this later.
+        </p>
+    </div>
+
     <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="jwe_token" value="{{ jwe_token if jwe_token else '' }}">
@@ -166,26 +175,30 @@
             <div class="form-group">
                 <label for="name">Full Name</label>
                 <input type="text" id="name" name="name" class="form-control" value="{{ user.login.name or '' }}"
-                    placeholder="Enter your name" maxlength="100">
+                    placeholder="Enter your name" maxlength="100" required>
+                <small class="hint-text">Edit this to your name, as Personal Guru will call you by this name.</small>
             </div>
 
             <div class="form-group">
                 <label for="age">Age</label>
                 <input type="number" id="age" name="age" class="form-control" value="{{ user.age or '' }}"
-                    placeholder="Age" min="1">
+                    placeholder="Age" min="1" required>
+                <small class="hint-text">Used to adjust the complexity and tone of the content.</small>
             </div>
 
             <div class="form-group">
                 <label for="country">Country</label>
                 <input type="text" id="country" name="country" class="form-control" value="{{ user.country or '' }}"
-                    placeholder="Country" maxlength="100">
+                    placeholder="Country" maxlength="100" required>
+                <small class="hint-text">Helps in finding relevant local examples and context.</small>
             </div>
 
             <div class="form-group">
                 <label for="languages">Languages</label>
                 <input type="text" id="languages" name="languages" class="form-control"
                     value="{{ user.languages | join(', ') if user.languages else '' }}"
-                    placeholder="e.g. English, Hindi" maxlength="255">
+                    placeholder="e.g. English, Hindi" maxlength="255" required>
+                <small class="hint-text">Languages you are comfortable with for content generation.</small>
             </div>
 
             <!-- Education & Profession -->
@@ -193,7 +206,7 @@
 
             <div class="form-group">
                 <label for="education_level">Education Level</label>
-                <select id="education_level" name="education_level" class="form-control">
+                <select id="education_level" name="education_level" class="form-control" required>
                     <option value="" disabled {% if not user.education_level %}selected{% endif %}>Select Level</option>
                     <option value="High School" {% if user.education_level=='High School' %}selected{% endif %}>High
                         School</option>
@@ -206,19 +219,23 @@
                         Self-Taught</option>
                     <option value="Other" {% if user.education_level=='Other' %}selected{% endif %}>Other</option>
                 </select>
+                <small class="hint-text">Used to tailor the depth of the learning material.</small>
             </div>
 
             <div class="form-group">
                 <label for="field_of_study">Field of Study</label>
                 <input type="text" id="field_of_study" name="field_of_study" class="form-control"
-                    value="{{ user.field_of_study or '' }}" placeholder="e.g. Computer Science, Biology"
-                    maxlength="100">
+                    value="{{ user.field_of_study or '' }}" placeholder="e.g. Computer Science, Biology" maxlength="100"
+                    required>
+                <small class="hint-text">Helps relate new concepts to your existing knowledge base.</small>
             </div>
 
             <div class="form-group full-width">
                 <label for="occupation">Current Occupation</label>
                 <input type="text" id="occupation" name="occupation" class="form-control"
-                    value="{{ user.occupation or '' }}" placeholder="e.g. Student, Software Engineer" maxlength="100">
+                    value="{{ user.occupation or '' }}" placeholder="e.g. Student, Software Engineer" maxlength="100"
+                    required>
+                <small class="hint-text">Used to provide professional examples relevant to your work.</small>
             </div>
 
             <!-- Learning Preferences -->
@@ -227,19 +244,22 @@
             <div class="form-group full-width">
                 <label for="learning_goals">Learning Goals</label>
                 <textarea id="learning_goals" name="learning_goals" class="form-control"
-                    placeholder="What do you want to achieve?"
-                    maxlength="2000">{{ user.learning_goals or '' }}</textarea>
+                    placeholder="What do you want to achieve?" maxlength="2000"
+                    required>{{ user.learning_goals or '' }}</textarea>
+                <small class="hint-text">Defines what you want to achieve, guiding the curriculum generation.</small>
             </div>
 
             <div class="form-group full-width">
                 <label for="prior_knowledge">Prior Knowledge</label>
                 <textarea id="prior_knowledge" name="prior_knowledge" class="form-control"
-                    placeholder="What do you already know?" maxlength="2000">{{ user.prior_knowledge or '' }}</textarea>
+                    placeholder="What do you already know?" maxlength="2000"
+                    required>{{ user.prior_knowledge or '' }}</textarea>
+                <small class="hint-text">Helps skip basics you already know and focus on new topics.</small>
             </div>
 
             <div class="form-group">
                 <label for="learning_style">Learning Style</label>
-                <select id="learning_style" name="learning_style" class="form-control">
+                <select id="learning_style" name="learning_style" class="form-control" required>
                     <option value="" disabled {% if not user.learning_style %}selected{% endif %}>Select Style</option>
                     <option value="Visual" {% if user.learning_style=='Visual' %}selected{% endif %}>Visual (Images,
                         Diagrams)</option>
@@ -250,11 +270,12 @@
                     <option value="Kinesthetic" {% if user.learning_style=='Kinesthetic' %}selected{% endif %}>
                         Kinesthetic (Hands-on)</option>
                 </select>
+                <small class="hint-text">Adapts the content format (e.g., more diagrams for Visual learners).</small>
             </div>
 
             <div class="form-group">
                 <label for="preferred_format">Preferred Format</label>
-                <select id="preferred_format" name="preferred_format" class="form-control">
+                <select id="preferred_format" name="preferred_format" class="form-control" required>
                     <option value="" disabled {% if not user.preferred_format %}selected{% endif %}>Select Format
                     </option>
                     <option value="Text-heavy" {% if user.preferred_format=='Text-heavy' %}selected{% endif %}>Detailed
@@ -264,13 +285,15 @@
                     <option value="Concise" {% if user.preferred_format=='Concise' %}selected{% endif %}>Concise
                         Summaries</option>
                 </select>
+                <small class="hint-text">Controls how the content is structured and presented.</small>
             </div>
 
             <div class="form-group full-width">
                 <label for="time_commitment">Time Commitment</label>
                 <input type="text" id="time_commitment" name="time_commitment" class="form-control"
                     value="{{ user.time_commitment or '' }}" placeholder="e.g. 2 hours/week, 30 mins/day"
-                    maxlength="100">
+                    maxlength="100" required>
+                <small class="hint-text">Helps in planning reasonable study sessions for you.</small>
             </div>
         </div>
 
