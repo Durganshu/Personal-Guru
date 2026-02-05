@@ -68,6 +68,13 @@ function hideLoader() {
     }
 }
 
+// Fix for bfcache (back/forward cache)
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+        hideLoader();
+    }
+});
+
 // Check for transition on load
 document.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('loader_active') === 'true') {
