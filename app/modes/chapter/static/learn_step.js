@@ -1,7 +1,18 @@
 // Markdown Configuration
 const md = window.markdownit({
+    html: true,
+    linkify: true,
+    typographer: true,
     highlight: function (str, lang) {
-        return '<pre class="code-block" data-lang="' + lang + '"><code>' +
+        if (lang && window.hljs && window.hljs.getLanguage(lang)) {
+            try {
+                return '<pre class="code-block hljs" data-lang="' + lang + '"><code>' +
+                    window.hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+                    '</code></pre>';
+            } catch (__) { }
+        }
+
+        return '<pre class="code-block hljs" data-lang="' + lang + '"><code>' +
             md.utils.escapeHtml(str) +
             '</code></pre>';
     }
