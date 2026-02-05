@@ -58,7 +58,7 @@ def create_setup_app():
                 'LLM_BASE_URL': request.form.get('LLM_BASE_URL'),
                 'LLM_MODEL_NAME': request.form.get('llm_model'),
                 'LLM_API_KEY': request.form.get('llm_key', ''),
-                'LLM_MAX_OUTPUT_TOKENS': request.form.get('llm_ctx', '8192'),
+                'LLM_MAX_OUTPUT_TOKENS': request.form.get('llm_ctx', '20000'),
                 'TTS_BASE_URL': request.form.get('tts_url', ''),
                 'OPENAI_API_KEY': request.form.get('openai_key', ''),
                 'YOUTUBE_API_KEY': request.form.get('youtube_key', '')

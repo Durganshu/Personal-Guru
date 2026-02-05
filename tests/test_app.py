@@ -344,7 +344,7 @@ def test_setup_success_mock_fs(setup_client, mocker):
         written_content += call[0][0]
 
     assert "DATABASE_URL=postgresql://test" in written_content
-    assert "LLM_MAX_OUTPUT_TOKENS=8192" in written_content
+    assert "LLM_MAX_OUTPUT_TOKENS=20000" in written_content
     assert "TTS_BASE_URL=http://kokoro" in written_content
     assert "OPENAI_API_KEY=tts-secret" in written_content
     assert "YOUTUBE_API_KEY=yt123" in written_content

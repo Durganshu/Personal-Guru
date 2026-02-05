@@ -25,7 +25,7 @@ load_dotenv(override=True)
 
 LLM_BASE_URL = os.getenv("LLM_BASE_URL")
 LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME")
-LLM_MAX_OUTPUT_TOKENS = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", 8192))
+LLM_MAX_OUTPUT_TOKENS = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", 20000))
 LLM_API_KEY = os.getenv("LLM_API_KEY", "dummy")
 TTS_BASE_URL = os.getenv("TTS_BASE_URL", "http://localhost:8969/v1")
 TTS_MODEL = os.getenv("TTS_MODEL", "tts-1")

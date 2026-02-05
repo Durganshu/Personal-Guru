@@ -467,8 +467,9 @@
                             <div class="form-group">
                                 <label for="llm_ctx">Maximum Output Tokens</label>
                                 <input type="number" id="llm_ctx" name="llm_ctx"
-                                    value="{{ defaults.get('LLM_MAX_OUTPUT_TOKENS', '8192') }}">
-                                <div class="hint">This is the maximum number of tokens the model can generate at once.</div>
+                                    value="{{ defaults.get('LLM_MAX_OUTPUT_TOKENS', '20000') }}">
+                                <div class="hint">This is the maximum number of tokens the model can generate at once.
+                                </div>
                             </div>
                         </div>
 
@@ -494,7 +495,8 @@
                                 <label for="tts_url">API Endpoint</label>
                                 <input type="url" id="tts_url" name="tts_url"
                                     value="{{ defaults.get('TTS_BASE_URL', 'http://localhost:8969/v1') }}">
-                                <div class="hint">Endpoint for OpenAI-compatible TTS (e.g. Speaches/Kokoro). Currently only supports Kokoro</div>
+                                <div class="hint">Endpoint for OpenAI-compatible TTS (e.g. Speaches/Kokoro). Currently
+                                    only supports Kokoro</div>
                             </div>
 
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
