@@ -32,6 +32,30 @@ function initLearnStep(cfg) {
     setupReadAloud(markdownContent);
     setupPodcast();
     setupSelectionMenu();
+    setupThemeObserver();
+}
+
+function setupThemeObserver() {
+    const themeLink = document.getElementById('highlight-theme');
+    if (!themeLink) return;
+
+    const updateTheme = () => {
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        const sun = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css';
+        const moon = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css';
+
+        const newHref = isDarkMode ? moon : sun;
+        if (themeLink.href !== newHref) {
+            themeLink.href = newHref;
+        }
+    };
+
+    // Initial check
+    updateTheme();
+
+    // Observe body class changes using MutationObserver
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 }
 
 function toggleSidebar() {
