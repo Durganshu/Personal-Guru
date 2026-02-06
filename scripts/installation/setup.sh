@@ -113,7 +113,17 @@ if [[ "$mode_choice" == "2" ]]; then
     start_db="n"
 
     # Configure .env for Local Mode
-    if [ ! -f .env ]; then
+    if [ -f .env ]; then
+        echo "⚠️  Existing .env file found."
+        echo "Do you want to overwrite it with default Local Mode settings? (Recommended) [y/N]: "
+        read -p "" overwrite_env
+        if [[ "$overwrite_env" =~ ^[Yy]$ ]]; then
+            cp .env.example .env
+            echo "📝 Overwrote .env with example."
+        else
+            echo "ℹ️  Keeping existing .env file."
+        fi
+    else
         cp .env.example .env
         echo "📝 Created .env from example."
     fi

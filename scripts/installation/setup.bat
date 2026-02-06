@@ -60,9 +60,18 @@ if "%mode_choice%"=="2" (
     set install_tts=n
     set start_db=n
 
-    if not exist .env (
+    if exist .env (
+        echo [WARNING] Existing .env file found.
+        set /p overwrite_env="Do you want to overwrite it with default Local Mode settings? (Recommended) [y/N]: "
+    ) else (
+        set overwrite_env=y
+    )
+
+    if /i "%overwrite_env%"=="y" (
         copy .env.example .env
-        echo [INFO] Created .env from example.
+        echo [INFO] Created/Overwritten .env from example.
+    ) else (
+        echo [INFO] Keeping existing .env file.
     )
 
     findstr /C:"# Local Mode Overrides" .env >nul
