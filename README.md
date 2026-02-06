@@ -4,7 +4,7 @@ This is a Flask-based web application that serves as a proof-of-concept for a pe
 
 # For live demo
 
- [https://pg-demo.samosa-ai.com/](https://pg-demo.samosa-ai.com)
+[https://pg-demo.samosa-ai.com/](https://pg-demo.samosa-ai.com)
 Use desktop computer for the best experience.
 
 ## Application Highlights
@@ -21,19 +21,9 @@ Use desktop computer for the best experience.
 
 **[Features Overview](docs/features.md)**: A detailed breakdown of all application features.
 
-## Installation
+## Getting Started
 
-### 1. Easy Installation (Recommended)
-**Benefits:** One-click setup, no prerequisites, runs entirely offline.
-
-You can download the latest `.exe` installer for Windows from our **[Releases Page](https://github.com/Rishabh-Bajpai/Personal-Guru/releases)**. This bundles everything you need to run the application effortlessly. It automatically handles dependencies, database setup, and application startup.
-
-> **Note:** The `.exe` version does not currently support Text-to-Speech (TTS). To enable TTS or use external APIs, please follow the **[Advanced Installation Guide](docs/installation.md)**.
-
-### 2. Advanced / Developer Installation
-**Benefits:** Full feature set (including TTS), customization (External APIs), and development capabilities.
-
-If you want to run the application using Docker, connect to external APIs (like OpenAI for LLM/STT/TTS), or contribute to the code, please refer to our detailed **[Installation Guide](docs/installation.md)**.
+For detailed installation and setup instructions, please visit our **[Getting Started Guide](https://samosa-ai.com/personal-guru/docs/getting-started)**.
 
 ## Documentation
 
