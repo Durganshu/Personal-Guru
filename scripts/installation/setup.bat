@@ -112,24 +112,29 @@ REM Verify environment was created
 call conda info --envs | findstr /B /C:"Personal-Guru " >nul 2>nul
 if %errorlevel% neq 0 goto :env_not_found
 
-REM Activate the environment
+REM Activate the environment (Just in case, but we will use direct path)
 echo [INFO] Activating Personal-Guru environment...
 call conda activate Personal-Guru
-if %errorlevel% neq 0 goto :env_activate_fail
+if %errorlevel% neq 0 echo [WARNING] Conda activate failed. Will rely on direct python path.
+
+REM Resolve Python Path
+echo [INFO] Resolving Python executable path...
+for /f "usebackq tokens=*" %%i in (`conda run -n Personal-Guru python -c "import sys; print(sys.executable)"`) do set ENV_PYTHON=%%i
+echo [INFO] Using Python: %ENV_PYTHON%
 
 REM Install Dependencies
 echo [INFO] Installing Dependencies from pyproject.toml...
 if /i "%local_mode%"=="y" (
-    call pip install -e .[local]
+    "%ENV_PYTHON%" -m pip install -e .[local]
 ) else (
     echo [INFO] Installing development dependencies...
-    call pip install -e .[dev]
+    "%ENV_PYTHON%" -m pip install -e .[dev]
 )
 if %errorlevel% neq 0 echo [WARNING] Some dependencies may have failed to install.
 
 REM Install pre-commit hooks
 echo [INFO] Installing pre-commit hooks...
-call pre-commit install
+"%ENV_PYTHON%" -m pre_commit install
 if %errorlevel% neq 0 echo [WARNING] Failed to install pre-commit hooks.
 
 REM Optional TTS (Removed from setup)
@@ -152,7 +157,7 @@ goto :run_docker_db
 :local_db_setup
 echo [INFO] Using Local SQLite Database.
 echo [INFO] Initializing SQLite Database...
-python scripts\update_database.py
+"%ENV_PYTHON%" scripts\update_database.py
 set start_db=n
 goto :end_db_setup
 
@@ -162,7 +167,7 @@ docker compose up -d db
 echo [INFO] Waiting for Database to be ready...
 timeout /t 5 /nobreak
 echo [INFO] Initializing/Updating Database Tables...
-python scripts/update_database.py
+"%ENV_PYTHON%" scripts/update_database.py
 
 :end_db_setup
 :skip_db
