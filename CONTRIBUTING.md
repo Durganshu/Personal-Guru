@@ -82,7 +82,6 @@ Thank you for your interest in contributing to Personal Guru! We welcome contrib
 ## Code Standards
 
 - **Python**: Formatted with Black, linted with Ruff.
-- **JavaScript/CSS/HTML**: Formatted with Prettier.
 - **Docstrings**: Required for all public functions (checked by Interrogate).
 - **Commits**: Use clear, descriptive commit messages.
 
@@ -109,6 +108,12 @@ Personal-Guru/
 
 - **Get Help**: Open an issue with the **Question** label or ask on [Discord](https://discord.com/channels/1454702827409641616/1454963523233906950).
 - **Documentation**: [samosa-ai.com/personal-guru/docs](https://samosa-ai.com/personal-guru/docs)
+
+## Using Code from Other Projects
+
+We value the spirit of Open Source and Free Software, which foster collaboration and code reuse across projects. However, Free Software is not the same as the public domain, and license terms still apply. Not all code can be freely reused in every context.
+
+Before integrating a significant portion of code—or adding new dependencies or libraries—please consult the maintainers to verify license compatibility.
 
 ## License
 

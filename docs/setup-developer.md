@@ -132,6 +132,5 @@ This project uses `pre-commit` to ensure code quality (linting, formatting, chec
 - **Merge Conflicts**: Checks for unresolved merge conflict markers.
 - **Black**: Formats Python code.
 - **Ruff**: Lints Python code.
-- **Prettier**: Formats JS, CSS, and HTML.
 - **Codespell**: Checks for spelling errors.
 - **Interrogate**: Checks for missing docstrings in Python code.

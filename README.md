@@ -17,7 +17,7 @@ Use desktop computer for the best experience.
 - **Code Sandbox:** Secure execution of Python code for interactive learning.
 - **Knowledge Assessment:** Adaptive quizzes and immediate feedback.
 - **Local AI Integration:** Support for local LLMs (Ollama, LM Studio) and TTS (Kokoro).
-- **Export options:** Export courses to Markdown files.
+- **Export options:** Export courses to PDF and Markdown files.
 
 **[Features Overview](docs/features.md)**: A detailed breakdown of all application features.
 
