@@ -73,6 +73,65 @@ python -m pytest
 * **Migrations**:
 
     ```bash
-    flask db migrate -m "Description"
     flask db upgrade
     ```
+
+## Utility Scripts for Developers
+
+The `scripts/` folder contains several utility scripts to assist with development, database management, and visualization.
+
+### Database Tools
+
+- **`scripts/generate_dbml.py`**
+  - **Purpose:** Generates a DBML (Database Markup Language) file from your SQLAlchemy models.
+  - **Usage:** `python scripts/generate_dbml.py > schema.dbml`
+  - **Use Case:** Copy the output to [dbdiagram.io](https://dbdiagram.io) to visualize and interactively edit your schema.
+
+- **`scripts/visualize_db.py`**
+  - **Purpose:** Generates a Mermaid.js Entity Relationship Diagram (ERD).
+  - **Usage:** `python scripts/visualize_db.py`
+  - **Use Case:** Copy the output into a Markdown file (like `docs/schema.md`) to view the diagram directly in GitHub or compatible editors.
+
+- **`scripts/db_viewer.py`**
+  - **Purpose:** Launches a visual web interface (Flask-Admin) to browse and manage database records.
+  - **Usage:** `python scripts/db_viewer.py`
+  - **URL:** Open `http://localhost:5012` to view tables.
+
+- **`scripts/update_database.py`**
+  - **Purpose:** Initializes tables and performs safe migrations (adding new columns/tables).
+  - **Usage:** `python scripts/update_database.py`
+
+### Other Utilities
+
+- **`scripts/generate_cert.py`**
+  - **Purpose:** Generates self-signed SSL certificates (`cert.pem`, `key.pem`) for local HTTPS development (required for microphone access).
+  - **Usage:** `python scripts/generate_cert.py`
+
+## Pre-commit Hooks
+
+This project uses `pre-commit` to ensure code quality (linting, formatting, checking for merge conflicts, etc.) before every commit.
+
+### Installation
+
+1. **Install the hooks:**
+
+    ```bash
+    pre-commit install
+    ```
+
+2. **Run manually (optional):**
+    To run the hooks on all files without committing:
+
+    ```bash
+    pre-commit run --all-files
+    ```
+
+### Hooks Included
+
+- **Trailing Whitespace**: Removes trailing whitespace.
+- **Merge Conflicts**: Checks for unresolved merge conflict markers.
+- **Black**: Formats Python code.
+- **Ruff**: Lints Python code.
+- **Prettier**: Formats JS, CSS, and HTML.
+- **Codespell**: Checks for spelling errors.
+- **Interrogate**: Checks for missing docstrings in Python code.
