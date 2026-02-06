@@ -67,31 +67,30 @@ set local_mode=y
 set install_tts=n
 set start_db=n
 
-if exist .env (
-    echo [WARNING] Existing .env file found.
-    set /p overwrite_env="Do you want to overwrite it with default Local Mode settings? (Recommended) [y/N]: "
-) else (
-    set overwrite_env=y
-)
+if not exist .env goto :create_env_fresh
+echo [WARNING] Existing .env file found.
+set /p overwrite_env="Do you want to overwrite it with default Local Mode settings? (Recommended) [y/N]: "
+if /i "%overwrite_env%"=="y" goto :create_env_fresh
+echo [INFO] Keeping existing .env file.
+goto :check_overrides
 
-if /i "%overwrite_env%"=="y" (
-    copy .env.example .env
-    echo [INFO] Created/Overwritten .env from example.
-) else (
-    echo [INFO] Keeping existing .env file.
-)
+:create_env_fresh
+copy .env.example .env
+echo [INFO] Created/Overwritten .env from example.
 
+:check_overrides
 findstr /C:"# Local Mode Overrides" .env >nul
-if %errorlevel% neq 0 (
-    echo. >> .env
-    echo # Local Mode Overrides >> .env
-    echo DATABASE_URL=sqlite:///site.db >> .env
-    echo TTS_PROVIDER=native >> .env
-    echo STT_PROVIDER=native >> .env
-    echo [INFO] Updated .env for Local Mode (SQLite + Native Audio).
-) else (
+if not errorlevel 1 (
     echo [INFO] .env already contains Local Mode overrides. Skipping update.
+    goto :env_check
 )
+
+echo. >> .env
+echo # Local Mode Overrides >> .env
+echo DATABASE_URL=sqlite:///site.db >> .env
+echo TTS_PROVIDER=native >> .env
+echo STT_PROVIDER=native >> .env
+echo [INFO] Updated .env for Local Mode (SQLite + Native Audio).
 
 :env_check
 
@@ -144,16 +143,20 @@ if %errorlevel% neq 0 echo [WARNING] GTK3 installation via conda failed. WeasyPr
 
 REM Database Setup
 echo.
-if /i "%local_mode%"=="y" (
-    echo [INFO] Using Local SQLite Database.
-    echo [INFO] Initializing SQLite Database...
-    python scripts\update_database.py
-    set start_db=n
-) else (
-    set /p start_db="Start Database via Docker now? [Y/n]: "
-)
-if /i "%start_db%"=="n" goto :skip_db
+if /i "%local_mode%"=="y" goto :local_db_setup
 
+set /p start_db="Start Database via Docker now? [Y/n]: "
+if /i "%start_db%"=="n" goto :skip_db
+goto :run_docker_db
+
+:local_db_setup
+echo [INFO] Using Local SQLite Database.
+echo [INFO] Initializing SQLite Database...
+python scripts\update_database.py
+set start_db=n
+goto :end_db_setup
+
+:run_docker_db
 echo [INFO] Starting Database...
 docker compose up -d db
 echo [INFO] Waiting for Database to be ready...
@@ -161,6 +164,7 @@ timeout /t 5 /nobreak
 echo [INFO] Initializing/Updating Database Tables...
 python scripts/update_database.py
 
+:end_db_setup
 :skip_db
 
 echo.
