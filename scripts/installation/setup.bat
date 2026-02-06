@@ -69,7 +69,9 @@ if "%mode_choice%"=="2" (
     if %errorlevel% neq 0 (
         echo. >> .env
         echo # Local Mode Overrides >> .env
-        echo [INFO] Updated .env for Local Mode.
+        echo DATABASE_URL=sqlite:///site.db >> .env
+        echo STT_PROVIDER=native >> .env
+        echo [INFO] Updated .env for Local Mode (SQLite + Native Audio).
     ) else (
         echo [INFO] .env already contains Local Mode overrides. Skipping update.
     )

@@ -122,7 +122,10 @@ if [[ "$mode_choice" == "2" ]]; then
     if ! grep -q "# Local Mode Overrides" .env; then
         echo "" >> .env
         echo "# Local Mode Overrides" >> .env
-        echo "✅ Updated .env for Local Mode."
+        echo "DATABASE_URL=sqlite:///site.db" >> .env
+        echo "TTS_PROVIDER=native" >> .env
+        echo "STT_PROVIDER=native" >> .env
+        echo "✅ Updated .env for Local Mode (SQLite + Native Audio)."
     else
         echo "ℹ️  .env already contains Local Mode overrides. Skipping update."
     fi
