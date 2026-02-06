@@ -442,7 +442,7 @@ def settings():
             'LLM_BASE_URL': request.form.get('LLM_BASE_URL'),
             'LLM_MODEL_NAME': request.form.get('llm_model'),
             'LLM_API_KEY': request.form.get('llm_key', ''),
-            'LLM_NUM_CTX': request.form.get('llm_ctx', '4096'),
+            'LLM_MAX_OUTPUT_TOKENS': request.form.get('llm_ctx', '20000'),
             'TTS_PROVIDER': request.form.get('tts_provider', 'externalapi'),
             'TTS_BASE_URL': request.form.get('tts_url', ''),
             'TTS_MODEL': request.form.get('tts_model', 'tts-1'),

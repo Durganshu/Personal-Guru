@@ -91,6 +91,27 @@ body.dark-mode .code-execution-wrapper {
     margin-top: 0 !important;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
+    padding: 15px;
+    background-color: #fafafa;
+    /* Default light background */
+    color: #383a42;
+    /* Default light text */
+    overflow-x: auto;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+body.dark-mode .code-execution-wrapper pre {
+    background-color: #282c34;
+    color: #abb2bf;
+}
+
+/* Ensure code inside pre doesn't get double padding/bg */
+.code-execution-wrapper pre code {
+    background: transparent !important;
+    padding: 0 !important;
+    border: none !important;
 }
 
 /* Side Panel */

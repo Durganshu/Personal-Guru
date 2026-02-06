@@ -25,7 +25,7 @@ load_dotenv(override=True)
 
 LLM_BASE_URL = os.getenv("LLM_BASE_URL")
 LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME")
-LLM_NUM_CTX = int(os.getenv("LLM_NUM_CTX", 4096))
+LLM_MAX_OUTPUT_TOKENS = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", 20000))
 LLM_API_KEY = os.getenv("LLM_API_KEY", "dummy")
 TTS_BASE_URL = os.getenv("TTS_BASE_URL", "http://localhost:8969/v1")
 TTS_MODEL = os.getenv("TTS_MODEL", "tts-1")
@@ -99,7 +99,7 @@ def call_llm(prompt_or_messages, is_json=False):
             "model": LLM_MODEL_NAME,
             "messages": messages,
             "temperature": 0.7,
-            "max_tokens": LLM_NUM_CTX,
+            "max_tokens": LLM_MAX_OUTPUT_TOKENS,
         }
 
         # Note: Ollama via OpenAI-compat supports 'json_object' in recent versions.
@@ -567,6 +567,53 @@ def get_user_context():
     return os.getenv("USER_BACKGROUND", "a beginner")
 
 
+def parse_podcast_script(transcript):
+    """
+    Parses a podcast transcript into a list of (speaker, content) tuples.
+    Robustly handles bolding, extra spaces, and different quote styles.
+    Strictly standardizes speakers to 'Jamie' (Host) and 'Alex' (Guest).
+    """
+    lines = []
+    HOST_NAME = "Jamie"
+    GUEST_NAME = "Alex"
+
+    # Regex breakdown:
+    # ^\** -> Optional bolding asterisks at start
+    # ([^:]+)     -> Capture group 1: The speaker's name (anything before the colon)
+    # \**\s*:\s* -> Optional bolding, then the colon, plus any surrounding whitespace
+    # (.*)        -> Capture group 2: The actual dialogue text
+    pattern = re.compile(r"^\**([^:]+)\**\s*:\s*(.*)", re.IGNORECASE)
+
+    for line in transcript.strip().split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+
+        match = pattern.match(line)
+        if match:
+            speaker = match.group(1).strip()
+            # Remove markdown bolding or quotes from the speaker name
+            speaker = speaker.replace('*', '').replace('"', '').replace("'", "")
+            # Remove parentheticals like "Jamie (Host)"
+            speaker = re.sub(r'\(.*?\)', '', speaker).strip()
+
+            content = match.group(2).strip()
+            # Clean content: remove surrounding quotes and extra asterisks
+            content = content.strip('"').strip('*').strip()
+
+            if content:
+                # Strictly filter allowed speakers
+                if speaker.lower() == HOST_NAME.lower():
+                    lines.append((HOST_NAME, content))
+                elif speaker.lower() == GUEST_NAME.lower():
+                    lines.append((GUEST_NAME, content))
+                else:
+                    # Ignore other speakers or malformed lines (e.g. code like 'print("foo": bar)')
+                    # This prevents code blocks from leaking into the script
+                    continue
+    return lines
+
+
 def generate_podcast_audio(transcript, output_filename):
     """
     Generates a full podcast audio file from a transcript using the configured TTS service.
@@ -578,17 +625,8 @@ def generate_podcast_audio(transcript, output_filename):
     start_time = time.time()
 
     # 1. Parse Transcript
-    lines = []
     print("Parsing transcript...")
-    for line in transcript.strip().split('\n'):
-        if ':' in line:
-            parts = line.split(':', 1)
-            speaker = parts[0].strip()
-            # Normalize speaker name (remove parentheticals like "(Host)")
-            speaker = re.sub(r'\(.*?\)', '', speaker).strip()
-            content = parts[1].strip()
-            if content:
-                lines.append((speaker, content))
+    lines = parse_podcast_script(transcript)
 
     if not lines:
         return False, "No dialogue lines found in transcript"

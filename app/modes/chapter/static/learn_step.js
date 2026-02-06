@@ -1,7 +1,18 @@
 // Markdown Configuration
 const md = window.markdownit({
+    html: true,
+    linkify: true,
+    typographer: true,
     highlight: function (str, lang) {
-        return '<pre class="code-block" data-lang="' + lang + '"><code>' +
+        if (lang && window.hljs && window.hljs.getLanguage(lang)) {
+            try {
+                return '<pre class="code-block hljs" data-lang="' + lang + '"><code>' +
+                    window.hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+                    '</code></pre>';
+            } catch (__) { }
+        }
+
+        return '<pre class="code-block hljs" data-lang="' + lang + '"><code>' +
             md.utils.escapeHtml(str) +
             '</code></pre>';
     }
@@ -21,6 +32,30 @@ function initLearnStep(cfg) {
     setupReadAloud(markdownContent);
     setupPodcast();
     setupSelectionMenu();
+    setupThemeObserver();
+}
+
+function setupThemeObserver() {
+    const themeLink = document.getElementById('highlight-theme');
+    if (!themeLink) return;
+
+    const updateTheme = () => {
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        const sun = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css';
+        const moon = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css';
+
+        const newHref = isDarkMode ? moon : sun;
+        if (themeLink.href !== newHref) {
+            themeLink.href = newHref;
+        }
+    };
+
+    // Initial check
+    updateTheme();
+
+    // Observe body class changes using MutationObserver
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 }
 
 function toggleSidebar() {
