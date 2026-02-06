@@ -41,7 +41,7 @@ echo [INFO] FFmpeg is already installed.
 REM Interactive Prompts
 echo.
 echo Select Installation Mode:
-echo 1. Standard Mode (Docker Required - Best Quality/Features)
+echo 1. Hybrid Mode (Docker for DB - Recommended for Developers)
 echo 2. Local Lite Mode (No Docker - Easiest Setup)
 
 :ask_mode
@@ -64,12 +64,18 @@ if "%mode_choice%"=="2" (
         copy .env.example .env
         echo [INFO] Created .env from example.
     )
-    echo. >> .env
-    echo # Local Mode Overrides >> .env
-    echo [INFO] Updated .env for Local Mode.
+
+    findstr /C:"# Local Mode Overrides" .env >nul
+    if %errorlevel% neq 0 (
+        echo. >> .env
+        echo # Local Mode Overrides >> .env
+        echo [INFO] Updated .env for Local Mode.
+    ) else (
+        echo [INFO] .env already contains Local Mode overrides. Skipping update.
+    )
 
 ) else (
-    echo [INFO] Standard Mode selected.
+    echo [INFO] Hybrid Mode selected.
     set local_mode=n
     echo.
 )

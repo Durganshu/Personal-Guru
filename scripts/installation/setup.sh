@@ -94,7 +94,7 @@ env_opts="python=3.11"
 
 echo ""
 echo "Select Installation Mode:"
-echo "1) Standard Mode (Docker Required - Best Quality/Features)"
+echo "1) Hybrid Mode (Docker for DB - Recommended for Developers)"
 echo "2) Local Lite Mode (No Docker - Easiest Setup)"
 
 while true; do
@@ -117,18 +117,19 @@ if [[ "$mode_choice" == "2" ]]; then
         cp .env.example .env
         echo "📝 Created .env from example."
     fi
-    # Update providers to local
-    # Note: simple sed might vary by OS, handling simplified for now or appending
-    # Better to just append updates if they don't impact
-    # OR rely on user to check settings. But user said "easiest setup".
-    # Let's append overrides to the end of .env
-    echo "" >> .env
-    echo "# Local Mode Overrides" >> .env
-    echo "✅ Updated .env for Local Mode."
+
+    # Check if Local Mode Overrides already exist to avoid duplication
+    if ! grep -q "# Local Mode Overrides" .env; then
+        echo "" >> .env
+        echo "# Local Mode Overrides" >> .env
+        echo "✅ Updated .env for Local Mode."
+    else
+        echo "ℹ️  .env already contains Local Mode overrides. Skipping update."
+    fi
 
 elif [[ "$mode_choice" == "1" ]]; then
     local_mode="n"
-    echo "✅ Standard Mode selected."
+    echo "✅ Hybrid Mode selected."
     echo ""
 fi
 
