@@ -54,42 +54,46 @@ goto :ask_mode
 
 :mode_selected
 
-if "%mode_choice%"=="2" (
-    echo [INFO] Local Mode selected. Using SQLite and Local Audio.
-    set local_mode=y
-    set install_tts=n
-    set start_db=n
+if "%mode_choice%"=="2" goto :setup_local_mode
 
-    if exist .env (
-        echo [WARNING] Existing .env file found.
-        set /p overwrite_env="Do you want to overwrite it with default Local Mode settings? (Recommended) [y/N]: "
-    ) else (
-        set overwrite_env=y
-    )
+echo [INFO] Hybrid Mode selected.
+set local_mode=n
+echo.
+goto :env_check
 
-    if /i "%overwrite_env%"=="y" (
-        copy .env.example .env
-        echo [INFO] Created/Overwritten .env from example.
-    ) else (
-        echo [INFO] Keeping existing .env file.
-    )
+:setup_local_mode
+echo [INFO] Local Mode selected. Using SQLite and Local Audio.
+set local_mode=y
+set install_tts=n
+set start_db=n
 
-    findstr /C:"# Local Mode Overrides" .env >nul
-    if %errorlevel% neq 0 (
-        echo. >> .env
-        echo # Local Mode Overrides >> .env
-        echo DATABASE_URL=sqlite:///site.db >> .env
-        echo STT_PROVIDER=native >> .env
-        echo [INFO] Updated .env for Local Mode (SQLite + Native Audio).
-    ) else (
-        echo [INFO] .env already contains Local Mode overrides. Skipping update.
-    )
-
+if exist .env (
+    echo [WARNING] Existing .env file found.
+    set /p overwrite_env="Do you want to overwrite it with default Local Mode settings? (Recommended) [y/N]: "
 ) else (
-    echo [INFO] Hybrid Mode selected.
-    set local_mode=n
-    echo.
+    set overwrite_env=y
 )
+
+if /i "%overwrite_env%"=="y" (
+    copy .env.example .env
+    echo [INFO] Created/Overwritten .env from example.
+) else (
+    echo [INFO] Keeping existing .env file.
+)
+
+findstr /C:"# Local Mode Overrides" .env >nul
+if %errorlevel% neq 0 (
+    echo. >> .env
+    echo # Local Mode Overrides >> .env
+    echo DATABASE_URL=sqlite:///site.db >> .env
+    echo TTS_PROVIDER=native >> .env
+    echo STT_PROVIDER=native >> .env
+    echo [INFO] Updated .env for Local Mode (SQLite + Native Audio).
+) else (
+    echo [INFO] .env already contains Local Mode overrides. Skipping update.
+)
+
+:env_check
 
 REM Check if environment already exists
 call conda info --envs | findstr /B /C:"Personal-Guru " >nul 2>nul
