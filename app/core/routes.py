@@ -517,6 +517,13 @@ def settings():
         else:
             # Development Mode: Auto-Reload
             try:
+                # If running in Docker, we want a hard restart to ensure all env vars and connections are fresh.
+                # Docker Compose 'restart: always' will bring it back up.
+                if os.path.exists('/.dockerenv'):
+                   print("--- Restarting Docker Container ---")
+                   sys.exit(0) # Exit cleanly; Docker restarts it.
+
+                # Otherwise, use reloader trigger
                 os.utime('run.py', None)
             except Exception as e:
                 print(f"Error triggering reload: {e}")
