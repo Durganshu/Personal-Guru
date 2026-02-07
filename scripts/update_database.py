@@ -223,8 +223,8 @@ def update_database():
                     if not user_id_col.get('nullable', True): # If NOT NULL (False), make it nullable
                          try:
                              logger.info("  [*] Altering user_id to be NULLABLE")
-                             # Set a sensible lock_timeout to prevent hanging forever
-                             db.session.execute(text("SET lock_timeout = '5s'"))
+                             # Set a sensible lock_timeout to prevent hanging forever (Transaction locally)
+                             db.session.execute(text("SET LOCAL lock_timeout = '5s'"))
 
                              sql = text('ALTER TABLE "telemetry_logs" ALTER COLUMN "user_id" DROP NOT NULL')
                              db.session.execute(sql)
