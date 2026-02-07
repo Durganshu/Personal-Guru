@@ -2,34 +2,64 @@
 
 This document details the database structure and management for the Personal Guru application.
 
+## Database Engine
+
+Personal Guru uses **SQLite** as its default database engine for ease of local setup and portability. The application uses **SQLAlchemy** as an Object-Relational Mapper (ORM) to interact with the database.
+
+> [!NOTE]
+> In Docker environments, the database file is typically stored in the `instance/` directory, which should be persisted using a volume.
+
 ## Database Schema
 
-The application uses the following PostgreSQL tables:
+The core models are defined in `app/core/models.py`.
 
-- **users**: Stores user accounts and profiles.
-- **topics**: Main table for each subject the user is learning.
-- **study_steps**: Steps within a study plan (one-to-many from topics).
-- **quizzes**: Quizzes generated for a topic.
-- **flashcards**: Flashcards for vocabulary terms.
-- **chat_sessions**: Stores the conversational history for "Chat Mode" (one-to-one with topics). Note: "Chapter Mode" side-chats are stored directly in `study_steps.chat_history`.
+### Primary Tables
 
-## Database Migration (Recommended Safe Method)
+| Table Name | Description |
+| :--- | :--- |
+| `logins` | Stores user credentials, password hashes, and identity IDs. |
+| `users` | Stores extended user profiles (education, goals, preferences). |
+| `topics` | Represents a learning subject and its overall study plan. |
+| `chapter_mode` | Stores AI-generated reading material and questions for study steps. |
+| `quiz_mode` | Stores final assessments and results for a topic. |
+| `flashcard_mode`| Stores term-definition pairs for a topic. |
+| `chat_mode` | Records conversational history for a topic. |
 
-If you plan to move data between different types of computers (e.g., your Linux server to a Windows laptop), it is safer to use the built-in backup tools:
+### System & Telemetry Tables
 
-1. **Export (on old machine):**
+| Table Name | Description |
+| :--- | :--- |
+| `installations` | Tracks unique application installs and hardware specs. |
+| `telemetry_logs`| Records user actions and events for analytics. |
+| `sync_logs` | Records background data synchronization attempts. |
+| `feedback` | Stores user ratings and comments. |
+| `ai_model_performance` | Tracks LLM latency and token usage metrics. |
+| `plan_revisions`| Records changes made to study plans over time. |
+
+## Management & Migrations
+
+Personal Guru uses **Flask-Migrate** (powered by Alembic) for handling database schema changes.
+
+### Running Migrations
+
+1. **Initialize** (only once):
 
    ```bash
-   docker compose exec db pg_dump -U postgres personal_guru > backup.sql
+   flask db init
    ```
 
-2. **Import (on new machine):**
-   Move the `backup.sql` file to the new machine, start the fresh empty container, and run:
+2. **Generate Migration Script**:
 
    ```bash
-   # Copy file into container
-   docker cp backup.sql personal-guru-db-1:/backup.sql
-
-   # Restore
-   docker compose exec db psql -U postgres -d personal_guru -f /backup.sql
+   flask db migrate -m "Description of changes"
    ```
+
+3. **Apply Changes**:
+
+   ```bash
+   flask db upgrade
+   ```
+
+### Manual Data Management
+
+For developers, a built-in admin tool is available at `/admin/db-viewer` (if enabled) to view and manage records. For raw access, use standard SQLite clients like `sqlite3` or DB Browser for SQLite on the `instance/site.db` file.
