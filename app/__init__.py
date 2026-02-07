@@ -287,9 +287,25 @@ def create_app(config_class=Config):
     is_frozen = getattr(sys, 'frozen', False)  # PyInstaller sets this
 
     # Start sync if:
-    # 1. We're in the reloader child process (WERKZEUG_RUN_MAIN='true'), OR
+    # 1. We're in the reloader child process (WERKZEUG_RUN_MAIN='true')
     # 2. We're in production/frozen mode (no reloader, WERKZEUG_RUN_MAIN not set)
-    should_start_sync = (run_main_env == 'true') or (run_main_env is None and is_frozen)
+    # 3. We're in a standard run (no debug, no reloader) - e.g. Docker default
+
+    if is_frozen:
+        should_start_sync = True
+    elif app.debug:
+        should_start_sync = (run_main_env == 'true')
+    else:
+        # Not frozen, not debug. Likely Docker or production run.
+        should_start_sync = True
+
+    # DEBUG: Trace startup logic
+    print("=== STARTUP DEBUG ===")
+    print(f"is_frozen: {is_frozen}")
+    print(f"app.debug: {app.debug}")
+    print(f"WERKZEUG_RUN_MAIN: {run_main_env}")
+    print(f"should_start_sync: {should_start_sync}")
+    print("=====================")
 
     if should_start_sync:
         # Main server process - start background services

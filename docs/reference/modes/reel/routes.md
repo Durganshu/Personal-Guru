@@ -47,6 +47,8 @@ responses:
             type: object
         session_id:
           type: string
+        next_page_token:
+          type: string
   400:
     description: Topic is required
 
@@ -87,3 +89,43 @@ responses:
     description: Missing required fields
   404:
     description: Session not found
+
+#### more\_reels
+
+```python
+@reel_bp.route('/api/more-reels', methods=['POST'])
+def more_reels()
+```
+
+Fetch more reels for endless scrolling.
+
+---
+tags:
+  - Reels
+parameters:
+  - in: body
+    name: body
+    required: true
+    schema:
+      type: object
+      required:
+        - session_id
+      properties:
+        session_id:
+          type: string
+responses:
+  200:
+    description: Additional reels for endless scrolling
+    schema:
+      type: object
+      properties:
+        reels:
+          type: array
+          items:
+            type: object
+        next_page_token:
+          type: string
+  400:
+    description: Session ID is required
+  404:
+    description: Session not found or no more reels available

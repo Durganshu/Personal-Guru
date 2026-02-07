@@ -515,11 +515,29 @@ def settings():
             </html>
             """
         else:
-            # Development Mode: Auto-Reload
-            try:
-                os.utime('run.py', None)
-            except Exception as e:
-                print(f"Error triggering reload: {e}")
+            # Development Mode & Docker: Auto-Reload
+            def restart_server():
+                import time
+                import sys
+                import signal
+
+                print("--- Scheduling Restart ---")
+                time.sleep(1)  # Give time for the response to be sent
+
+                if os.path.exists('/.dockerenv'):
+                    print("--- Docker Environment Detected: Force Restarting Container ---")
+                    # Force kill to ensure Docker restarts the service
+                    os.kill(os.getpid(), signal.SIGKILL)
+                else:
+                    print("--- Local Environment: Triggering Reloader ---")
+                    try:
+                        os.utime('run.py', None)
+                    except Exception:
+                        sys.exit(1)
+
+            # Start restart in a separate thread to allow the response to return
+            import threading
+            threading.Thread(target=restart_server).start()
 
             # Return a page that polls for the server to come back up
             return """
