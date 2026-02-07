@@ -7,6 +7,10 @@ This is a multi-agent AI system 🤖 designed to create an interactive learning 
 [pg-demo.samosa-ai.com](https://pg-demo.samosa-ai.com) 🌐
 *Note: Use a desktop computer 💻 for the best experience.*
 
+## 🏁 Getting Started
+
+For detailed installation and setup instructions, please visit our **[Getting Started Guide](https://samosa-ai.com/personal-guru/docs/getting-started)**. 🛠️
+
 ## 🌟 Application Highlights
 
 * **👤 User Accounts:** Secure sign-up, login, and profile management with isolated topic spaces.
@@ -19,17 +23,15 @@ This is a multi-agent AI system 🤖 designed to create an interactive learning 
 * **🏠 Local & Cloud AI:** Support for local LLMs (Ollama, LM Studio) and cloud providers (Gemini, OpenAI, Groq). 🤖
 * **📥 Export Options:** Export courses to PDF 📄 and Markdown files for apps like Notion or Obsidian.
 
-📋 [**Full Features Overview**](docs/features.md)
+📋 [**Full Features Overview**](https://samosa-ai.com/personal-guru/docs/features)
 
-## 🏁 Getting Started
 
-For detailed installation and setup instructions, please visit our **[Getting Started Guide](https://samosa-ai.com/personal-guru/docs/getting-started)**. 🛠️
 
 ## 📚 Documentation
 
-* 👩‍💻 [**Developer Setup**](docs/setup-developer.md): Guide for contributors (Hybrid Mode, utility scripts, hooks).
-* 🏗️ [**Architecture**](docs/architecture.md): High-level system design (C4 Model).
-* 🗄️ [**Database Schema**](docs/database.md): Database tables and migration guide.
+* 👩‍💻 [**Deployment Guide**](https://samosa-ai.com/personal-guru/docs/deployment_guide): Guide for contributors (Hybrid Mode, utility scripts, hooks).
+* 🏗️ [**Architecture**](https://samosa-ai.com/personal-guru/docs/architecture): High-level system design (C4 Model).
+* 🗄️ [**Database Schema**](https://samosa-ai.com/personal-guru/docs/database): Database tables and migration guide.
 * 🔌 **API Documentation**: Interactive Swagger UI available at `/apidocs/` after running the app. 🔍
 
 ## 🤝 Project & Community
