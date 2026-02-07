@@ -14,7 +14,7 @@ Thank you for your interest in contributing to Personal Guru! We welcome contrib
    ```bash
    git clone https://github.com/Rishabh-Bajpai/Personal-Guru.git
    cd Personal-Guru
-   
+
    ```
 
 2. **Set Up Environment**
