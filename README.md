@@ -2,7 +2,7 @@
 
 This is a multi-agent AI system 🤖 designed to create an interactive learning experience tailored to the user's chosen topic. It generates custom study plans, detailed content, and multi-modal assessments. 🧠
 
-# 🚀 Live Demo
+# 🚀 Live Demo (app not updated)
 
 [pg-demo.samosa-ai.com](https://pg-demo.samosa-ai.com) 🌐
 *Note: Use a desktop computer 💻 for the best experience.*
