@@ -1,6 +1,6 @@
 # Setup Guide: Developers
 
-This guide is for contributors and developers who need a robust environment for modifying the code. It uses **Hybrid Mode**: Docker for heavy backend services (DB, TTS) and the local terminal for the Flask application to enable features like auto-reloading and debugging.
+This guide is for contributors and developers who need a robust environment for modifying the code. It uses **Hybrid Mode**: Docker for heavy backend services (DB, TTS, STT) and the local terminal for the Flask application to enable features like auto-reloading and debugging.
 
 ## Hybrid Mode Setup
 
@@ -11,6 +11,7 @@ In this mode, you run the support services in Docker but the main app locally.
 * **Conda** (Miniconda/Anaconda).
 * **Docker** and **Docker Compose**.
 * **Git**.
+* **FFmpeg**.
 
 ### Installation Steps
 
@@ -32,6 +33,7 @@ In this mode, you run the support services in Docker but the main app locally.
     * Choose option **`1`** ("Hybrid Mode").
     * The script will install **development dependencies** (`.[dev]`) and setup `pre-commit` hooks.
     * It will ask if you want to start the Docker Database. Say **Yes**.
+    * Select option `Yes` if you want to run local Speaches (TTS/STT).
 
 4. **Activate Environment**:
 
@@ -39,20 +41,15 @@ In this mode, you run the support services in Docker but the main app locally.
     conda activate Personal-Guru
     ```
 
-5. **Start Services (If not already running)**:
-    If you didn't start the DB during setup, or need to restart it:
-    * **Linux/Mac**: `./scripts/installation/start_docker.sh`
-    * **Windows**: `scripts\installation\start_docker.bat`
 
-    *Select option `Yes` if you want to run local Speaches (TTS/STT).*
-
-6. **Run the Application**:
+5. **Run the Application**:
 
     ```bash
     python run.py
     ```
 
     * The app will connect to the localhost ports exposed by Docker (DB: 5433, TTS: 8969).
+6. Go to http://localhost:5011 to open the app.
 
 ---
 
@@ -70,11 +67,7 @@ python -m pytest
 
 * **View DB**: `python scripts/db_viewer.py`
 * **Clear DB**: `python scripts/clear_database.py` (Caution!)
-* **Migrations**:
 
-    ```bash
-    flask db upgrade
-    ```
 
 ## Utility Scripts for Developers
 
@@ -100,6 +93,26 @@ The `scripts/` folder contains several utility scripts to assist with developmen
 - **`scripts/update_database.py`**
   - **Purpose:** Initializes tables and performs safe migrations (adding new columns/tables).
   - **Usage:** `python scripts/update_database.py`
+- **Database Migration** (Recommended Safe Method)
+
+If you plan to move data between different types of computers (e.g., your Linux server to a Windows laptop), it is safer to use the built-in backup tools:
+
+1. **Export (on old machine):**
+
+   ```bash
+   docker compose exec db pg_dump -U postgres personal_guru > backup.sql
+   ```
+
+2. **Import (on new machine):**
+   Move the `backup.sql` file to the new machine, start the fresh empty container, and run:
+
+   ```bash
+   # Copy file into container
+   docker cp backup.sql personal-guru-db-1:/backup.sql
+
+   # Restore
+   docker compose exec db psql -U postgres -d personal_guru -f /backup.sql
+   ```
 
 ### Other Utilities
 
