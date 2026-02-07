@@ -58,6 +58,16 @@ if "%mode_choice%"=="2" goto :setup_local_mode
 
 echo [INFO] Hybrid Mode selected.
 set local_mode=n
+
+REM Configure .env for Hybrid Mode
+if not exist .env goto :create_env_hybrid
+echo [WARNING] Existing .env file found.
+set /p overwrite_env_hybrid="Do you want to overwrite it with default settings? [y/N]: "
+if /i not "%overwrite_env_hybrid%"=="y" goto :skip_env_hybrid
+:create_env_hybrid
+copy .env.example .env
+echo [INFO] Created/Overwritten .env from example.
+:skip_env_hybrid
 echo.
 goto :env_check
 

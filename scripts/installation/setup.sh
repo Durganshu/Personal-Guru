@@ -143,6 +143,21 @@ if [[ "$mode_choice" == "2" ]]; then
 elif [[ "$mode_choice" == "1" ]]; then
     local_mode="n"
     echo "✅ Hybrid Mode selected."
+
+    # Configure .env for Hybrid Mode
+    if [ -f .env ]; then
+        echo "⚠️  Existing .env file found."
+        read -p "Do you want to overwrite it with default settings? [y/N]: " overwrite_env
+        if [[ "$overwrite_env" =~ ^[Yy]$ ]]; then
+            cp .env.example .env
+            echo "📝 Overwrote .env with example."
+        else
+            echo "ℹ️  Keeping existing .env file."
+        fi
+    else
+        cp .env.example .env
+        echo "📝 Created .env from example."
+    fi
     echo ""
 fi
 
