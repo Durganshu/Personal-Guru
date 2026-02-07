@@ -1,6 +1,5 @@
 @echo off
 setlocal
-chcp 65001 >nul 2>nul
 
 REM Navigate to project root
 pushd "%~dp0\..\.."
@@ -24,7 +23,7 @@ echo [WARNING] FFmpeg is not installed. It is required for audio processing.
 set /p install_ffmpeg="Do you want to install it now using winget? [y/N]: "
 if /i not "%install_ffmpeg%"=="y" goto :ffmpeg_skip
 echo [INFO] Attempting to install FFmpeg via winget...
-winget install ffmpeg
+winget install ffmpeg --accept-source-agreements --accept-package-agreements
 if %errorlevel% neq 0 echo [ERROR] Failed to install FFmpeg via winget. Please install manually from https://ffmpeg.org/download.html
 if %errorlevel% equ 0 echo [SUCCESS] FFmpeg installed successfully.
 goto :ffmpeg_done
@@ -89,7 +88,7 @@ copy .env.example .env
 echo [INFO] Created/Overwritten .env from example.
 
 :check_overrides
-findstr /C:"# Local Mode Overrides" .env >nul
+"%ENV_PYTHON%" -c "import sys; content = open('.env', 'r', encoding='utf-8', errors='ignore').read(); sys.exit(0 if '# Local Mode Overrides' in content else 1)"
 if not errorlevel 1 (
     echo [INFO] .env already contains Local Mode overrides. Skipping update.
     goto :env_check
@@ -175,12 +174,12 @@ goto :end_db_setup
 echo [INFO] Starting Database...
 docker compose up -d db
 echo [INFO] Waiting for Database to be ready...
-timeout /t 5 /nobreak
+ping -n 6 127.0.0.1 >nul
 
 REM Configure .env for Hybrid Mode (Postgres)
-findstr /C:"sqlite:///site.db" .env >nul
+"%ENV_PYTHON%" -c "import sys; content = open('.env', 'r', encoding='utf-8', errors='ignore').read(); sys.exit(0 if 'sqlite:///site.db' in content else 1)"
 if %errorlevel% equ 0 (
-    echo [INFO] Switching .env to use PostgreSQL (Docker)...
+    echo [INFO] Switching .env to use PostgreSQL via Docker...
     echo. >> .env
     echo # Hybrid Mode Overrides >> .env
     echo DATABASE_URL=postgresql://postgres:postgres@localhost:5433/personal_guru >> .env
@@ -198,7 +197,7 @@ echo [INFO] Starting Speaches (TTS/STT)...
 docker compose --profile tts up -d speaches
 
 echo [INFO] Waiting for TTS Server to start (15s)...
-timeout /t 15 /nobreak
+ping -n 16 127.0.0.1 >nul
 
 echo [INFO] Downloading Kokoro-82M model...
 docker compose exec speaches uv tool run speaches-cli model download speaches-ai/Kokoro-82M-v1.0-ONNX
@@ -209,7 +208,7 @@ docker compose exec speaches uv tool run speaches-cli model download Systran/fas
 echo [SUCCESS] TTS/STT Services Ready.
 
 REM Update .env to use externalapi for Hybrid Mode
-findstr /C:"TTS_PROVIDER=externalapi" .env >nul
+"%ENV_PYTHON%" -c "import sys; content = open('.env', 'r', encoding='utf-8', errors='ignore').read(); sys.exit(0 if 'TTS_PROVIDER=externalapi' in content else 1)"
 if %errorlevel% neq 0 (
     echo. >> .env
     echo # Hybrid Mode Audio >> .env
