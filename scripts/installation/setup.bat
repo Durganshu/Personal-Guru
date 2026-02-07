@@ -1,6 +1,5 @@
 @echo off
 setlocal
-REM chcp 65001 >nul 2>nul
 
 REM Navigate to project root
 pushd "%~dp0\..\.."
