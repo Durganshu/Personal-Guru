@@ -14,6 +14,7 @@ Thank you for your interest in contributing to Personal Guru! We welcome contrib
    ```bash
    git clone https://github.com/Rishabh-Bajpai/Personal-Guru.git
    cd Personal-Guru
+   
    ```
 
 2. **Set Up Environment**
@@ -28,7 +29,7 @@ Thank you for your interest in contributing to Personal Guru! We welcome contrib
 3. **Start Services**
 
    ```bash
-   docker compose up -d db      # PostgreSQL database
+   docker compose up speaches db -d       # PostgreSQL database,  STT and TTS
    python scripts/update_database.py
    python run.py                # Start the app
    ```
