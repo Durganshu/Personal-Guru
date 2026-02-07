@@ -515,18 +515,29 @@ def settings():
             </html>
             """
         else:
-            # Development Mode: Auto-Reload
-            try:
-                # If running in Docker, we want a hard restart to ensure all env vars and connections are fresh.
-                # Docker Compose 'restart: always' will bring it back up.
-                if os.path.exists('/.dockerenv'):
-                   print("--- Restarting Docker Container ---")
-                   sys.exit(0) # Exit cleanly; Docker restarts it.
+            # Development Mode & Docker: Auto-Reload
+            def restart_server():
+                import time
+                import sys
+                import signal
 
-                # Otherwise, use reloader trigger
-                os.utime('run.py', None)
-            except Exception as e:
-                print(f"Error triggering reload: {e}")
+                print("--- Scheduling Restart ---")
+                time.sleep(1)  # Give time for the response to be sent
+
+                if os.path.exists('/.dockerenv'):
+                    print("--- Docker Environment Detected: Force Restarting Container ---")
+                    # Force kill to ensure Docker restarts the service
+                    os.kill(os.getpid(), signal.SIGKILL)
+                else:
+                    print("--- Local Environment: Triggering Reloader ---")
+                    try:
+                        os.utime('run.py', None)
+                    except Exception:
+                        sys.exit(1)
+
+            # Start restart in a separate thread to allow the response to return
+            import threading
+            threading.Thread(target=restart_server).start()
 
             # Return a page that polls for the server to come back up
             return """
