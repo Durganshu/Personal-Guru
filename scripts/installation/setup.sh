@@ -191,22 +191,69 @@ if [[ "$local_mode" =~ ^[Yy]$ ]]; then
     $ENV_PYTHON scripts/update_database.py
     start_db="n"
 else
+    # Hybrid Mode: Ask about services
+    echo "🐳 Hybrid Mode Setup"
+    echo "----------------------"
+
+    # --- Database Setup ---
     read -p "Start Database via Docker now? [Y/n]: " start_db
-fi
-if [[ "$start_db" =~ ^[Nn]$ ]]; then
-    echo "Using existing DB or manual setup..."
-else
-    if command -v docker &> /dev/null; then
-        echo "🐳 Starting Database..."
-        docker compose up -d db
-
-        echo "⏳ Waiting for Database to be ready..."
-        sleep 5
-
-        echo "🗄️  Initializing/Updating Database Tables..."
-        $ENV_PYTHON scripts/update_database.py
+    if [[ "$start_db" =~ ^[Nn]$ ]]; then
+        echo "Using existing DB or manual setup..."
     else
-        echo "❌ Docker not found. Skipping DB start."
+        if command -v docker &> /dev/null; then
+            echo "🐳 Starting Database..."
+            docker compose up -d db
+
+            echo "⏳ Waiting for Database to be ready..."
+            sleep 5
+
+            # Configure .env for Hybrid Mode (Postgres)
+            if grep -q "sqlite:///site.db" .env; then
+                echo "ℹ️  Switching .env to use PostgreSQL (Docker)..."
+                echo "" >> .env
+                echo "# Hybrid Mode Overrides" >> .env
+                echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5433/personal_guru" >> .env
+            fi
+
+            echo "🗄️  Initializing/Updating Database Tables..."
+            $ENV_PYTHON scripts/update_database.py
+        else
+            echo "❌ Docker not found. Skipping DB start."
+        fi
+    fi
+
+    echo ""
+
+    # --- TTS/STT Setup ---
+    read -p "Do you want to run local Speaches/Kokoro (TTS/STT) via Docker? (Large download ~5GB) [y/N]: " run_tts
+    if [[ "$run_tts" =~ ^[Yy]$ ]]; then
+        if command -v docker &> /dev/null; then
+            echo "🎤 Starting Speaches (TTS/STT)..."
+            docker compose --profile tts up -d speaches
+
+            echo "⏳ Waiting for TTS Server to start (15s)..."
+            sleep 15
+
+            echo "⬇️  Downloading Kokoro-82M model..."
+            docker compose exec speaches uv tool run speaches-cli model download speaches-ai/Kokoro-82M-v1.0-ONNX
+            echo "⬇️  Downloading Faster Whisper Medium model (STT)..."
+            docker compose exec speaches uv tool run speaches-cli model download Systran/faster-whisper-medium.en
+            echo "✅ TTS/STT Services Ready."
+
+             # Update .env to use externalapi for Hybrid Mode
+             # We check if we haven't already added this block to avoid duplicates if run multiple times
+            if ! grep -q "TTS_PROVIDER=externalapi" .env; then
+                 echo "" >> .env
+                 echo "# Hybrid Mode Audio" >> .env
+                 echo "TTS_PROVIDER=externalapi" >> .env
+                 echo "TTS_BASE_URL=http://localhost:8969/v1" >> .env
+                 echo "STT_PROVIDER=externalapi" >> .env
+                 echo "STT_BASE_URL=http://localhost:8969/v1" >> .env
+            fi
+
+        else
+             echo "❌ Docker not found. Skipping TTS start."
+        fi
     fi
 fi
 
