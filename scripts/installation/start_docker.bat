@@ -8,6 +8,16 @@ pushd "%~dp0\..\.."
 echo 🐳 Interactive Docker Launcher
 echo.
 
+REM Check if Docker is running
+docker info >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Docker is not running or not accessible!
+    echo Please start Docker Desktop and try again.
+    echo.
+    pause
+    exit /b 1
+)
+
 set PROFILES=
 
 REM Check TTS
