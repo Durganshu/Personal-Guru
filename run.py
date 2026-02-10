@@ -1,12 +1,27 @@
 from dotenv import load_dotenv
-# Load environment variables. override=False ensures system env vars (e.g. from Docker)
-# take precedence over local .env values. This allows Docker to inject the correct
-# 'host.docker.internal' URL instead of 'localhost'.
-load_dotenv(override=False)
+import os
+import logging
+import sys
 
-import os  # noqa: E402
-import logging  # noqa: E402
-import sys  # noqa: E402
+# --- Robust Environment Loading for Docker/Windows ---
+# 1. Capture critical variables injected by Docker (which are correct for internal networking)
+docker_db_url = os.environ.get('DATABASE_URL')
+docker_tts_url = os.environ.get('TTS_BASE_URL')
+docker_stt_url = os.environ.get('STT_BASE_URL')
+
+# 2. Force-load .env to get the latest user configuration (overriding stale Docker vars)
+load_dotenv(override=True)
+
+# 3. Restore critical Docker variables if they were valid internal services
+# This prevents local .env values (like sqlite:/// or localhost) from breaking the container.
+if docker_db_url and 'postgres' in docker_db_url:
+    os.environ['DATABASE_URL'] = docker_db_url
+
+if docker_tts_url and 'speaches' in docker_tts_url:
+    os.environ['TTS_BASE_URL'] = docker_tts_url
+
+if docker_stt_url and 'speaches' in docker_stt_url:
+    os.environ['STT_BASE_URL'] = docker_stt_url
 
 print("----------------------------------------------------------------")
 print(f"🚀 Starting App with LLM_MODEL_NAME: {os.environ.get('LLM_MODEL_NAME', 'Not Set')}")
