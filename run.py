@@ -3,9 +3,14 @@ from dotenv import load_dotenv
 # take precedence over local .env values. This allows Docker to inject the correct
 # 'host.docker.internal' URL instead of 'localhost'.
 load_dotenv(override=False)
+
 import os  # noqa: E402
 import logging  # noqa: E402
 import sys  # noqa: E402
+
+print("----------------------------------------------------------------")
+print(f"🚀 Starting App with LLM_MODEL_NAME: {os.environ.get('LLM_MODEL_NAME', 'Not Set')}")
+print("----------------------------------------------------------------")
 
 # Configure logging at the entry point to ensure visibility of startup tasks
 logging.basicConfig(

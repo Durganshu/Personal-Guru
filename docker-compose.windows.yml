@@ -8,19 +8,21 @@ services:
       - "8969:8000"
     volumes:
       - hf-hub-cache:/home/ubuntu/.cache/huggingface/hub
+    networks:
+      - pg-network
     restart: unless-stopped
 
   app:
     build: .
     ports:
-      - "5011:5011"
+      - "${PORT:-5011}:${PORT:-5011}"
     restart: always
     depends_on:
       db:
         condition: service_healthy
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/personal_guru
-      - PORT=5011
+      - PORT=${PORT:-5011}
       # Use env var if set, otherwise fallback to host.docker.internal
       - LLM_BASE_URL=${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
       - LLM_MODEL_NAME=${LLM_MODEL_NAME:-llama3}
@@ -40,6 +42,8 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - .:/app
+    networks:
+      - pg-network
     command: python run.py
 
   db:
@@ -58,6 +62,12 @@ services:
       retries: 5
     ports:
       - "5433:5432"
+    networks:
+      - pg-network
 
 volumes:
   hf-hub-cache:
+
+networks:
+  pg-network:
+    driver: bridge
