@@ -1,37 +1,10 @@
-from dotenv import load_dotenv
 import os
 import logging
 import sys
+from config import load_environment_variables  # Explicit import prevents unused-import removal
 
-# --- Robust Environment Loading for Docker/Windows ---
-# 1. Capture critical variables injected by Docker (which are correct for internal networking)
-# 1. Capture critical variables injected by Docker (which are correct for internal networking)
-docker_db_url = os.environ.get('DATABASE_URL')
-docker_tts_url = os.environ.get('TTS_BASE_URL')
-docker_stt_url = os.environ.get('STT_BASE_URL')
-docker_tts_provider = os.environ.get('TTS_PROVIDER')
-docker_stt_provider = os.environ.get('STT_PROVIDER')
-
-# 2. Force-load .env to get the latest user configuration (overriding stale Docker vars)
-load_dotenv(override=True)
-
-# 3. Restore critical Docker variables if they were valid internal services
-# This prevents local .env values (like sqlite:/// or localhost) from breaking the container.
-if docker_db_url and 'postgres' in docker_db_url:
-    os.environ['DATABASE_URL'] = docker_db_url
-
-if docker_tts_url and 'speaches' in docker_tts_url:
-    os.environ['TTS_BASE_URL'] = docker_tts_url
-
-if docker_stt_url and 'speaches' in docker_stt_url:
-    os.environ['STT_BASE_URL'] = docker_stt_url
-
-# Restore providers if they were set (usually 'externalapi' in Docker)
-if docker_tts_provider == 'externalapi':
-    os.environ['TTS_PROVIDER'] = docker_tts_provider
-
-if docker_stt_provider == 'externalapi':
-    os.environ['STT_PROVIDER'] = docker_stt_provider
+# 0. Load environment variables immediately
+load_environment_variables()
 
 print("----------------------------------------------------------------")
 print(f"🚀 Starting App with LLM_MODEL_NAME: {os.environ.get('LLM_MODEL_NAME', 'Not Set')}")
