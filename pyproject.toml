@@ -25,6 +25,7 @@ dependencies = [
     "pyOpenSSL",
     "Authlib==1.4.0",
     "cryptography==42.0.5",
+    "setuptools",
 ]
 
 [project.optional-dependencies]
