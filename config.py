@@ -3,13 +3,44 @@ from dotenv import load_dotenv
 
 def load_environment_variables():
     """
-    Load environment variables from .env file.
+    Load environment variables from .env file and handle Docker-specific overrides.
 
-    This relies on the standard behavior of python-dotenv:
-    1. System environment variables (e.g. from Docker) take precedence.
-    2. Variables in .env file are loaded if not already set.
+    This function:
+    1. Captures critical Docker-injected variables.
+    2. Loads the .env file (overriding Docker vars).
+    3. Restores specific Docker variables if they are valid internal service URLs.
     """
-    load_dotenv()
+    # --- Robust Environment Loading for Docker/Windows ---
+    # 1. Capture critical variables injected by Docker (which are correct for internal networking)
+    docker_db_url = os.environ.get('DATABASE_URL')
+    docker_tts_url = os.environ.get('TTS_BASE_URL')
+    docker_stt_url = os.environ.get('STT_BASE_URL')
+    docker_tts_provider = os.environ.get('TTS_PROVIDER')
+    docker_stt_provider = os.environ.get('STT_PROVIDER')
+
+    # 2. Force-load .env to get the latest user configuration (overriding stale Docker vars)
+    load_dotenv(override=True)
+
+    # 3. Restore critical Docker variables if they were valid internal services
+    # This prevents local .env values (like sqlite:/// or localhost) from breaking the container.
+    if docker_db_url and 'postgres' in docker_db_url:
+        os.environ['DATABASE_URL'] = docker_db_url
+
+    if docker_tts_url and 'speaches' in docker_tts_url:
+        os.environ['TTS_BASE_URL'] = docker_tts_url
+
+    if docker_stt_url and 'speaches' in docker_stt_url:
+        os.environ['STT_BASE_URL'] = docker_stt_url
+
+    # Restore providers if they were set (usually 'externalapi' in Docker)
+    if docker_tts_provider == 'externalapi':
+        os.environ['TTS_PROVIDER'] = docker_tts_provider
+
+    if docker_stt_provider == 'externalapi':
+        os.environ['STT_PROVIDER'] = docker_stt_provider
+
+
+
 
 class Config:
     """Application configuration settings loaded from environment variables."""
