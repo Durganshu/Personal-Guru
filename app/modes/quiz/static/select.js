@@ -15,6 +15,9 @@ function generateQuiz(count) {
 
     // Construct URL: /quiz/generate/<topic_name>/<count>
     // Note: Flask routes are /quiz/generate/<topic_name>/<count>
+    if (typeof showLoader === 'function') {
+        showLoader('Generating your quiz...');
+    }
     let url = `${baseUrl}/${topicName}/${count}`;
     window.location.href = url;
 }

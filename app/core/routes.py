@@ -1,8 +1,10 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for
 from app.common.storage import get_all_topics, load_topic
 from app.common.utils import log_telemetry
+from app.common.auth import create_jwe, decrypt_jwe
 from flask_login import login_user, logout_user, login_required, current_user
 import os
+import sys
 
 main_bp = Blueprint('main', __name__)
 
@@ -20,29 +22,63 @@ def index():
             pass  # Ignore cleanup errors
         session.pop('sandbox_id', None)
 
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+
+    # Manual Pagination Helper Class
+    class MockPagination:
+        def __init__(self, items, page, per_page, total):
+            self.items = items
+            self.page = page
+            self.per_page = per_page
+            self.total = total
+            self.pages = (total + per_page - 1) // per_page
+            self.has_prev = page > 1
+            self.has_next = page < self.pages
+            self.prev_num = page - 1
+            self.next_num = page + 1
+
     if request.method == 'POST':
         topic_name = request.form.get('topic', '').strip()
         mode = request.form.get('mode', 'chapter')
 
         if not topic_name:
-            topics = get_all_topics()
+            all_topics = get_all_topics()
+            # Default to first page on error
+            start = 0
+            end = per_page
+            paginated_items = all_topics[start:end]
+            pagination = MockPagination(paginated_items, 1, per_page, len(all_topics))
+
             topics_data = []
-            for topic in topics:
+            for topic in paginated_items:
                 data = load_topic(topic)
                 if data:
                     has_plan = bool(data.get('plan'))
                     topics_data.append({'name': topic, 'has_plan': has_plan})
                 else:
                     topics_data.append({'name': topic, 'has_plan': True})
+
             return render_template(
                 'index.html',
                 topics=topics_data,
+                pagination=pagination,
+                per_page=per_page,
                 error="Please enter a topic name.")
 
         # Telemetry Hook: Topic Created/Opened (Intent)
         try:
-            log_telemetry(
-                event_type='topic_created' if topic_name not in get_all_topics() else 'topic_opened',
+             # Check existence using get_all_topics since we have the list
+             # Note: get_all_topics() hits DB, but we need it eventually?
+             # For specific topic check, Model query is better but we want to avoid raw queries if possible.
+             # But here we are just logging log_telemetry.
+             # Let's just use load_topic check which is safe or assume new.
+             # Actually, simpler:
+             all_existing = get_all_topics()
+             exists = topic_name in all_existing
+
+             log_telemetry(
+                event_type='topic_created' if not exists else 'topic_opened',
                 triggers={'source': 'web_ui', 'action': 'form_submit'},
                 payload={'topic_name': topic_name, 'mode': mode}
             )
@@ -66,48 +102,49 @@ def index():
                 return redirect(url_for('reel.mode', topic_name=topic_name))
 
             elif mode == 'chat':
-                # Chat doesn't have a 'mode' route yet, but we will add/fix it.
                 return redirect(url_for('chat.mode', topic_name=topic_name))
 
             else:
+                # Valid existing topics needed for re-render
+                all_topics = get_all_topics()
+                start = 0
+                end = per_page
+                paginated_items = all_topics[start:end]
+                pagination = MockPagination(paginated_items, 1, per_page, len(all_topics))
+
+                topics_data = []
+                for t in paginated_items:
+                     topics_data.append({'name': t, 'has_plan': True})
+
                 return render_template(
                     'index.html',
-                    topics=get_all_topics(),
+                    topics=topics_data,
+                    pagination=pagination,
+                    per_page=per_page,
                     error=f"Mode {mode} not available")
 
 
-    topics = get_all_topics()
-    topics_data = []
-    for topic in topics:
-        data = load_topic(topic)
-        if data:
-            plan = data.get('plan')
-            flashcard_mode = data.get('flashcard_mode')
-            quiz = data.get('quiz_mode')
-            chat_history = data.get('chat_history')
+    from app.common.storage import get_topics_metadata
+    all_topics_meta = get_topics_metadata()
 
-            topics_data.append({
-                'name': topic,
-                'has_plan': bool(plan),
-                'has_flashcards': bool(flashcard_mode),
-                'has_quiz': bool(quiz),
-                'has_chat': bool(chat_history),
-                'has_reels': False  # Placeholder as reels aren't stored in topic currently
-            })
-        else:
-            topics_data.append({
-                'name': topic,
-                'has_plan': False,
-                'has_flashcards': False,
-                'has_quiz': False,
-                'has_chat': False,
-                'has_reels': False
-            })
+    total = len(all_topics_meta)
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_items = all_topics_meta[start:end]
 
-    return render_template('index.html', topics=topics_data)
+    pagination = MockPagination(paginated_items, page, per_page, total)
+
+    return render_template('index.html', topics=paginated_items, pagination=pagination, per_page=per_page)
 
 
-@main_bp.context_processor
+@main_bp.route('/favicon.ico')
+def favicon():
+    """Serve the favicon.ico file."""
+    from flask import current_app
+    return current_app.send_static_file('favicon.ico')
+
+
+@main_bp.app_context_processor
 def inject_notifications():
     """Make notifications available to all templates."""
     from app.common.utils import check_for_updates
@@ -124,6 +161,23 @@ def inject_notifications():
 
     return dict(system_notifications=[])
 
+
+@main_bp.app_context_processor
+def inject_jwe():
+    """
+    Inject JWE token into all templates.
+    This allows the frontend to read it from a meta tag and send it in headers.
+    """
+    if current_user.is_authenticated:
+        try:
+            token = create_jwe({'user_id': current_user.userid})
+            if isinstance(token, bytes):
+                token = token.decode('utf-8')
+            return dict(jwe_token=token)
+        except Exception:
+            from flask import current_app
+            current_app.logger.exception("Failed to inject JWE token")
+    return dict(jwe_token='')
 
 @main_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -155,6 +209,7 @@ def login():
             pass # Telemetry failures must not block user flow; ignore logging errors.
 
         return redirect(url_for('main.index'))
+
 
     return render_template('login.html')
 
@@ -358,7 +413,14 @@ def suggest_topics():
 
 @main_bp.route('/settings', methods=['GET', 'POST'])
 def settings():
-    """Display and update application settings stored in .env file."""
+    """
+    Display and update application settings stored in .env file.
+
+    POST:
+        - Updates .env configuration.
+        - Triggers application restart by touching run.py.
+        - Returns a client-side polling page to redirect user after restart.
+    """
     # Load defaults
     defaults = {}
 
@@ -380,8 +442,17 @@ def settings():
             'LLM_BASE_URL': request.form.get('LLM_BASE_URL'),
             'LLM_MODEL_NAME': request.form.get('llm_model'),
             'LLM_API_KEY': request.form.get('llm_key', ''),
-            'LLM_NUM_CTX': request.form.get('llm_ctx', '4096'),
+            'LLM_MAX_OUTPUT_TOKENS': request.form.get('llm_ctx', '20000'),
+            'TTS_PROVIDER': request.form.get('tts_provider', 'externalapi'),
             'TTS_BASE_URL': request.form.get('tts_url', ''),
+            'TTS_MODEL': request.form.get('tts_model', 'tts-1'),
+            'STT_PROVIDER': request.form.get('stt_provider', 'externalapi'),
+            'STT_BASE_URL': request.form.get('stt_url', ''),
+            'STT_MODEL': request.form.get('stt_model', 'Systran/faster-whisper-medium.en'),
+            'TTS_LANGUAGE': request.form.get('tts_language', 'en'),
+            'TTS_VOICE_DEFAULT': request.form.get('tts_voice_default', 'af_heart'),
+            'TTS_VOICE_PODCAST_HOST': request.form.get('tts_voice_host', 'af_heart'),
+            'TTS_VOICE_PODCAST_GUEST': request.form.get('tts_voice_guest', 'am_michael'),
             'OPENAI_API_KEY': request.form.get('openai_key', ''),
             'YOUTUBE_API_KEY': request.form.get('youtube_key', '')
         }
@@ -393,21 +464,136 @@ def settings():
                 defaults=defaults,
                 error="Missing required fields")
 
+        # --- Convert relative SQLite paths to absolute paths in data folder ---
+        db_url = config['DATABASE_URL']
+        if db_url.startswith('sqlite:///') and not db_url.startswith('sqlite:////'):
+            # Extract the filename (e.g., 'site.db' from 'sqlite:///site.db')
+            db_filename = db_url.replace('sqlite:///', '')
+            # If it's not an absolute path, make it absolute in the data folder
+            if not os.path.isabs(db_filename):
+                base_dir = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+                data_dir = os.path.join(base_dir, 'data')
+                os.makedirs(data_dir, exist_ok=True)
+                db_path = os.path.join(data_dir, db_filename).replace('\\', '/')
+                config['DATABASE_URL'] = f"sqlite:///{db_path}"
+                print(f"--- SETUP: Converted SQLite path to: {config['DATABASE_URL']}")
+
         # Write to .env
         with open('.env', 'w') as f:
             for key, value in config.items():
                 f.write(f"{key}={value}\n")
 
-        # flash("Settings saved! Please restart the application to apply changes.") ?
-        # Flask flash needs secret key. Base template might not display it?
-        # Setup app returned "Setup Complete" string.
-        # Here we should probably redirect or render success.
-        return render_template(
-            'setup.html',
-            defaults=config,
-            success="Settings saved! Restart app to apply.")
+        # Trigger Restart based on environment
+        # import sys # Removed to fix UnboundLocalError (sys is global)
 
-    return render_template('setup.html', defaults=defaults)
+        is_frozen = getattr(sys, 'frozen', False)
+
+        if is_frozen:
+            # Frozen Mode: Manual Restart Required
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Configuration Saved</title>
+                <style>
+                    body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f0f2f5; margin: 0; }
+                    .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); text-align: center; max-width: 450px; }
+                    h2 { color: #059669; margin-top: 0; }
+                    p { color: #4b5563; line-height: 1.6; }
+                    .icon { font-size: 3rem; margin-bottom: 1rem; }
+                    .btn { display: inline-block; margin-top: 1rem; padding: 0.75rem 1.5rem; background: #059669; color: white; text-decoration: none; border-radius: 8px; font-weight: 500; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="icon">✅</div>
+                    <h2>Configuration Saved!</h2>
+                    <p>Your settings have been saved successfully.</p>
+                    <p><strong>Please close this application and restart it</strong> to apply the new configuration.</p>
+                </div>
+            </body>
+            </html>
+            """
+        else:
+            # Development Mode & Docker: Auto-Reload
+            def restart_server():
+                import time
+                import sys
+                import signal
+
+                print("--- Scheduling Restart ---")
+                time.sleep(1)  # Give time for the response to be sent
+
+                if os.path.exists('/.dockerenv'):
+                    print("--- Docker Environment Detected: Force Restarting Container ---")
+                    # Force kill to ensure Docker restarts the service
+                    os.kill(os.getpid(), signal.SIGKILL)
+                else:
+                    print("--- Local Environment: Triggering Reloader ---")
+                    try:
+                        os.utime('run.py', None)
+                    except Exception:
+                        sys.exit(1)
+
+            # Start restart in a separate thread to allow the response to return
+            import threading
+            threading.Thread(target=restart_server).start()
+
+            # Return a page that polls for the server to come back up
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Restarting...</title>
+                <style>
+                    body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f0f2f5; margin: 0; }
+                    .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+                    h2 { color: #059669; margin-top: 0; }
+                    p { color: #4b5563; }
+                    .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 1rem auto; }
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h2>Configuration Saved!</h2>
+                    <div class="loader"></div>
+                    <p>Restarting server and applying changes...</p>
+                    <p style="font-size:0.9rem">You will be redirected automatically.</p>
+                </div>
+                <script>
+                    // Poll the server every 2 seconds to see if it's back up
+                    const checkServer = async () => {
+                        try {
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+                            // Try to fetch home page
+                            const response = await fetch('/', {
+                                method: 'HEAD',
+                                signal: controller.signal,
+                                cache: 'no-store'
+                            });
+
+                            if (response.ok) {
+                                window.location.href = '/';
+                            }
+                        } catch (e) {
+                            // Server still restarting, ignore error
+                            console.log('Waiting for server...');
+                        }
+                    };
+
+                    // Give it a moment to actually die first
+                    setTimeout(() => {
+                        setInterval(checkServer, 2000);
+                    }, 3000);
+                </script>
+            </body>
+            </html>
+            """
+
+    return render_template('setup.html', defaults=defaults, show_back_button=True, is_frozen=getattr(sys, 'frozen', False))
 
 
 @main_bp.route('/api/transcribe', methods=['POST'])
@@ -551,3 +737,56 @@ def submit_feedback():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@main_bp.before_app_request
+def enforce_jwe_security():
+    """
+    Enforce Dual Token Security (CSRF + JWE) for state-changing requests.
+
+    - CSRF is handled by Flask-WTF globally.
+    - JWE is handled here.
+
+    If the request is state-changing (POST, PUT, DELETE, PATCH) and the user is authenticated,
+    we REQUIRE a valid JWE token (from the X-JWE-Token header, form field 'jwe_token', or JSON body field 'jwe_token') that matches the current user.
+    """
+    if request.method in ['POST', 'PUT', 'DELETE', 'PATCH']:
+        # Exempt login and signup routes from JWE check to allow account switching
+        if request.endpoint in ['main.login', 'main.signup']:
+            return
+
+        if current_user.is_authenticated:
+            # Check for JWE Header (first priority)
+            token = request.headers.get('X-JWE-Token')
+
+            # Fallback 1: Check form data (for standard POST submissions)
+            if not token and request.form:
+                token = request.form.get('jwe_token')
+
+            # Fallback 2: Check JSON body (if content-type is json)
+            if not token and request.is_json:
+                try:
+                    data = request.get_json(silent=True)
+                    if data and isinstance(data, dict):
+                        token = data.get('jwe_token')
+                except Exception:
+                    # Best-effort JSON parsing: if this fails, we simply fall back to
+                    # other token sources (headers or form data). Do not block the request.
+                    pass
+
+            if not token:
+                # Telemetry or log could go here
+                from flask import abort
+                print(f"Missing Security Token. Path: {request.path}, Method: {request.method}")
+                abort(401, description="Missing Security Token")
+
+            payload = decrypt_jwe(token)
+            if not payload:
+                from flask import abort
+                print("Invalid X-JWE-Token")
+                abort(401, description="Invalid Security Token")
+
+            # Verify identity matches
+            if payload.get('user_id') != current_user.userid:
+                 from flask import abort
+                 print(f"JWE Identity Mismatch: payload={payload.get('user_id')} vs current={current_user.userid}")
+                 abort(403, description="Token Identity Mismatch")

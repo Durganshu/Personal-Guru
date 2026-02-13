@@ -1,8 +1,15 @@
-from flask import render_template, request, make_response
+from flask import render_template, request, make_response, redirect, url_for
 from . import flashcard_bp
 from app.common.storage import load_topic, save_topic
 from .agent import FlashcardTeachingAgent
-from weasyprint import HTML
+
+# WeasyPrint requires GTK native libraries - make it optional
+try:
+    from weasyprint import HTML
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError) as e:
+    WEASYPRINT_AVAILABLE = False
+    print(f"Warning: WeasyPrint not available (PDF export disabled): {e}")
 
 teacher = FlashcardTeachingAgent()
 
@@ -10,7 +17,7 @@ teacher = FlashcardTeachingAgent()
 @flashcard_bp.route('/<topic_name>')
 def mode(topic_name):
     """Display flashcard mode with saved flashcards or generation UI."""
-    topic_data = load_topic(topic_name)
+    topic_data = load_topic(topic_name, update_timestamp=True)
     if not topic_data:
         # Topic doesn't exist yet, allow user to generate content
         flashcards = []
@@ -177,6 +184,10 @@ def update_progress(topic_name):
 @flashcard_bp.route('/<topic_name>/export/pdf')
 def export_pdf(topic_name):
     """Export flashcards as a PDF."""
+    if not WEASYPRINT_AVAILABLE:
+        return ("PDF export is not available (WeasyPrint/GTK libraries missing). "
+                "Please use 'Export as Markdown' instead."), 503
+
     topic_data = load_topic(topic_name)
     if not topic_data:
         return "Topic not found", 404
@@ -193,3 +204,13 @@ def export_pdf(topic_name):
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'inline; filename={topic_name}_flashcards.pdf'
     return response
+
+
+@flashcard_bp.route('/<topic_name>/reset', methods=['POST'])
+def reset_flashcards(topic_name):
+    """Reset the flashcards to allow regeneration."""
+    topic_data = load_topic(topic_name)
+    if topic_data and 'flashcard_mode' in topic_data:
+        del topic_data['flashcard_mode']
+        save_topic(topic_name, topic_data)
+    return redirect(url_for('flashcard.mode', topic_name=topic_name))

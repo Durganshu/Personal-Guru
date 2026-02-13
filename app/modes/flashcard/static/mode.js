@@ -77,7 +77,8 @@ function initFlashcardMode(config) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]')?.getAttribute('content') || ''
                 },
                 body: JSON.stringify(payload),
                 keepalive: true
@@ -124,11 +125,27 @@ function initFlashcardMode(config) {
         // Export PDF button handler
         const exportPdfBtn = document.getElementById('export-pdf-btn');
         if (exportPdfBtn) {
-            exportPdfBtn.addEventListener('click', (e) => {
+            exportPdfBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
-                // Use configured URL if available, fallback to constructing it
                 const url = config.urls.export_pdf || `/flashcards/${topicName}/export/pdf`;
-                window.open(url, '_blank');
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        const text = await response.text();
+                        alert(text);
+                    } else {
+                        const blob = await response.blob();
+                        const downloadUrl = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = `${topicName}_flashcards.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                    }
+                } catch (err) {
+                    alert("An unknown error occurred while trying to export.");
+                }
             });
         }
 
@@ -146,6 +163,10 @@ function initFlashcardMode(config) {
             btnElement.disabled = true;
             btnElement.textContent = '...';
 
+            if (typeof showLoader === 'function') {
+                showLoader('Generating flashcards...');
+            }
+
             // Disable all other buttons during generation
             const allBtns = document.querySelectorAll('.button');
             allBtns.forEach(b => b.disabled = true);
@@ -157,7 +178,8 @@ function initFlashcardMode(config) {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'X-JWE-Token': document.querySelector('meta[name="jwe-token"]')?.getAttribute('content') || ''
                     },
                     body: JSON.stringify(payload)
                 });
@@ -178,6 +200,9 @@ function initFlashcardMode(config) {
                 // Re-enable buttons (though controls might be hidden if successful)
                 allBtns.forEach(b => b.disabled = false);
                 btnElement.textContent = originalText;
+                if (typeof hideLoader === 'function') {
+                    hideLoader();
+                }
             }
         }
 

@@ -135,6 +135,15 @@ UUID
 
 &#x27;docker&#x27;, &#x27;local&#x27;, &#x27;cloud&#x27;
 
+#### validate\_length
+
+```python
+@validates('gpu_model', 'os_version')
+def validate_length(key, value)
+```
+
+Truncate string fields to max 255 characters.
+
 ## SyncLog Objects
 
 ```python

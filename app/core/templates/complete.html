@@ -8,7 +8,33 @@
 <p>Your average score was: {{ average_score }}%</p>
 <div class="navigation">
     <a href="{{ url_for('chapter.export_topic', topic_name=topic_name) }}" class="button">Export as Markdown</a>
-    <a href="{{ url_for('chapter.export_topic_pdf', topic_name=topic_name) }}" class="button">Export as PDF</a>
+    <a href="{{ url_for('chapter.export_topic_pdf', topic_name=topic_name) }}" class="button" id="export-pdf-btn">Export
+        as PDF</a>
     <a href="{{ url_for('main.index') }}" class="button">Back to Home</a>
 </div>
+<script>
+    document.getElementById('export-pdf-btn').addEventListener('click', async function (e) {
+        e.preventDefault();
+        const url = this.getAttribute('href');
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                const text = await response.text();
+                alert(text); // Popup with error message
+            } else {
+                // Trigger download
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = "{{ topic_name }}.pdf";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            }
+        } catch (err) {
+            alert("An unknown error occurred while trying to export.");
+        }
+    });
+</script>
 {% endblock %}

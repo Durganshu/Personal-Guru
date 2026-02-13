@@ -1,0 +1,39 @@
+/* New Topic Section - Visual Separation */
+.new-topic-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 15px 20px;
+    margin-bottom: 30px;
+    box-shadow: var(--shadow);
+}
+
+.new-topic-card h1 {
+    margin-top: 0;
+}
+
+#saved-topics {
+    margin-top: 40px;
+}
+
+#saved-topics h2 {
+    font-size: 1.5rem;
+    color: var(--text-main);
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border-subtle);
+}
+
+/* Topic input spacing */
+.new-topic-card form input[type="text"] {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+/* Center the Start Learning button */
+.new-topic-card form .submit-centered {
+    display: block;
+    margin: 15px auto 0 auto;
+    min-width: 200px;
+    font-size: 1rem;
+}

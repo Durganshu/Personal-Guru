@@ -8,31 +8,43 @@ services:
       - "8969:8000"
     volumes:
       - hf-hub-cache:/home/ubuntu/.cache/huggingface/hub
+    networks:
+      - pg-network
     restart: unless-stopped
 
   app:
     build: .
     ports:
-      - "5011:5011"
+      - "${PORT:-5011}:${PORT:-5011}"
     restart: always
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/personal_guru
-      - PORT=5011
+      - PORT=${PORT:-5011}
       # Use env var if set, otherwise fallback to host.docker.internal
       - LLM_BASE_URL=${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
       - LLM_MODEL_NAME=${LLM_MODEL_NAME:-llama3}
       - LLM_API_KEY=${LLM_API_KEY:-}
-      - LLM_NUM_CTX=${LLM_NUM_CTX:-4096}
-      - TTS_BASE_URL=${TTS_BASE_URL:-http://host.docker.internal:8969/v1}
+      - LLM_MAX_OUTPUT_TOKENS=${LLM_MAX_OUTPUT_TOKENS:-20000}
+      - TTS_BASE_URL=${DOCKER_TTS_BASE_URL:-http://speaches:8000/v1}
+      - STT_BASE_URL=${DOCKER_STT_BASE_URL:-http://speaches:8000/v1}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+      # Force external providers in Docker to avoid dependency issues (e.g. native whisper)
+      # docker image lacks 'faster-whisper', so we must use 'externalapi' to use Speaches/OpenAI
+      - TTS_PROVIDER=externalapi
+      - STT_PROVIDER=externalapi
+      # Optimize sandbox performance by using internal container path (not mounted from Windows)
+      - SANDBOX_PATH=/app_sandbox
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - .:/app
-    command: flask run --host=0.0.0.0 --port=5011
+    networks:
+      - pg-network
+    command: python run.py
 
   db:
     image: postgres:15
@@ -43,8 +55,20 @@ services:
       - POSTGRES_DB=personal_guru
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d personal_guru" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     ports:
       - "5433:5432"
+    networks:
+      - pg-network
 
 volumes:
   hf-hub-cache:
+
+networks:
+  pg-network:
+    driver: bridge

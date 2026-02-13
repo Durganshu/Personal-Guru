@@ -19,7 +19,8 @@
       "items": [
         {
           "items": [
-            "reference/modes/chapter/agent"
+            "reference/modes/chapter/agent",
+            "reference/modes/chapter/routes"
           ],
           "label": "modes.chapter",
           "type": "category"

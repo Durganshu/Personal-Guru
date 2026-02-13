@@ -1,0 +1,106 @@
+/* Learning Modes Selection - Compact Pill Style */
+.learning-modes {
+    margin: 0 0 15px 0;
+    padding: 0;
+    background: transparent;
+}
+
+.modes-heading {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0 0 12px 0;
+}
+
+.mode-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.mode-option {
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* Hide the actual radio button */
+.mode-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* Style the label as a pill button */
+.mode-label {
+    display: inline-block;
+    padding: 7px 14px;
+    background: var(--bg-main);
+    border: 2px solid var(--border-subtle);
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-main);
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.mode-label i {
+    margin-right: 6px;
+    font-size: 0.8rem;
+}
+
+/* Hover state */
+.mode-option:hover .mode-label {
+    border-color: var(--primary-blue);
+    background: var(--bg-card);
+    box-shadow: 0 2px 8px rgba(26, 92, 191, 0.15);
+    transform: translateY(-1px);
+}
+
+/* Selected state */
+.mode-option input[type="radio"]:checked+.mode-label {
+    background: linear-gradient(135deg, var(--primary-blue) 0%, #1976d2 100%);
+    border-color: var(--primary-blue);
+    color: white;
+    box-shadow: 0 4px 12px rgba(26, 92, 191, 0.3);
+}
+
+/* Experimental badge */
+.experimental-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    background: rgba(255, 193, 7, 0.2);
+    border: 1px solid rgba(255, 193, 7, 0.5);
+    border-radius: 10px;
+    margin-left: 4px;
+    font-weight: 600;
+    color: #f57c00;
+}
+
+.mode-option input[type="radio"]:checked+.mode-label .experimental-badge {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: white;
+}
+
+/* Focus state for accessibility */
+.mode-option input[type="radio"]:focus+.mode-label {
+    outline: 2px solid var(--primary-blue);
+    outline-offset: 2px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .mode-options {
+        flex-direction: column;
+    }
+
+    .mode-label {
+        width: 100%;
+        text-align: center;
+    }
+}

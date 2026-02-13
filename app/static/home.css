@@ -1,4 +1,4 @@
-/* Topics List - default (Light Mode) */
+/* Topics List - Uses Digital Zen Theme Variables */
 .topics-list {
     margin-top: 20px;
 }
@@ -10,46 +10,71 @@
 
 .topics-list li {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    background-color: #ffffff;
-    /* White background */
-    padding: 15px;
-    margin-bottom: 10px;
-    border-radius: 8px;
-    border: 1px solid #ddd;
-    /* Standard border matching inputs */
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    /* Very subtle shadow */
+    flex-wrap: nowrap;
+    /* Prevent row wrapping */
+    cursor: default;
+    /* Indicate card itself is not actionable */
+    background-color: var(--bg-card);
+    padding: 15px 20px;
+    margin-bottom: 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow);
     transition: all 0.2s ease;
 }
 
 .topics-list li:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    border-color: #007bff;
-    /* Highlight border with primary color on hover */
+    box-shadow: 0 8px 16px rgba(26, 92, 191, 0.15);
+    border-color: var(--primary-blue);
 }
 
 .mode-buttons {
     display: flex;
     gap: 10px;
-    flex-wrap: wrap;
-    /* Prevent overflow on small screens */
-    margin: 0 20px;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+    /* Keep buttons in one line on desktop */
+    margin-left: auto;
+    align-items: center;
+}
+
+.modes-label {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-right: 8px;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    /* Prevent label wrapping */
+}
+
+.mode-buttons .button i {
+    margin-right: 6px;
+    font-size: 0.9rem;
+}
+
+.mode-buttons .button.icon-only i {
+    margin-right: 0;
 }
 
 .topic-name {
-    flex-shrink: 0;
-    /* Ensure name doesn't collapse */
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 180px;
+    /* Protect title from disappearing */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
     font-size: 1.1em;
-    width: 150px;
-    /* Fixed width for alignment, or remove for fluid */
-    color: #333;
+    padding-right: 20px;
+    color: var(--text-main);
     font-weight: 600;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .topics-list li {
         flex-direction: column;
         align-items: flex-start;
@@ -58,20 +83,155 @@
 
     .mode-buttons {
         margin: 0;
+        width: 100%;
+        flex-wrap: wrap;
+        /* Allow wrapping on mobile */
+    }
+
+    .topic-name {
+        white-space: normal;
+        padding-right: 0;
     }
 }
 
-/* Suggestions Area - default (Light Mode) */
+
+/* Topics Controls Toolbar */
+.topics-controls-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    /* Increased gap */
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    background: var(--bg-card);
+    padding: 15px;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-subtle);
+}
+
+.topics-search-wrapper {
+    flex: 1 1 auto;
+    /* Allow flexible width without forcing large basis */
+    min-width: 200px;
+    max-width: 400px;
+    /* Prevent it from becoming too wide on large screens */
+}
+
+.topics-search-wrapper input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--bg-app);
+    color: var(--text-main);
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    /* Explicitly ensure border-box */
+}
+
+.topics-search-wrapper input:focus {
+    outline: none;
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 2px rgba(26, 92, 191, 0.1);
+}
+
+.topics-pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 0 0 auto;
+    /* Do not grow or shrink */
+}
+
+.topics-count {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    /* Prevent text wrapping inside */
+}
+
+.page-size-select {
+    padding: 8px 30px 8px 12px;
+    /* Extra right padding for arrow */
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background-color: var(--bg-app);
+    color: var(--text-main);
+    font-size: 0.9rem;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237D6E66' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+}
+
+.page-size-select:focus {
+    outline: none;
+    border-color: var(--primary-blue);
+}
+
+/* Pagination Buttons Container */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 25px;
+    flex-wrap: wrap;
+}
+
+.pagination-btn {
+    padding: 8px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-main);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    border-color: var(--primary-blue);
+    color: var(--primary-blue);
+    transform: translateY(-1px);
+}
+
+.pagination-btn.active {
+    background: var(--primary-gradient);
+    color: #fff;
+    border-color: transparent;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--bg-app);
+}
+
+@media (max-width: 1024px) {
+    .topics-controls-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .topics-pagination-controls {
+        justify-content: space-between;
+        width: 100%;
+        /* Full width when stacked */
+    }
+}
+
+/* Suggestions Area */
 .suggestions-heading {
     font-size: 0.95rem;
     font-weight: 600;
-    color: #555;
+    color: var(--text-muted);
     margin-bottom: 8px;
     margin-top: 0;
-}
-
-body.dark-mode .suggestions-heading {
-    color: #bbb;
 }
 
 .suggestions-chips {
@@ -82,11 +242,9 @@ body.dark-mode .suggestions-heading {
 }
 
 .suggestion-chip {
-    background-color: #ffffff;
-    color: #007bff;
-    /* Primary color text */
-    border: 1px solid #007bff;
-    /* Primary color border */
+    background-color: var(--bg-card);
+    color: var(--primary-blue);
+    border: 1px solid var(--primary-blue);
     border-radius: 20px;
     padding: 6px 16px;
     cursor: pointer;
@@ -96,10 +254,11 @@ body.dark-mode .suggestions-heading {
 }
 
 .suggestion-chip:hover {
-    background-color: #007bff;
+    background: var(--primary-gradient);
     color: #ffffff;
+    border-color: transparent;
     transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(26, 92, 191, 0.3);
 }
 
 .suggestion-chip:active {
@@ -117,10 +276,10 @@ body.dark-mode .suggestions-heading {
 .skeleton-chip {
     width: 100px;
     height: 32px;
-    background: #e0e0e0;
+    background: var(--border-subtle);
     border-radius: 20px;
     animation: shimmer 1.5s infinite linear;
-    background: linear-gradient(to right, #e0e0e0 0%, #f0f0f0 50%, #e0e0e0 100%);
+    background: linear-gradient(to right, var(--bg-app) 0%, var(--bg-card) 50%, var(--bg-app) 100%);
     background-size: 200% 100%;
 }
 
@@ -134,38 +293,30 @@ body.dark-mode .suggestions-heading {
     }
 }
 
-/* Dark Mode Overrides - STRICTLY tied to the body class */
-body.dark-mode .topics-list li {
-    background-color: #2c2c2c;
-    border-color: #444;
-    box-shadow: none;
+/* Dark mode is now handled automatically via CSS variables in style.css */
+
+/* Toast Notification */
+.topics-toast {
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: var(--bg-card);
+    color: var(--text-main);
+    padding: 12px 24px;
+    border-radius: 50px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--primary-blue);
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    font-weight: 500;
+    pointer-events: none;
 }
 
-body.dark-mode .topics-list li:hover {
-    background-color: #333;
-    border-color: #555;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-}
-
-body.dark-mode .topic-name,
-body.dark-mode .topic-name strong {
-    color: #eee;
-}
-
-body.dark-mode .suggestion-chip {
-    background-color: #3a3a3a;
-    color: #e8eaed;
-    border-color: #5f6368;
-}
-
-body.dark-mode .suggestion-chip:hover {
-    background-color: #4a4a4a;
-    border-color: #70757a;
-    color: #fff;
-}
-
-body.dark-mode .skeleton-chip {
-    background: #333;
-    background: linear-gradient(to right, #333 0%, #444 50%, #333 100%);
-    background-size: 200% 100%;
+.topics-toast.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
 }

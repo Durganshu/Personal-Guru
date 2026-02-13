@@ -4,6 +4,10 @@ let players = {}; // Store YT.Player instances
 let isScrolling = false;
 let apiReady = false;
 let currentSessionId = null; // Track current search session
+let nextPageToken = null; // Pagination token for endless scrolling
+let currentTopic = null; // Current search topic
+let isLoadingMore = false; // Prevent duplicate fetch requests
+const REELS_AHEAD_THRESHOLD = 10; // Trigger loading when less than 10 reels remain ahead
 
 // Load YouTube Iframe API
 const tag = document.createElement('script');
@@ -31,7 +35,8 @@ function logVideoEvent(videoId, eventType) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'X-JWE-Token': document.querySelector('meta[name="jwe-token"]')?.getAttribute('content') || ''
         },
         body: JSON.stringify({
             session_id: currentSessionId,
@@ -69,7 +74,8 @@ async function performSearch(topic) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-JWE-Token': document.querySelector('meta[name="jwe-token"]')?.getAttribute('content') || ''
             },
             body: JSON.stringify({ topic })
         });
@@ -85,6 +91,8 @@ async function performSearch(topic) {
         } else {
             currentReels = data.reels;
             currentSessionId = data.session_id; // Store session ID
+            nextPageToken = data.next_page_token; // Store pagination token
+            currentTopic = topic; // Store topic for more-reels requests
             displayReels();
         }
     } catch (error) {
@@ -143,12 +151,91 @@ function setupIntersectionObserver() {
                 } else if (!isNaN(index) && index === currentIndex) {
                     playReelVideo(index);
                 }
+                // Check if we need to load more reels (endless scrolling)
+                checkAndLoadMoreReels();
             }
         });
     }, options);
 
     const reels = document.querySelectorAll('.reel-item');
     reels.forEach(reel => observer.observe(reel));
+}
+
+// Check if we need to load more reels for endless scrolling
+function checkAndLoadMoreReels() {
+    const reelsAhead = currentReels.length - currentIndex - 1;
+    if (reelsAhead < REELS_AHEAD_THRESHOLD && nextPageToken && !isLoadingMore) {
+        console.log(`Only ${reelsAhead} reels ahead. Loading more...`);
+        fetchMoreReels();
+    }
+}
+
+// Fetch more reels from backend for endless scrolling
+async function fetchMoreReels() {
+    if (isLoadingMore || !currentSessionId || !nextPageToken) return;
+
+    isLoadingMore = true;
+    console.log('Fetching more reels...');
+
+    try {
+        const response = await fetch('/reels/api/more-reels', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-JWE-Token': document.querySelector('meta[name="jwe-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ session_id: currentSessionId })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error('Failed to fetch more reels:', data.error);
+            return;
+        }
+
+        // Update pagination token
+        nextPageToken = data.next_page_token;
+
+        if (data.reels && data.reels.length > 0) {
+            const reelsContainer = document.getElementById('reelsContainer');
+            const startIndex = currentReels.length;
+
+            // Append new reels to our array
+            currentReels = currentReels.concat(data.reels);
+
+            // Create and append reel elements
+            data.reels.forEach((reel, i) => {
+                const index = startIndex + i;
+                const reelItem = createReelElement(reel, index);
+                reelsContainer.appendChild(reelItem);
+
+                // Initialize player for this reel
+                if (apiReady) {
+                    initializePlayer(index, reel.id);
+                }
+
+                // Observe the new reel with IntersectionObserver
+                if (observer) {
+                    observer.observe(reelItem);
+                }
+            });
+
+            console.log(`Added ${data.reels.length} more reels. Total: ${currentReels.length}`);
+
+            // Update all reel counters with new total
+            updateReelCounters();
+        }
+
+        if (!nextPageToken) {
+            console.log('No more reels available.');
+        }
+    } catch (error) {
+        console.error('Error fetching more reels:', error);
+    } finally {
+        isLoadingMore = false;
+    }
 }
 
 function createReelElement(reel, index) {
@@ -161,14 +248,16 @@ function createReelElement(reel, index) {
     reelItem.innerHTML = `
         <div class="reel-video-wrapper" data-video-id="${reel.id}">
             <div id="${playerDivId}" class="youtube-player-placeholder"></div>
+
+            <!-- Top Info Overlay -->
             <div class="reel-info-overlay">
                 <h3 class="reel-title">${escapeHtml(reel.title)}</h3>
                 <p class="reel-channel">📺 ${escapeHtml(reel.channel)}</p>
-                <div class="reel-actions">
-                    <button class="action-btn watch-on-yt" onclick="window.open('${reel.url}', '_blank')">
-                        ▶ Watch on YouTube
-                    </button>
-                </div>
+            </div>
+
+            <!-- Reel Counter -->
+            <div class="reel-counter">
+                <span class="counter-current">${index + 1}</span> / <span class="counter-total">${currentReels.length}</span>
             </div>
         </div>
     `;
@@ -335,4 +424,73 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Share functionality using Web Share API or fallback to clipboard
+function shareReel(url, title) {
+    const shareData = {
+        title: title,
+        text: `Check out this video: ${title}`,
+        url: url
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        navigator.share(shareData).catch(err => {
+            console.log('Share cancelled:', err);
+        });
+    } else {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(url).then(() => {
+            showToast('Link copied to clipboard!');
+        }).catch(() => {
+            // Final fallback: prompt user
+            prompt('Copy this link:', url);
+        });
+    }
+}
+
+// Toast notification for feedback
+function showToast(message) {
+    const existing = document.querySelector('.toast-notification');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 25px;
+        font-size: 0.9rem;
+        z-index: 1000;
+        animation: fadeInOut 2.5s forwards;
+        backdrop-filter: blur(10px);
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.remove(), 2500);
+}
+
+// Add toast animation
+const toastStyle = document.createElement('style');
+toastStyle.textContent = `
+    @keyframes fadeInOut {
+        0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+        15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+    }
+`;
+document.head.appendChild(toastStyle);
+
+// Update all reel counters (called when more reels are loaded)
+function updateReelCounters() {
+    document.querySelectorAll('.counter-total').forEach(el => {
+        el.textContent = currentReels.length;
+    });
 }

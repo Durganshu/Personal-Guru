@@ -151,32 +151,145 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Prevent empty submissions and disable input while loading
-    document.getElementById('chat-form').addEventListener('submit', function (e) {
+    // AJAX Submission Logic
+    document.getElementById('chat-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
         const input = document.getElementById('chat-input');
         const button = document.getElementById('send-button');
         const loading = document.getElementById('loading-indicator');
+        const chatWindow = document.getElementById('chat-window');
 
-        // Prevent submission if input is empty
-        if (!input.value.trim()) {
-            e.preventDefault();
-            return false;
-        }
+        const messageValue = input.value.trim();
+        if (!messageValue) return false;
 
-        // Store the value before disabling (disabled fields aren't submitted)
-        const messageValue = input.value;
+        // 1. UI Updates - User Message
+        // Create wrapper
+        const userWrapper = document.createElement('div');
+        userWrapper.className = 'message-wrapper user-wrapper';
+        userWrapper.innerHTML = `
+            <div class="message-label user-label">You</div>
+            <div class="message user-message">
+                <div class="message-content" data-rendered="true">${messageValue}</div>
+                <div class="raw-markdown" style="display: none;">${messageValue}</div>
+            </div>
+        `;
+        chatWindow.appendChild(userWrapper);
 
-        // Show loading state
-        button.disabled = true;
+        // 2. UI Updates - Skeleton Message
+        const skeletonWrapper = document.createElement('div');
+        skeletonWrapper.className = 'message-wrapper assistant-wrapper skeleton-wrapper'; // tag for easy removal
+        skeletonWrapper.innerHTML = `
+            <div class="message-label assistant-label">AI Tutor</div>
+            <div class="message assistant-message skeleton-message">
+                <div class="skeleton-content">
+                    <div class="thinking-label" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 500;">Thinking...</div>
+                    <div class="skeleton-line"></div>
+                    <div class="skeleton-line"></div>
+                    <div class="skeleton-line"></div>
+                </div>
+            </div>
+        `;
+        chatWindow.appendChild(skeletonWrapper);
+        scrollToBottom();
+
+        // Capture FormData BEFORE clearing input
+        const formData = new FormData(this);
+
+        // Clear and Disable Input
+        input.value = '';
+        input.style.height = 'auto'; // Reset height
         input.readOnly = true;
+        button.disabled = true;
 
         // Disable mic button
         const micButton = document.getElementById('mic-button');
-        if (micButton) {
-            micButton.disabled = true;
+        if (micButton) micButton.disabled = true;
+
+        try {
+            // 3. Send AJAX Request
+            // Ensure time_spent is sent if needed, usually passed by hidden input logic, but let's trust formData
+
+            // We need to send it as form data but expect JSON
+            // Using fetch with FormData automatically sets Content-Type (multipart)
+            // But routes.py expects form data for 'message', so this works.
+            // Just need headers for JSON acceptance.
+
+            console.log('Sending AJAX request to:', this.action);
+            const response = await fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: formData
+            });
+
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Response error body:', errorText);
+                throw new Error(`Network response was not ok: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Received data:', data);
+            const answer = data.answer;
+
+            // 4. Replace Skeleton with Real Message
+            skeletonWrapper.remove();
+
+            const aiWrapper = document.createElement('div');
+            aiWrapper.className = 'message-wrapper assistant-wrapper';
+            aiWrapper.innerHTML = `
+                <div class="message-label assistant-label">AI Tutor</div>
+                <div class="message assistant-message">
+                    <div class="message-content"></div>
+                    <div class="raw-markdown" style="display: none;"></div>
+                </div>
+            `;
+
+            // Set content safely
+            const rawDiv = aiWrapper.querySelector('.raw-markdown');
+            rawDiv.textContent = answer;
+
+            chatWindow.appendChild(aiWrapper);
+
+            // Render Markdown
+            const contentDiv = aiWrapper.querySelector('.message-content');
+            contentDiv.innerHTML = md.render(answer);
+            contentDiv.dataset.rendered = "true";
+
+            scrollToBottom();
+
+        } catch (error) {
+            console.error('Chat error:', error);
+            // Show error in chat
+            skeletonWrapper.remove();
+            const errorWrapper = document.createElement('div');
+            errorWrapper.className = 'message-wrapper assistant-wrapper error';
+            errorWrapper.innerHTML = `
+                <div class="message-label assistant-label">System</div>
+                <div class="message assistant-message" style="color: red;">
+                    <div class="message-content">Sorry, an error occurred. Please try again.</div>
+                </div>
+            `;
+            chatWindow.appendChild(errorWrapper);
+        } finally {
+            // 5. Re-enable Input
+            input.readOnly = false;
+            button.disabled = false;
+            if (micButton) {
+                micButton.disabled = false;
+                // Ensure mic icon is reset if it was stuck (unlikely here as mic logic is separate, but good safety)
+                if (micButton.classList.contains('recording') === false) {
+                    // Only reset if NOT recording. If recording logic shares state, be careful.
+                    // Actually mic logic is separate.
+                }
+            }
+            input.focus();
         }
-
-        loading.style.display = 'inline';
-
     });
 
     // Voice Input Logic
@@ -205,15 +318,19 @@ document.addEventListener('DOMContentLoaded', function () {
                         // Show some loading state on input
                         const chatInput = document.getElementById('chat-input');
                         const originalPlaceholder = chatInput.placeholder;
-                        chatInput.placeholder = "Transcribing...";
+                        chatInput.placeholder = "Understanding audio...";
                         chatInput.disabled = true;
-                        micButton.disabled = true; // Disable mic button
+
+                        // Show Spinner
+                        micButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        micButton.disabled = true;
 
                         try {
                             const response = await fetch("/api/transcribe", {
                                 method: "POST",
                                 headers: {
-                                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value,
+                                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]')?.getAttribute('content') || ''
                                 },
                                 body: formData
                             });
@@ -241,7 +358,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         } finally {
                             chatInput.disabled = false;
                             chatInput.placeholder = originalPlaceholder || "Ask your AI tutor a question...";
+
+                            // Revert Icon
+                            micButton.innerHTML = '';
+                            micButton.textContent = "🎙️";
                             micButton.disabled = false;
+
                             chatInput.focus();
 
                             // Ensure microphone is released

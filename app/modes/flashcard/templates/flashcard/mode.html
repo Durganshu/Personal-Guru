@@ -3,17 +3,28 @@
 {% block title %}Flash Card Mode{% endblock %}
 
 {% block content %}
-<h1>Flash Card Mode</h1>
+<div class="header-actions"
+    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h1>Flash Card Mode</h1>
+    {% if flashcards and flashcards|length > 0 %}
+    <form action="{{ url_for('flashcard.reset_flashcards', topic_name=topic_name) }}" method="post" style="margin: 0;"
+        onsubmit="return confirm('Are you sure? This will delete your current flashcards.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="jwe_token" value="{{ jwe_token if jwe_token else '' }}">
+        <button type="submit" class="button secondary">Regenerate</button>
+    </form>
+    {% endif %}
+</div>
 
 <div class="flashcard-controls generation-bar" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-    <span style="font-weight: bold;">Generate:</span>
+    <span style="font-weight: bold;">How many flashcards you want to generate?</span>
     <button class="button preset-btn" data-count="auto">Auto</button>
     <button class="button preset-btn" data-count="10">10</button>
     <button class="button preset-btn" data-count="25">25</button>
 
     <div class="custom-control" style="display: flex; gap: 5px; align-items: center;">
-        <input type="number" id="custom-flashcount" placeholder="#" min="1" max="100"
-            style="width: 70px; padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+        <input type="number" id="custom-flashcount" placeholder="Custom count" min="1" max="100"
+            style="width: 120px; padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
         <button id="generate-custom-btn" class="button">Go</button>
     </div>
 </div>
@@ -35,7 +46,15 @@
     <p id="flash-index"></p>
     <div id="export-controls" class="export-controls">
         <p><strong>You've reached the end of the flashcards!</strong></p>
-        <a id="export-pdf-btn" href="#" class="button">Save as PDF</a>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <a id="export-pdf-btn" href="#" class="button">Save as PDF</a>
+            <form action="{{ url_for('flashcard.reset_flashcards', topic_name=topic_name) }}" method="post"
+                style="margin: 0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="jwe_token" value="{{ jwe_token if jwe_token else '' }}">
+                <button type="submit" class="button secondary">Generate New Cards</button>
+            </form>
+        </div>
     </div>
 </div>
 

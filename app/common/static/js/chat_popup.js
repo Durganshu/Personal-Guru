@@ -25,17 +25,15 @@ function initChatPopup(config) {
     const chatLauncher = document.getElementById('chat-launcher');
     const chatPopup = document.getElementById('chat-popup');
     const chatToggleBtn = document.getElementById('chat-toggle-btn');
-    const chatMaximizeBtn = document.getElementById('chat-maximize-btn');
+    // Maximize button removed by design
     const chatForm = document.getElementById('chat-form-popup');
     const chatInput = document.getElementById('chat-input-popup');
     const chatHistory = document.getElementById('chat-history-popup');
-    let isMaximized = false;
 
     const missingElements = [];
     if (!chatLauncher) missingElements.push('chat-launcher');
     if (!chatPopup) missingElements.push('chat-popup');
     if (!chatToggleBtn) missingElements.push('chat-toggle-btn');
-    if (!chatMaximizeBtn) missingElements.push('chat-maximize-btn');
     if (!chatForm) missingElements.push('chat-form-popup');
     if (!chatInput) missingElements.push('chat-input-popup');
     if (!chatHistory) missingElements.push('chat-history-popup');
@@ -61,26 +59,7 @@ function initChatPopup(config) {
         setTimeout(() => {
             chatPopup.style.display = 'none';
             chatLauncher.style.display = 'flex';
-            // Reset to normal size when closing
-            if (isMaximized) {
-                toggleMaximize();
-            }
         }, 200);
-    }
-
-    function toggleMaximize() {
-        isMaximized = !isMaximized;
-        if (isMaximized) {
-            chatPopup.classList.add('maximized');
-            chatMaximizeBtn.textContent = '◱';
-            chatMaximizeBtn.title = 'Restore';
-        } else {
-            chatPopup.classList.remove('maximized');
-            chatMaximizeBtn.textContent = '□';
-            chatMaximizeBtn.title = 'Maximize';
-        }
-        // Recalculate input height as width might have changed
-        // setTimeout(updatePopupScrollIndicators, 100);
     }
 
     chatLauncher.addEventListener('click', openChat);
@@ -88,10 +67,56 @@ function initChatPopup(config) {
         e.stopPropagation();
         closeChat();
     });
-    chatMaximizeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleMaximize();
-    });
+
+
+    // Custom Resize Logic (Top-Left Handle)
+    const resizeHandle = chatPopup.querySelector('.resize-handle');
+    if (resizeHandle) {
+        resizeHandle.addEventListener('mousedown', initResize, false);
+    }
+
+    function initResize(e) {
+        e.preventDefault();
+        window.addEventListener('mousemove', resize, false);
+        window.addEventListener('mouseup', stopResize, false);
+        chatPopup.classList.add('resizing'); // Optional: for styling
+    }
+
+    function resize(e) {
+        // Calculate new size based on mouse movement relative to bottom-right anchor
+        // Since anchor is bottom-right:
+        // Moving mouse LEFT (negative dx) -> width INCREASES
+        // Moving mouse UP (negative dy) -> height INCREASES
+
+        // We need initial dimensions? No, just use current Rect + movement?
+        // Better: Compare to initial position?
+        // Simple delta approach:
+        // We know the Right and Bottom are fixed.
+        // The Top-Left handle follows the mouse.
+        // So Width = WindowRight - MouseX
+        // Height = WindowBottom - MouseY (approx)
+
+        const rect = chatPopup.getBoundingClientRect();
+        // Since right/bottom are fixed, we can just set width/height based on pointer
+
+        // Calculate new width: Distance from MouseX to ChatRight
+        const newWidth = rect.right - e.clientX;
+        // Calculate new height: Distance from MouseY to ChatBottom
+        const newHeight = rect.bottom - e.clientY;
+
+        if (newWidth > 300) { // Min width
+            chatPopup.style.width = newWidth + 'px';
+        }
+        if (newHeight > 400) { // Min height
+            chatPopup.style.height = newHeight + 'px';
+        }
+    }
+
+    function stopResize(e) {
+        window.removeEventListener('mousemove', resize, false);
+        window.removeEventListener('mouseup', stopResize, false);
+        chatPopup.classList.remove('resizing');
+    }
 
 
     chatForm.addEventListener('submit', async (e) => {
@@ -115,10 +140,17 @@ function initChatPopup(config) {
         chatHistory.appendChild(userMessage);
         chatHistory.scrollTop = chatHistory.scrollHeight;
 
-        // This is a placeholder for a loader
+        // Skeleton loading placeholder
         const tutorMessage = document.createElement('div');
-        tutorMessage.className = 'chat-message tutor-message';
-        tutorMessage.innerHTML = '<strong>Tutor:</strong> Thinking...';
+        tutorMessage.className = 'chat-message tutor-message skeleton-message';
+        tutorMessage.innerHTML = `
+            <div class="skeleton-content">
+                <div class="thinking-label" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 500;">Thinking...</div>
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+            </div>
+        `;
         chatHistory.appendChild(tutorMessage);
         chatHistory.scrollTop = chatHistory.scrollHeight;
 
@@ -127,7 +159,8 @@ function initChatPopup(config) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]')?.getAttribute('content') || ''
                 },
                 body: JSON.stringify({ question: question })
             });
@@ -143,9 +176,13 @@ function initChatPopup(config) {
             const safeAnswer = window.DOMPurify
                 ? window.DOMPurify.sanitize(renderedAnswer)
                 : renderedAnswer;
+
+            // Remove skeleton class and show actual content
+            tutorMessage.classList.remove('skeleton-message');
             tutorMessage.innerHTML = `<strong>Tutor:</strong> ${safeAnswer}`;
             chatHistory.scrollTop = chatHistory.scrollHeight;
         } catch (error) {
+            tutorMessage.classList.remove('skeleton-message');
             tutorMessage.innerHTML = '<strong>Tutor:</strong> Sorry, something went wrong.';
             console.error('Chat error:', error);
         } finally {
@@ -227,11 +264,15 @@ function initChatPopup(config) {
                         const formData = new FormData();
                         formData.append("audio", audioBlob, "recording.wav");
 
-                        // Show some loading state on input
+                        // visual feedback
                         const chatInput = document.getElementById('chat-input-popup');
                         const originalPlaceholder = chatInput.placeholder;
-                        chatInput.placeholder = "Transcribing...";
+                        chatInput.placeholder = "Understanding audio...";
                         chatInput.disabled = true;
+
+                        // Show Spinner
+                        micButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        micButton.disabled = true;
 
                         try {
                             // Use X-CSRFToken from meta tag
@@ -240,7 +281,8 @@ function initChatPopup(config) {
                             const response = await fetch("/api/transcribe", {
                                 method: "POST",
                                 headers: {
-                                    'X-CSRFToken': csrfToken
+                                    'X-CSRFToken': csrfToken,
+                                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]')?.getAttribute('content') || ''
                                 },
                                 body: formData
                             });
@@ -266,6 +308,12 @@ function initChatPopup(config) {
                             chatInput.disabled = false;
                             chatInput.placeholder = originalPlaceholder;
                             chatInput.focus();
+
+                            // Revert Icon
+                            micButton.innerHTML = ''; // Clear icon or text
+                            micButton.textContent = "🎙️";
+                            micButton.disabled = false;
+
                             // Stop all tracks to release microphone
                             stream.getTracks().forEach(track => track.stop());
                         }
@@ -287,6 +335,56 @@ function initChatPopup(config) {
             }
         });
     }
+
+    // Load Chat History
+    async function loadChatHistory() {
+        try {
+            const response = await fetch(chatConfig.urls.chat, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.history && Array.isArray(data.history)) {
+                    // Clear existing history to avoid duplicates if re-initialized (though safeguards exist)
+                    chatHistory.innerHTML = '';
+
+                    data.history.forEach(msg => {
+                        const messageDiv = document.createElement('div');
+                        // Map 'assistant' to 'tutor-message', 'user' to 'user-message'
+                        const isUser = msg.role === 'user';
+                        const className = isUser ? 'chat-message user-message' : 'chat-message tutor-message';
+                        messageDiv.className = className;
+
+                        const prefix = isUser ? '<strong>You:</strong> ' : '<strong>Tutor:</strong> ';
+
+                        if (isUser) {
+                            messageDiv.innerHTML = prefix;
+                            messageDiv.appendChild(document.createTextNode(msg.content));
+                        } else {
+                            // Ensure markdownit is available
+                            const md = window.markdownit ? window.markdownit({ html: false }) : { render: (t) => t };
+                            const rendered = md.render(msg.content || '');
+                            const safe = window.DOMPurify
+                                ? window.DOMPurify.sanitize(rendered)
+                                : rendered;
+                            messageDiv.innerHTML = prefix + safe;
+                        }
+                        chatHistory.appendChild(messageDiv);
+                    });
+                    chatHistory.scrollTop = chatHistory.scrollHeight;
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load chat history", e);
+        }
+    }
+
+    // Trigger history load
+    loadChatHistory();
 
     // Mark as initialized to prevent duplicate event listeners
     isInitialized = true;

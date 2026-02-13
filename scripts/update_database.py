@@ -49,21 +49,43 @@ def update_database():
     with app.app_context():
         logger.info("Starting database update...")
 
-        # 0. Pre-check for table renames (Manual Migrations)
+        if db.engine.name == 'sqlite':
+            logger.info("Detected SQLite database.")
+            # Ensure the database directory exists
+            db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+            if db_uri.startswith('sqlite:///'):
+                db_path = db_uri.replace('sqlite:///', '')
+                # Handle relative paths (common in sqlite:///site.db)
+                if not os.path.isabs(db_path):
+                     db_path = os.path.join(app.instance_path, db_path) # Try instance path layout or current dir?
+
+                     logger.info(f"DEBUG: app.instance_path: {app.instance_path}")
+                     logger.info(f"DEBUG: Final DB Path: {os.path.abspath(db_path)}")
+                     # Actually default config is sqlite:///site.db, relative to CWD usually or app root.
+                     # Let's just create the folder if it implies one.
+
+                # If path contains directories, ensure they exist
+                db_dir = os.path.dirname(db_path)
+                if db_dir and not os.path.exists(db_dir):
+                    logger.info(f"Creating database directory: {db_dir}")
+                    os.makedirs(db_dir)
+
+        # 0. Pre-check for table renames (Manual Migrations) - Postgres Only or careful SQLite
         inspector = inspect(db.engine)
         existing_tables = inspector.get_table_names()
 
-        if 'study_steps' in existing_tables and 'chapter_mode' not in existing_tables:
-            logger.info("Detected legacy table 'study_steps'. Renaming to 'chapter_mode'...")
-            try:
-                # Rename table
-                db.session.execute(text('ALTER TABLE study_steps RENAME TO chapter_mode'))
-                db.session.commit()
-                logger.info(" -> Table renamed successfully.")
+        if db.engine.name != 'sqlite':
+            if 'study_steps' in existing_tables and 'chapter_mode' not in existing_tables:
+                logger.info("Detected legacy table 'study_steps'. Renaming to 'chapter_mode'...")
+                try:
+                    # Rename table
+                    db.session.execute(text('ALTER TABLE study_steps RENAME TO chapter_mode'))
+                    db.session.commit()
+                    logger.info(" -> Table renamed successfully.")
 
-                # Check consistency of ID sequence if necessary (usually auto-handled by serial)
-            except Exception as e:
-                logger.error(f" -> Failed to rename table: {e}")
+                    # Check consistency of ID sequence if necessary (usually auto-handled by serial)
+                except Exception as e:
+                    logger.error(f" -> Failed to rename table: {e}")
                 db.session.rollback()
 
         # 1. Create missing tables (Standard SQLAlchemy)
@@ -73,6 +95,10 @@ def update_database():
         # 2. Inspect and Update existing tables
         logger.info("Checking for schema updates...")
         inspector = inspect(db.engine) # Re-inspect after create/rename
+
+        if db.engine.name == 'sqlite':
+            logger.info("SQLite mode: Skipping advanced schema inspections (Postgres-specific).")
+            return
 
         for model in TARGET_MODELS:
             table_name = model.__tablename__
@@ -193,17 +219,21 @@ def update_database():
 
                 # 2. Ensure user_id is nullable
                 if 'user_id' in existing_col_map:
-                    # We can't easily check if it's nullable via Inspector in this script style without detailed reflection,
-                    # but we can try to ALTER it to DROP NOT NULL blindly or check logic.
-                    # For simplicity, we just run the ALTER. Postgres allows this even if already nullable.
-                    try:
-                        logger.info("  [*] Altering user_id to be NULLABLE")
-                        sql = text('ALTER TABLE "telemetry_logs" ALTER COLUMN "user_id" DROP NOT NULL')
-                        db.session.execute(sql)
-                        db.session.commit()
-                    except Exception as e:
-                        logger.warning(f"      -> Could not alter user_id: {e}")
-                        db.session.rollback()
+                    user_id_col = existing_col_map['user_id']
+                    if not user_id_col.get('nullable', True): # If NOT NULL (False), make it nullable
+                         try:
+                             logger.info("  [*] Altering user_id to be NULLABLE")
+                             # Set a sensible lock_timeout to prevent hanging forever (Transaction locally)
+                             db.session.execute(text("SET LOCAL lock_timeout = '5s'"))
+
+                             sql = text('ALTER TABLE "telemetry_logs" ALTER COLUMN "user_id" DROP NOT NULL')
+                             db.session.execute(sql)
+                             db.session.commit()
+                         except Exception as e:
+                             logger.warning(f"      -> Could not alter user_id (Lock timeout or error): {e}")
+                             db.session.rollback()
+                    else:
+                        logger.info("  [.] user_id is already NULLABLE. Skipping.")
 
             # Special check for deprecated 'name' and 'password_hash' columns in User table
             if table_name == 'users':

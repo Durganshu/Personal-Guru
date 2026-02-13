@@ -19,6 +19,14 @@ from app.core.exceptions import (
 def save_topic(topic_name, data):
     """
     Save topic data to PostgreSQL database.
+
+    Handles creation and updates of:
+    - Topic metadata (plan, name)
+    - Chapter, Quiz, Flashcard, and Chat modes
+
+    Special Logic:
+    - Detects step reordering in Chapter Mode. To prevent 'UniqueViolation' errors on the 'step_index' constraint,
+      it temporarily shifts existing steps to negative indices before assigning their new correct positions.
     """
     logger = logging.getLogger(__name__)
 
@@ -59,6 +67,27 @@ def save_topic(topic_name, data):
 
         processed_step_ids = set()
 
+        # Check for reordering to avoid UniqueViolation
+        reorder_needed = False
+        for step_data in incoming_msg_data:
+            s_idx = step_data.get('step_index')
+            s_id = step_data.get('id')
+
+            if s_idx is not None and s_id and s_id in existing_steps_by_id:
+                # If an existing step is moving to a different index
+                if existing_steps_by_id[s_id].step_index != s_idx:
+                    reorder_needed = True
+                    break
+
+        if reorder_needed:
+            logging.info(f"Topic {topic_name}: Reordering detected. Shifting indices to temporary safe space.")
+            for s in topic.chapter_mode:
+                # Use negative indices to avoid collision with any 0+ index
+                # Ensure they stay unique: -1, -2, -3... derived from current index or id
+                # Simple shift might fail if we map 0->-1 and -1 existed? No, all start >=0.
+                s.step_index = -1 * (s.step_index + 1)
+            db.session.flush()
+
         for step_data in incoming_msg_data:
             step_index = step_data.get('step_index')
             step_id = step_data.get('id')
@@ -75,14 +104,31 @@ def save_topic(topic_name, data):
 
             if step:
                 # Update existing
-                step.title = step_data.get('title', step.title)
-                step.content = step_data.get('content') or step_data.get('teaching_material') or step.content
+                new_title = step_data.get('title')
+                if new_title and new_title != step.title:
+                    step.title = new_title
+                    # If title changed and no new content provided, clear old content
+                    if not step_data.get('content') and not step_data.get('teaching_material'):
+                         step.content = None
+                         step.questions = None
+                         step.user_answers = None
+                         step.score = None
+                         step.time_spent = 0
+
+                # Update content if provided (respects empty string to clear)
+                # Priority: teaching_material > content (since load_topic returns both keys)
+                new_content = step_data.get('teaching_material') or step_data.get('content')
+                if new_content:
+                    step.content = new_content
+                    logger.info(f"DEBUG save_topic: Step {step_index} - saved content, length: {len(step.content) if step.content else 0}")
+                else:
+                    logger.info(f"DEBUG save_topic: Step {step_index} - no content to save. Keys: {list(step_data.keys())}")
+
 
                 if 'questions' in step_data:
                     step.questions = step_data['questions']
 
                 if 'user_answers' in step_data:
-                    logging.info(f"DEBUG: Updating user_answers for step {step.step_index}. New value: {step_data['user_answers']}")
                     step.user_answers = step_data['user_answers']
 
                 if 'score' in step_data:
@@ -169,6 +215,8 @@ def save_topic(topic_name, data):
                          time_spent=q_data.get('time_spent', 0)
                      )
                      db.session.add(quiz)
+        elif topic.quiz_mode:
+             db.session.delete(topic.quiz_mode)
 
         # --- Handle Flashcards ---
         incoming_cards = data.get('flashcard_mode') or data.get('flashcards') or []
@@ -361,7 +409,7 @@ def save_chat_history(topic_name, history, history_summary=None, time_spent=0, p
         )
 
 
-def load_topic(topic_name):
+def load_topic(topic_name, update_timestamp=False):
     """
     Load topic data from PostgreSQL and reconstruct dictionary structure.
     Returns None if topic doesn't exist or user not authenticated (normal behavior for new topics).
@@ -372,13 +420,12 @@ def load_topic(topic_name):
     if not topic:
         return None
 
-    # User requested Modified At to update when opened ("any time")
-    try:
-        topic.modified_at = datetime.datetime.utcnow()
-        db.session.commit()
-    except Exception as e:
-        logging.warning(f"Failed to update modify time on read for {topic_name}: {e}")
-        # Don't block loading
+    if update_timestamp:
+        try:
+            topic.modified_at = datetime.datetime.utcnow()
+            db.session.commit()
+        except Exception as e:
+            logging.warning(f"Failed to update modify time for {topic_name}: {e}")
 
     data = {
         "name": topic.name,
@@ -506,7 +553,8 @@ def get_all_topics():
 
         topics = Topic.query.with_entities(
             Topic.name).filter_by(
-            user_id=current_user.userid).all()
+            user_id=current_user.userid).order_by(
+            Topic.modified_at.desc()).all()
         return [t.name for t in topics]
 
     except OperationalError as e:
@@ -524,6 +572,34 @@ def get_all_topics():
             operation="get_all_topics",
             error_code="DB108"
         )
+
+def get_topics_metadata():
+    """
+    Get metadata for all topics belonging to the current user.
+    Returns a list of dictionaries with name and status flags (has_plan, has_chat, etc.).
+    Sorted by modified_at DESC (Recently Opened/Modified).
+    """
+    if not current_user.is_authenticated:
+        return []
+
+    try:
+        topics = Topic.query.filter_by(user_id=current_user.userid).order_by(Topic.modified_at.desc()).all()
+
+        metadata = []
+        for t in topics:
+            metadata.append({
+                'name': t.name,
+                'has_plan': bool(t.study_plan),
+                'has_chat': bool(t.chat_mode and t.chat_mode.history),
+                'has_quiz': bool(t.quiz_mode),
+                'has_flashcards': bool(t.flashcard_mode),
+                'has_reels': False # Reels not yet persistent in separate table
+            })
+        return metadata
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error fetching topics metadata: {e}")
+        return []
 
 def delete_topic(topic_name):
     """Delete a topic and all its related  data."""

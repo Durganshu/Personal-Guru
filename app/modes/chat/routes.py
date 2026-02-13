@@ -15,7 +15,7 @@ popup_agent = ChatModeChatPopupAgent()
 def mode(topic_name):
     """Render the main chat interface for a topic."""
     # Try to load from DB first
-    topic_data = load_topic(topic_name)
+    topic_data = load_topic(topic_name, update_timestamp=True)
     if not topic_data:
         topic_data = {"name": topic_name}
         save_topic(topic_name, topic_data)
@@ -201,11 +201,18 @@ def send_message(topic_name):
 
     except Exception as error:
         # Add an error message to the chat instead of crashing
-        error_msg = f"Sorry, I encountered an error: {error}"
-        chat_history.append({"role": "assistant", "content": error_msg})
-        chat_history_summary.append({"role": "assistant", "content": error_msg})
+        answer = f"Sorry, I encountered an error: {error}"
+        chat_history.append({"role": "assistant", "content": answer})
+        chat_history_summary.append({"role": "assistant", "content": answer})
 
     save_chat_history(topic_name, chat_history, history_summary=chat_history_summary, time_spent=time_spent)
+
+    # Check for AJAX request (JSON accepted or X-Requested-With header)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+              (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html)
+
+    if is_ajax:
+        return {"answer": answer}
 
     return redirect(url_for('chat.mode', topic_name=topic_name))
 
@@ -225,7 +232,7 @@ def update_time(topic_name):
 
     return '', 204
 
-@chat_bp.route('/<topic_name>/<int:step_index>', methods=['POST'])
+@chat_bp.route('/<topic_name>/<int:step_index>', methods=['GET', 'POST'])
 def chat(topic_name, step_index):
     """
     Handle popup chat messages within chapter steps.
@@ -245,7 +252,7 @@ def chat(topic_name, step_index):
         description: Step index or 9999 for general chat
       - in: body
         name: body
-        required: true
+        required: false
         schema:
           type: object
           required:
@@ -257,30 +264,55 @@ def chat(topic_name, step_index):
               type: integer
     responses:
       200:
-        description: AI response
+        description: AI response or Chat History
         schema:
           type: object
           properties:
             answer:
               type: string
+            history:
+              type: array
+              items:
+                type: object
+                properties:
+                  role:
+                    type: string
+                  content:
+                    type: string
       400:
         description: Invalid request
       500:
         description: Processing error
     """
-    """Handle popup chat messages within chapter steps."""
+    topic_data = load_topic(topic_name)
+    if not topic_data:
+        return {"error": "Topic not found"}, 400
+
+    # HANDLE GET REQUEST: Return History
+    if request.method == 'GET':
+        if step_index == 9999:
+            # Chat Mode Popup History
+            history = topic_data.get('popup_chat_history', [])
+            return {"history": history}
+
+        if 'chapter_mode' not in topic_data:
+             return {"history": []}
+
+        if step_index < 0 or step_index >= len(topic_data['chapter_mode']):
+             return {"error": "Step index out of range"}, 400
+
+        step_history = topic_data['chapter_mode'][step_index].get('popup_chat_history', [])
+        return {"history": step_history}
+
+    # HANDLE POST REQUEST: Process Message
     user_question = request.json.get('question')
     try:
         time_spent = int(request.json.get('time_spent', 0))
     except (ValueError, TypeError):
         time_spent = 0
-    topic_data = load_topic(topic_name)
 
     if not user_question:
         return {"error": "Missing or empty question"}, 400
-
-    if not topic_data:
-        return {"error": "Topic not found"}, 400
 
     if step_index == 9999:
         # Chat Mode Popup Logic

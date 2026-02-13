@@ -45,14 +45,12 @@ def logger(show_llm_responses):
 @pytest.fixture
 def app():
     """Create and configure a new app instance for each test."""
-    app = create_app()
-    app.config.update({
-        "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-        "WTF_CSRF_ENABLED": False
-    })
+    from config import TestConfig
+    app = create_app(TestConfig)
 
     with app.app_context():
+        # Import models to register them with SQLAlchemy before create_all
+        from app.core.models import User, Login, Topic, Installation
         db.create_all()
         yield app
         db.drop_all()
@@ -83,4 +81,19 @@ def auth_client(client, app):
 
     # Login
     client.post('/login', data={'username': 'testuser', 'password': 'password'}, follow_redirects=True)
+
+    # Generate and attach JWE token
+    # We need to find the userid for 'testuser'
+    with app.app_context():
+        login_user_obj = Login.query.filter_by(username='testuser').first()
+        uid = login_user_obj.userid
+
+        from app.common.auth import create_jwe
+        token = create_jwe({'user_id': uid})
+        if isinstance(token, bytes):
+            token = token.decode('utf-8')
+
+    # Set default header for future requests
+    client.environ_base['HTTP_X_JWE_TOKEN'] = token
+
     return client
