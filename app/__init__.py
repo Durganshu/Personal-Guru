@@ -61,7 +61,7 @@ def create_app(config_class=Config):
     Swagger(app, config=swagger_config)
 
     # Initialize Telemetry Log Capture
-    if app.config.get('ENABLE_TELEMETRY_LOGGING', True):
+    if app.config.get('ENABLE_TELEMETRY_LOGGING', True) and not app.config.get('TESTING'):
         from app.common.log_capture import LogCapture
         LogCapture(app)
 
@@ -298,6 +298,10 @@ def create_app(config_class=Config):
     else:
         # Not frozen, not debug. Likely Docker or production run.
         should_start_sync = True
+
+    # Do not start sync in TESTING mode
+    if app.config.get('TESTING'):
+        should_start_sync = False
 
     # DEBUG: Trace startup logic
     print("=== STARTUP DEBUG ===")
