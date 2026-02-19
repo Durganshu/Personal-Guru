@@ -293,8 +293,6 @@ def create_app(config_class=Config):
 
     if is_frozen:
         should_start_sync = True
-    elif app.config.get('TESTING'):
-        should_start_sync = False
     elif app.debug:
         should_start_sync = (run_main_env == 'true')
     else:
