@@ -141,8 +141,21 @@ const NotesManager = (() => {
                     loadNotes();
                 }
                 initResizer(sidebar);
+
+                // Hide Chat Popup if open (store previous state)
+                const chatPopup = document.getElementById('chat-popup');
+                if (chatPopup) {
+                    sidebar._chatPopupWasVisible = (chatPopup.style.display !== 'none');
+                    chatPopup.style.display = 'none';
+                }
             } else {
                 document.body.style.paddingRight = "0";
+
+                // Restore Chat Popup if it was visible before
+                const chatPopup = document.getElementById('chat-popup');
+                if (chatPopup && sidebar._chatPopupWasVisible) {
+                    chatPopup.style.display = '';
+                }
             }
         }
     }
