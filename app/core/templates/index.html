@@ -123,15 +123,10 @@
                         title="Experimental feature: usage may be unstable">
                         <i class="fas fa-play-circle"></i> Reel
                     </a>
-
-                        <i class="fas fa-trash-alt"></i>
+                    <a href="{{ url_for('main.notes_view', topic_name=topic.name) }}" class="btn btn-sm btn-outline-warning me-2" title="Notes">
+                        📝
                     </a>
-
-                    <a href="{{ url_for('main.notes_view', topic_name=topic.name) }}"
-                        class="button secondary icon-only"
-                        title="Open Notes" aria-label="Notes for {{ topic.name }}">
-                        <i class="fas fa-sticky-note"></i>
-                    </a>
+                    <a href="{{ url_for('main.delete_topic_route', topic_name=topic.name) }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this topic?');">Delete</a>
                 </div>
             </li>
             {% endfor %}
