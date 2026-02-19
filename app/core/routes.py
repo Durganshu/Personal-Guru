@@ -251,7 +251,8 @@ def signup():
 
         uid = Login.generate_userid(inst_id)
 
-        new_login = Login(userid=uid, username=username, name=username, installation_id=inst_id)
+        # Removed auto-fill of name with username
+        new_login = Login(userid=uid, username=username, name='', installation_id=inst_id)
         new_login.set_password(password)
         db.session.add(new_login)
 
