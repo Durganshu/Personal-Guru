@@ -372,7 +372,14 @@ window.renderMath = function(container = document) {
 
     // 2. Trigger MathJax Typeset
     if (window.MathJax && window.MathJax.typesetPromise) {
-        window.MathJax.typesetPromise([container]).catch((err) => console.log('MathJax typeset failed: ' + err.message));
+        window.MathJax.typesetPromise([container]).then(() => {
+            // Force user-select on all rendered math elements
+            container.querySelectorAll('mjx-container').forEach(el => {
+                el.style.setProperty('user-select', 'text', 'important');
+                el.style.setProperty('-webkit-user-select', 'text', 'important');
+                el.style.cursor = 'text';
+            });
+        }).catch((err) => console.log('MathJax typeset failed: ' + err.message));
     }
 };
 
@@ -401,3 +408,15 @@ function setupThemeObserver() {
 }
 
 document.addEventListener('DOMContentLoaded', setupThemeObserver);
+
+// Force reload of styles to apply critical fixes (MathJax Selection)
+(function forceStyleReload() {
+    const links = document.querySelectorAll('link[rel="stylesheet"]');
+    links.forEach(link => {
+        if (link.href.includes('style.css') || link.href.includes('chat_popup.css')) {
+            const newHref = new URL(link.href);
+            newHref.searchParams.set('v', Date.now());
+            link.href = newHref.toString();
+        }
+    });
+})();
