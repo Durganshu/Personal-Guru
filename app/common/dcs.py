@@ -9,6 +9,7 @@ from app.core.models import Installation, Topic, ChatMode, ChapterMode, QuizMode
 logger = logging.getLogger(__name__)
 
 DCS_BASE_URL = os.getenv("DCS_BASE_URL", "https://telemetry2.samosa-ai.com")
+OFFLINE_MODE = os.getenv("OFFLINE_MODE", "False").lower() == "true"
 
 class DCSClient:
     """Client for communicating with the Data Collection Server (DCS)."""
@@ -37,6 +38,7 @@ class DCSClient:
         """
         from app.common.utils import get_system_info
         from sqlalchemy.exc import OperationalError
+        import uuid
 
         # Check if already registered
         try:
@@ -53,6 +55,27 @@ class DCSClient:
         except Exception as e:
             logger.error(f"Error checking registration: {e}")
             return False
+
+        if OFFLINE_MODE:
+            logger.info("Offline mode enabled. Generating local installation ID.")
+            new_id = str(uuid.uuid4())
+            self.installation_id = new_id
+
+            # Save to DB
+            sys_info = get_system_info()
+            new_inst = Installation(
+                installation_id=new_id,
+                cpu_cores=sys_info['cpu_cores'],
+                ram_gb=sys_info['ram_gb'],
+                gpu_model=sys_info['gpu_model'],
+                os_version=sys_info['os_version'],
+                install_method=sys_info['install_method']
+            )
+            db.session.add(new_inst)
+            db.session.commit()
+
+            logger.info(f"Device registered locally: {new_id}")
+            return True
 
         logger.info("Registering device with DCS...")
         try:
@@ -93,6 +116,9 @@ class DCSClient:
 
     def update_device_details(self):
         """Send updated device details to DCS server."""
+        if OFFLINE_MODE:
+            return True
+
         if not self.installation_id:
             return False
 
@@ -113,6 +139,9 @@ class DCSClient:
         """
         Gathers unsynced data and sends it to DCS.
         """
+        if OFFLINE_MODE:
+            logger.debug("Offline mode enabled. Skipping sync.")
+            return
         if not self.installation_id:
             logger.warning("Cannot sync: No installation_id")
             return

@@ -873,6 +873,9 @@ def log_telemetry(event_type: str, triggers: dict, payload: dict, installation_i
 
     logger = logging.getLogger(__name__)
 
+    if os.getenv("OFFLINE_MODE", "False").lower() == "true":
+        return
+
     try:
         # Resolve User ID (Nullable)
         user_id = None

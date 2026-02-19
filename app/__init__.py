@@ -304,7 +304,8 @@ def create_app(config_class=Config):
     print(f"is_frozen: {is_frozen}")
     print(f"app.debug: {app.debug}")
     print(f"WERKZEUG_RUN_MAIN: {run_main_env}")
-    print(f"should_start_sync: {should_start_sync}")
+    print(f"should_start_sync: {should_start_sync} (Background Manager)")
+    print(f"OFFLINE_MODE: {os.getenv('OFFLINE_MODE', 'False')}")
     print("=====================")
 
     if should_start_sync:
