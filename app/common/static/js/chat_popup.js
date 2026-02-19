@@ -181,7 +181,9 @@ function initChatPopup(config) {
             tutorMessage.classList.remove('skeleton-message');
             tutorMessage.innerHTML = `<strong>Tutor:</strong> ${safeAnswer}`;
 
-            if (window.renderMath) window.renderMath(tutorMessage);
+            if (window.renderMath) {
+                window.renderMath(tutorMessage);
+            }
 
             chatHistory.scrollTop = chatHistory.scrollHeight;
         } catch (error) {
@@ -202,7 +204,7 @@ function initChatPopup(config) {
     function handlePopupInput() {
         chatInput.style.height = 'auto';
 
-        const POPUP_INPUT_MAX_HEIGHT = 142;
+        const POPUP_INPUT_MAX_HEIGHT = 150;
         const scrollHeight = chatInput.scrollHeight;
 
         chatInput.style.height = Math.min(scrollHeight, POPUP_INPUT_MAX_HEIGHT) + 'px';
@@ -375,7 +377,9 @@ function initChatPopup(config) {
                                 ? window.DOMPurify.sanitize(rendered)
                                 : rendered;
                             messageDiv.innerHTML = prefix + safe;
-                            if (window.renderMath) window.renderMath(messageDiv);
+                            if (window.renderMath) {
+                                window.renderMath(messageDiv);
+                            }
                         }
                         chatHistory.appendChild(messageDiv);
                     });

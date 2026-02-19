@@ -359,9 +359,9 @@ function setupInputValidation() {
 document.addEventListener('DOMContentLoaded', setupInputValidation);
 
 // Math Rendering Helper
-window.renderMath = function() {
+window.renderMath = function(container = document) {
     // 1. Convert <equation> tags to LaTeX blocks
-    const equations = document.querySelectorAll('equation');
+    const equations = container.querySelectorAll('equation');
     equations.forEach(eq => {
         const tex = eq.textContent;
         const span = document.createElement('span');
@@ -372,7 +372,7 @@ window.renderMath = function() {
 
     // 2. Trigger MathJax Typeset
     if (window.MathJax && window.MathJax.typesetPromise) {
-        window.MathJax.typesetPromise().catch((err) => console.log('MathJax typeset failed: ' + err.message));
+        window.MathJax.typesetPromise([container]).catch((err) => console.log('MathJax typeset failed: ' + err.message));
     }
 };
 
