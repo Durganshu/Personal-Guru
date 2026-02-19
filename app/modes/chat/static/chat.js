@@ -3,7 +3,20 @@ const md = window.markdownit({
     html: true,
     linkify: true,
     typographer: true,
-    breaks: true
+    breaks: true,
+    highlight: function (str, lang) {
+        if (lang && window.hljs && window.hljs.getLanguage(lang)) {
+            try {
+                return '<pre class="code-block hljs" data-lang="' + lang + '"><code>' +
+                    window.hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+                    '</code></pre>';
+            } catch (__) { }
+        }
+
+        return '<pre class="code-block hljs" data-lang="' + lang + '"><code>' +
+            md.utils.escapeHtml(str) +
+            '</code></pre>';
+    }
 });
 
 function toggleSidebar() {
@@ -42,6 +55,7 @@ function renderMarkdown() {
             if (messageEl.classList.contains('assistant-message')) {
                 // Render markdown for assistant messages
                 contentEl.innerHTML = md.render(rawContent);
+                if (window.renderMath) window.renderMath();
             } else {
                 // Plain text for user messages
                 contentEl.textContent = rawContent;
@@ -260,6 +274,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const contentDiv = aiWrapper.querySelector('.message-content');
             contentDiv.innerHTML = md.render(answer);
             contentDiv.dataset.rendered = "true";
+
+            if (window.renderMath) window.renderMath();
 
             scrollToBottom();
 
