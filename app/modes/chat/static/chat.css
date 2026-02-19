@@ -167,8 +167,8 @@ body.dark-mode {
     flex-shrink: 0;
 
     /* Collapsible Header Styles */
-    padding: 0 30px;
-    max-height: 12px;
+    padding: 15px 30px;
+    max-height: 60px; /* Approx one line height + padding */
     overflow: hidden;
     transition: all 0.3s ease;
     cursor: pointer;
@@ -177,6 +177,17 @@ body.dark-mode {
 #chat-header:hover {
     padding: 20px 30px;
     max-height: 150px;
+}
+
+#chat-header h1 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: white-space 0.3s ease;
+}
+
+#chat-header:hover h1 {
+    white-space: normal;
 }
 
 #chat-header h1 {
