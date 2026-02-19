@@ -1,8 +1,14 @@
-from dotenv import load_dotenv
-load_dotenv(override=True)
-import os  # noqa: E402
-import logging  # noqa: E402
-import sys  # noqa: E402
+import os
+import logging
+import sys
+from config import load_environment_variables  # Explicit import prevents unused-import removal
+
+# 0. Load environment variables immediately
+load_environment_variables()
+
+print("----------------------------------------------------------------")
+print(f"🚀 Starting App with LLM_MODEL_NAME: {os.environ.get('LLM_MODEL_NAME', 'Not Set')}")
+print("----------------------------------------------------------------")
 
 # Configure logging at the entry point to ensure visibility of startup tasks
 logging.basicConfig(
@@ -43,6 +49,14 @@ if __name__ == '__main__':
         ssl_context = (cert_path, key_path)
     else:
         print(f"No SSL Certificates found. Running on HTTP port {port}.")
+
+    # Ensure flask_session directory exists to prevent cachelib FileNotFoundError
+    # Docker containers often mount volumes where this directory doesn't exist initially.
+    session_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'flask_session')
+    try:
+        os.makedirs(session_dir, exist_ok=True)
+    except Exception as e:
+        print(f"Warning: Could not create session directory {session_dir}: {e}")
 
     app.run(
         debug=True,

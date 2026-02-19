@@ -7,6 +7,8 @@ __pycache__
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache
+.ruff_cache
 
 # Dependencies
 venv/
@@ -14,6 +16,13 @@ env/
 .env
 .env.local
 .env.*
+**/venv/
+
+# Application Data & Runtime
+data/
+logs/
+instance/
+flask_session/
 
 # Database
 postgres_data/
@@ -28,8 +37,5 @@ postgres_data/
 # Certificates
 certs/
 
-# Instance folder
-instance/
-
-# Flask session
-flask_session/
+# Tests
+tests/

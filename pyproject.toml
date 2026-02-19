@@ -22,9 +22,10 @@ dependencies = [
     "gunicorn==23.0.0",
     "psutil==6.1.1",
     "flasgger==0.9.7.1",
-    "pyOpenSSL",
+    "pyOpenSSL==25.1.0",
     "Authlib==1.4.0",
     "cryptography==42.0.5",
+    "setuptools",
 ]
 
 [project.optional-dependencies]
@@ -34,6 +35,7 @@ dev = [
     "pytest-cov",
     "pre-commit",
     "pydoc-markdown==4.8.2",
+    "interrogate==1.5.0",
 ]
 local = [
     "faster-whisper==1.0.3",

@@ -1,6 +1,5 @@
 @echo off
 setlocal
-chcp 65001 >nul 2>nul
 
 REM Navigate to project root
 pushd "%~dp0\..\.."
@@ -24,7 +23,7 @@ echo [WARNING] FFmpeg is not installed. It is required for audio processing.
 set /p install_ffmpeg="Do you want to install it now using winget? [y/N]: "
 if /i not "%install_ffmpeg%"=="y" goto :ffmpeg_skip
 echo [INFO] Attempting to install FFmpeg via winget...
-winget install ffmpeg
+winget install ffmpeg --accept-source-agreements --accept-package-agreements
 if %errorlevel% neq 0 echo [ERROR] Failed to install FFmpeg via winget. Please install manually from https://ffmpeg.org/download.html
 if %errorlevel% equ 0 echo [SUCCESS] FFmpeg installed successfully.
 goto :ffmpeg_done
@@ -58,6 +57,16 @@ if "%mode_choice%"=="2" goto :setup_local_mode
 
 echo [INFO] Hybrid Mode selected.
 set local_mode=n
+
+REM Configure .env for Hybrid Mode
+if not exist .env goto :create_env_hybrid
+echo [WARNING] Existing .env file found.
+set /p overwrite_env_hybrid="Do you want to overwrite it with default settings? [y/N]: "
+if /i not "%overwrite_env_hybrid%"=="y" goto :skip_env_hybrid
+:create_env_hybrid
+copy .env.example .env
+echo [INFO] Created/Overwritten .env from example.
+:skip_env_hybrid
 echo.
 goto :env_check
 
@@ -79,7 +88,7 @@ copy .env.example .env
 echo [INFO] Created/Overwritten .env from example.
 
 :check_overrides
-findstr /C:"# Local Mode Overrides" .env >nul
+"%ENV_PYTHON%" -c "import sys; content = open('.env', 'r', encoding='utf-8', errors='ignore').read(); sys.exit(0 if '# Local Mode Overrides' in content else 1)"
 if not errorlevel 1 (
     echo [INFO] .env already contains Local Mode overrides. Skipping update.
     goto :env_check
@@ -165,9 +174,51 @@ goto :end_db_setup
 echo [INFO] Starting Database...
 docker compose up -d db
 echo [INFO] Waiting for Database to be ready...
-timeout /t 5 /nobreak
+ping -n 6 127.0.0.1 >nul
+
+REM Configure .env for Hybrid Mode (Postgres)
+"%ENV_PYTHON%" -c "import sys; content = open('.env', 'r', encoding='utf-8', errors='ignore').read(); sys.exit(0 if 'sqlite:///site.db' in content else 1)"
+if %errorlevel% equ 0 (
+    echo [INFO] Switching .env to use PostgreSQL via Docker...
+    echo. >> .env
+    echo # Hybrid Mode Overrides >> .env
+    echo DATABASE_URL=postgresql://postgres:postgres@localhost:5433/personal_guru >> .env
+)
+
 echo [INFO] Initializing/Updating Database Tables...
-"%ENV_PYTHON%" scripts/update_database.py
+"%ENV_PYTHON%" scripts\update_database.py
+
+:ask_tts
+echo.
+set /p run_tts="Do you want to run local Speaches/Kokoro (TTS/STT) via Docker? (Large download ~5GB) [y/N]: "
+if /i not "%run_tts%"=="y" goto :skip_tts
+
+echo [INFO] Starting Speaches (TTS/STT)...
+docker compose --profile tts up -d speaches
+
+echo [INFO] Waiting for TTS Server to start (15s)...
+ping -n 16 127.0.0.1 >nul
+
+echo [INFO] Downloading Kokoro-82M model...
+docker compose exec speaches uv tool run speaches-cli model download speaches-ai/Kokoro-82M-v1.0-ONNX
+
+echo [INFO] Downloading Faster Whisper Medium model (STT)...
+docker compose exec speaches uv tool run speaches-cli model download Systran/faster-whisper-medium.en
+
+echo [SUCCESS] TTS/STT Services Ready.
+
+REM Update .env to use externalapi for Hybrid Mode
+"%ENV_PYTHON%" -c "import sys; content = open('.env', 'r', encoding='utf-8', errors='ignore').read(); sys.exit(0 if 'TTS_PROVIDER=externalapi' in content else 1)"
+if %errorlevel% neq 0 (
+    echo. >> .env
+    echo # Hybrid Mode Audio >> .env
+    echo TTS_PROVIDER=externalapi >> .env
+    echo TTS_BASE_URL=http://localhost:8969/v1 >> .env
+    echo STT_PROVIDER=externalapi >> .env
+    echo STT_BASE_URL=http://localhost:8969/v1 >> .env
+)
+
+:skip_tts
 
 :end_db_setup
 :skip_db

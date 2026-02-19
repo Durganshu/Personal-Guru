@@ -21,7 +21,9 @@ from app.core.exceptions import (
 
 logger = logging.getLogger(__name__)
 
-load_dotenv(override=True)
+# Load env vars with override=False to respect Docker/System variables first.
+# This prevents local .env from overwriting container configuration.
+load_dotenv(override=False)
 
 LLM_BASE_URL = os.getenv("LLM_BASE_URL")
 LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME")

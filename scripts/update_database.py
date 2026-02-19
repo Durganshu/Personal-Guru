@@ -219,17 +219,21 @@ def update_database():
 
                 # 2. Ensure user_id is nullable
                 if 'user_id' in existing_col_map:
-                    # We can't easily check if it's nullable via Inspector in this script style without detailed reflection,
-                    # but we can try to ALTER it to DROP NOT NULL blindly or check logic.
-                    # For simplicity, we just run the ALTER. Postgres allows this even if already nullable.
-                    try:
-                        logger.info("  [*] Altering user_id to be NULLABLE")
-                        sql = text('ALTER TABLE "telemetry_logs" ALTER COLUMN "user_id" DROP NOT NULL')
-                        db.session.execute(sql)
-                        db.session.commit()
-                    except Exception as e:
-                        logger.warning(f"      -> Could not alter user_id: {e}")
-                        db.session.rollback()
+                    user_id_col = existing_col_map['user_id']
+                    if not user_id_col.get('nullable', True): # If NOT NULL (False), make it nullable
+                         try:
+                             logger.info("  [*] Altering user_id to be NULLABLE")
+                             # Set a sensible lock_timeout to prevent hanging forever (Transaction locally)
+                             db.session.execute(text("SET LOCAL lock_timeout = '5s'"))
+
+                             sql = text('ALTER TABLE "telemetry_logs" ALTER COLUMN "user_id" DROP NOT NULL')
+                             db.session.execute(sql)
+                             db.session.commit()
+                         except Exception as e:
+                             logger.warning(f"      -> Could not alter user_id (Lock timeout or error): {e}")
+                             db.session.rollback()
+                    else:
+                        logger.info("  [.] user_id is already NULLABLE. Skipping.")
 
             # Special check for deprecated 'name' and 'password_hash' columns in User table
             if table_name == 'users':

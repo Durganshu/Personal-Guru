@@ -2,6 +2,11 @@
 
 Thank you for your interest in contributing to Personal Guru! We welcome contributions from the community.
 
+## Agile Development & Community
+
+- **Project Board**: Please see our [Project Board](https://github.com/users/Rishabh-Bajpai/projects/2/views/1) to see the current area of focus before starting work.
+- **Discord**: Join our [Discord Channel](https://discord.com/channels/1454702827409641616/1454963523233906950) to chat with the team and other contributors.
+
 ## Quick Start
 
 1. **Fork & Clone**
@@ -9,6 +14,7 @@ Thank you for your interest in contributing to Personal Guru! We welcome contrib
    ```bash
    git clone https://github.com/Rishabh-Bajpai/Personal-Guru.git
    cd Personal-Guru
+
    ```
 
 2. **Set Up Environment**
@@ -23,27 +29,30 @@ Thank you for your interest in contributing to Personal Guru! We welcome contrib
 3. **Start Services**
 
    ```bash
-   docker compose up -d db      # PostgreSQL database
+   docker compose up speaches db -d       # PostgreSQL database,  STT and TTS
    python scripts/update_database.py
    python run.py                # Start the app
    ```
 
 ## How to Contribute
 
-### Reporting Bugs
+### 1. Find or Open an Issue
 
-- Check [existing issues](https://github.com/Rishabh-Bajpai/Personal-Guru/issues) first
-- Use the **Bug Report** issue template
-- Include steps to reproduce, expected vs actual behavior
+- **Always start with an issue.** Please do not open a PR without a corresponding issue.
+- Check [existing issues](https://github.com/Rishabh-Bajpai/Personal-Guru/issues) to see if it's already being worked on.
+- If not, create a new issue using one of our templates:
+    - **Bug Report**
+    - **Feature Request**
+    - **Question**
 
-### Suggesting Features
+### 2. Branching Strategy
 
-- Use the **Feature Request** issue template
-- Describe the use case and proposed solution
+- **`main`**: This is the **Production** branch. It is stable and deployed. **Do NOT submit PRs to main.**
+- **`development`**: This is the **active development** branch. All new features and fixes merge here first.
 
-### Code Contributions
+### 3. Code Contributions
 
-1. **Create a branch from `development`**
+1. **Create a feature branch from `development`**
 
    ```bash
    git checkout development
@@ -52,33 +61,30 @@ Thank you for your interest in contributing to Personal Guru! We welcome contrib
    ```
 
 2. **Make your changes**
-   - Follow existing code style
-   - Add docstrings to new functions
-   - Write tests for new functionality
+   - Follow existing code style.
+   - Add docstrings to new functions.
+   - Write tests for new functionality.
 
 3. **Run checks**
 
    ```bash
    pre-commit run --all-files    # Linting & formatting
    python -m pytest -m unit      # Unit tests
-   python -m pytest              #all tests
+   python -m pytest              # All tests
    ```
 
 4. **Submit a Pull Request**
 
-   - **Target the `development` branch** (not `main`)
-   - Use the PR template
-   - Link related issues (if closes an issue, use `closes #123, #456`)
-   - Provide a clear description
-
-> **Note:** All new features go to `development` first. The `main` branch is updated only during releases.
+   - **Target the `development` branch**.
+   - Use the **Pull Request Template** to fill in the details.
+   - Link related issues (e.g., `Closes #123`).
+   - Provide a clear description/screenshots if applicable.
 
 ## Code Standards
 
-- **Python**: Formatted with Black, linted with Ruff
-- **JavaScript/CSS/HTML**: Formatted with Prettier
-- **Docstrings**: Required for all public functions (checked by Interrogate)
-- **Commits**: Use clear, descriptive commit messages
+- **Python**: Formatted with Black, linted with Ruff.
+- **Docstrings**: Required for all public functions (checked by Interrogate).
+- **Commits**: Use clear, descriptive commit messages.
 
 ## Project Structure
 
@@ -96,13 +102,19 @@ Personal-Guru/
 
 ## Development Tips
 
-- Use `python scripts/db_viewer.py` to browse the database
-- Check `docs/architecture.md` for system design
+- Use `python scripts/db_viewer.py` to browse the database.
+- Check `docs/architecture.md` for system design.
 
-## Getting Help
+## Help & Funding
 
-- Open an issue with the **Question** label
-- Check documentation at [samosa-ai.com/personal-guru/docs](https://samosa-ai.com/personal-guru/docs)
+- **Get Help**: Open an issue with the **Question** label or ask on [Discord](https://discord.com/channels/1454702827409641616/1454963523233906950).
+- **Documentation**: [samosa-ai.com/personal-guru/docs](https://samosa-ai.com/personal-guru/docs)
+
+## Using Code from Other Projects
+
+We value the spirit of Open Source and Free Software, which foster collaboration and code reuse across projects. However, Free Software is not the same as the public domain, and license terms still apply. Not all code can be freely reused in every context.
+
+Before integrating a significant portion of code—or adding new dependencies or libraries—please consult the maintainers to verify license compatibility.
 
 ## License
 
