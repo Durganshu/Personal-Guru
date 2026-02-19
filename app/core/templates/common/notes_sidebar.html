@@ -1,0 +1,35 @@
+<!-- Notes Sidebar Partial -->
+<div id="notes-sidebar" class="notes-sidebar">
+    <div class="notes-sidebar-header">
+        <h3><i class="fas fa-book"></i> Notes</h3>
+        <button class="button secondary icon-only" onclick="toggleNotesSidebar()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="notes-sidebar-content">
+        <div id="notes-editor" class="notes-editor" contenteditable="true" placeholder="Start typing your notes..."></div>
+    </div>
+    <div class="notes-sidebar-footer" style="padding: 10px; border-top: 1px solid #eee; text-align: center;">
+        <span id="save-status" class="save-status" style="display: block; margin-bottom: 5px; font-size: 0.8em; color: #888;">Saved</span>
+        <a href="{{ url_for('main.notes_view', topic_name=topic.name if topic is defined else topic_name) }}" class="button is-small" style="width: 100%;">
+            <i class="fas fa-external-link-alt"></i> Open Notebook
+        </a>
+    </div>
+</div>
+
+<!-- Floating Toggle Button for Notes -->
+<button class="notes-sidebar-toggle-btn" onclick="toggleNotesSidebar()" title="Open Notes">
+    <i class="fas fa-pencil-alt"></i>
+</button>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='notes.css') }}">
+<script src="{{ url_for('static', filename='notes.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        initNotes({
+            topicName: "{{ topic.name if topic is defined else topic_name }}",
+            csrfToken: "{{ csrf_token() }}",
+            jweToken: "{{ jwe_token if jwe_token else '' }}"
+        });
+    });
+</script>

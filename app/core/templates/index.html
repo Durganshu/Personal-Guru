@@ -124,10 +124,13 @@
                         <i class="fas fa-play-circle"></i> Reel
                     </a>
 
-                    <a href="{{ url_for('main.delete_topic_route', topic_name=topic.name) }}"
-                        onclick="showLoader('Deleting topic...')" class="button delete-button icon-only"
-                        title="Delete Topic" aria-label="Delete {{ topic.name }}">
                         <i class="fas fa-trash-alt"></i>
+                    </a>
+
+                    <a href="{{ url_for('main.notes_view', topic_name=topic.name) }}"
+                        class="button secondary icon-only"
+                        title="Open Notes" aria-label="Notes for {{ topic.name }}">
+                        <i class="fas fa-sticky-note"></i>
                     </a>
                 </div>
             </li>

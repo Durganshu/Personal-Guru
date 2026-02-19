@@ -31,6 +31,7 @@ class Topic(TimestampMixin, SyncMixin, db.Model):
     user_id = db.Column(db.String(100), db.ForeignKey('logins.userid'), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     study_plan = db.Column(JSON) # Storing list of strings as JSON
+    notes = db.Column(db.Text) # Markdown content for notes
 
     __table_args__ = (
         db.UniqueConstraint('user_id', 'name', name='_user_topic_uc'),

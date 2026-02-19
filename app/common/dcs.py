@@ -8,7 +8,7 @@ from app.core.models import Installation, Topic, ChatMode, ChapterMode, QuizMode
 
 logger = logging.getLogger(__name__)
 
-DCS_BASE_URL = os.getenv("DCS_BASE_URL", "https://telemetry.samosa-ai.com")
+DCS_BASE_URL = os.getenv("DCS_BASE_URL", "https://telemetry2.samosa-ai.com")
 
 class DCSClient:
     """Client for communicating with the Data Collection Server (DCS)."""
@@ -146,6 +146,7 @@ class DCSClient:
                 "user_id": topic.user_id,
                 "name": topic.name,
                 "study_plan": topic.study_plan,
+                "notes": topic.notes,
                 "created_at": topic.created_at.isoformat(),
                 "modified_at": topic.modified_at.isoformat()
             })
