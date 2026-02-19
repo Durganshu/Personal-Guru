@@ -188,22 +188,41 @@ const NotesManager = (() => {
 
     function htmlToMarkdown(html) {
         let text = html;
-        // Basic conversions
+
+        // Block elements spacing
         text = text.replace(/<div>/gi, '\n');
         text = text.replace(/<\/div>/gi, '');
+        text = text.replace(/<p>/gi, '\n');
+        text = text.replace(/<\/p>/gi, '\n');
         text = text.replace(/<br\s*\/?>/gi, '\n');
-        text = text.replace(/<b>(.*?)<\/b>/gi, '**$1**');
-        text = text.replace(/<strong>(.*?)<\/strong>/gi, '**$1**');
-        text = text.replace(/<i>(.*?)<\/i>/gi, '*$1*');
-        text = text.replace(/<em>(.*?)<\/em>/gi, '*$1*');
-        text = text.replace(/<u>(.*?)<\/u>/gi, '__$1__'); // Markdown doesn't standardly support underline, but this is a convention
-        text = text.replace(/<s>(.*?)<\/s>/gi, '~~$1~~');
-        text = text.replace(/<strike>(.*?)<\/strike>/gi, '~~$1~~');
+
+        // Headers
+        text = text.replace(/<h1>(.*?)<\/h1>/gi, '# $1\n');
+        text = text.replace(/<h2>(.*?)<\/h2>/gi, '## $1\n');
+        text = text.replace(/<h3>(.*?)<\/h3>/gi, '### $1\n');
+
+        // Lists - Handle nested structure simply
         text = text.replace(/<ul>/gi, '');
         text = text.replace(/<\/ul>/gi, '');
         text = text.replace(/<ol>/gi, '');
         text = text.replace(/<\/ol>/gi, '');
         text = text.replace(/<li>(.*?)<\/li>/gi, '- $1\n');
+
+        // Text Styles
+        text = text.replace(/<b>(.*?)<\/b>/gi, '**$1**');
+        text = text.replace(/<strong>(.*?)<\/strong>/gi, '**$1**');
+        text = text.replace(/<i>(.*?)<\/i>/gi, '*$1*');
+        text = text.replace(/<em>(.*?)<\/em>/gi, '*$1*');
+        text = text.replace(/<u>(.*?)<\/u>/gi, '__$1__');
+        text = text.replace(/<s>(.*?)<\/s>/gi, '~~$1~~');
+        text = text.replace(/<strike>(.*?)<\/strike>/gi, '~~$1~~');
+
+        // Code
+        text = text.replace(/<pre>(.*?)<\/pre>/gis, '\n```\n$1\n```\n');
+        text = text.replace(/<code>(.*?)<\/code>/gi, '`$1`');
+
+        // Blockquotes
+        text = text.replace(/<blockquote>(.*?)<\/blockquote>/gi, '> $1\n');
 
         // Cleanup HTML tags
         text = text.replace(/<[^>]+>/g, '');
@@ -211,7 +230,7 @@ const NotesManager = (() => {
         // Decode entities
         const txt = document.createElement("textarea");
         txt.innerHTML = text;
-        return txt.value;
+        return txt.value.trim();
     }
 
     function exportNotes() {

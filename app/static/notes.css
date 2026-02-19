@@ -295,7 +295,12 @@ body.dark-mode #notes-sidebar {
 
 body.dark-mode .notes-editor {
     color: #e0e0e0;
+}
+
+body.dark-mode .notes-sidebar-content {
     background-image: linear-gradient(#3d3d3d 1px, transparent 1px);
+    background-size: 100% 1.8rem;
+    background-attachment: local;
 }
 
 body.dark-mode .toolbar {
