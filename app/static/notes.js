@@ -148,6 +148,13 @@ const NotesManager = (() => {
                     sidebar._chatPopupWasVisible = (chatPopup.style.display !== 'none');
                     chatPopup.style.display = 'none';
                 }
+
+                // Hide Chat Launcher Button if visible (store previous state)
+                const chatLauncher = document.getElementById('chat-launcher');
+                if (chatLauncher) {
+                    sidebar._chatLauncherWasVisible = (chatLauncher.style.display !== 'none');
+                    chatLauncher.style.display = 'none';
+                }
             } else {
                 document.body.style.paddingRight = "0";
 
@@ -155,6 +162,12 @@ const NotesManager = (() => {
                 const chatPopup = document.getElementById('chat-popup');
                 if (chatPopup && sidebar._chatPopupWasVisible) {
                     chatPopup.style.display = '';
+                }
+
+                // Restore Chat Launcher Button if it was visible before
+                const chatLauncher = document.getElementById('chat-launcher');
+                if (chatLauncher && sidebar._chatLauncherWasVisible) {
+                    chatLauncher.style.display = '';
                 }
             }
         }
