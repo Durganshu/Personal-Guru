@@ -180,6 +180,9 @@ function initChatPopup(config) {
             // Remove skeleton class and show actual content
             tutorMessage.classList.remove('skeleton-message');
             tutorMessage.innerHTML = `<strong>Tutor:</strong> ${safeAnswer}`;
+
+            if (window.renderMath) window.renderMath(tutorMessage);
+
             chatHistory.scrollTop = chatHistory.scrollHeight;
         } catch (error) {
             tutorMessage.classList.remove('skeleton-message');
@@ -372,6 +375,7 @@ function initChatPopup(config) {
                                 ? window.DOMPurify.sanitize(rendered)
                                 : rendered;
                             messageDiv.innerHTML = prefix + safe;
+                            if (window.renderMath) window.renderMath(messageDiv);
                         }
                         chatHistory.appendChild(messageDiv);
                     });

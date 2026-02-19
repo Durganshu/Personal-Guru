@@ -357,3 +357,47 @@ function setupInputValidation() {
 }
 
 document.addEventListener('DOMContentLoaded', setupInputValidation);
+
+// Math Rendering Helper
+window.renderMath = function() {
+    // 1. Convert <equation> tags to LaTeX blocks
+    const equations = document.querySelectorAll('equation');
+    equations.forEach(eq => {
+        const tex = eq.textContent;
+        const span = document.createElement('span');
+        // Use $$ for display math
+        span.innerHTML = '$$' + tex + '$$';
+        eq.replaceWith(span);
+    });
+
+    // 2. Trigger MathJax Typeset
+    if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise().catch((err) => console.log('MathJax typeset failed: ' + err.message));
+    }
+};
+
+// Highlight.js Theme Observer
+function setupThemeObserver() {
+    const themeLink = document.getElementById('highlight-theme');
+    if (!themeLink) return;
+
+    const updateTheme = () => {
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        const sun = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css';
+        const moon = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css';
+
+        const newHref = isDarkMode ? moon : sun;
+        if (themeLink.href !== newHref) {
+            themeLink.href = newHref;
+        }
+    };
+
+    // Initial check
+    updateTheme();
+
+    // Observe body class changes using MutationObserver
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+}
+
+document.addEventListener('DOMContentLoaded', setupThemeObserver);
