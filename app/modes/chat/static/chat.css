@@ -161,11 +161,33 @@ body.dark-mode {
 }
 
 #chat-header {
-    padding: 20px 30px;
     background: var(--assistant-bubble-bg);
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
     z-index: 10;
     flex-shrink: 0;
+
+    /* Collapsible Header Styles */
+    padding: 15px 30px;
+    max-height: 60px; /* Approx one line height + padding */
+    overflow: hidden;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+#chat-header:hover {
+    padding: 20px 30px;
+    max-height: 150px;
+}
+
+#chat-header h1 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: white-space 0.3s ease;
+}
+
+#chat-header:hover h1 {
+    white-space: normal;
 }
 
 #chat-header h1 {
