@@ -202,15 +202,18 @@ function initChatPopup(config) {
     // Scroll Indicator Logic - Removed as we now use native scrollbar
     // Auto-resize logic
     function handlePopupInput() {
-        chatInput.style.height = 'auto';
+        chatInput.style.height = '1px'; // Correctly reset height to allow shrinking
+        chatInput.style.height = (2 + chatInput.scrollHeight) + 'px'; // Add slight buffer
 
         const POPUP_INPUT_MAX_HEIGHT = 150;
         const scrollHeight = chatInput.scrollHeight;
 
-        chatInput.style.height = Math.min(scrollHeight, POPUP_INPUT_MAX_HEIGHT) + 'px';
-
-        // Hide scrollbar if content fits, show if it overflows
-        chatInput.style.overflowY = scrollHeight > POPUP_INPUT_MAX_HEIGHT ? 'auto' : 'hidden';
+        if (scrollHeight > POPUP_INPUT_MAX_HEIGHT) {
+            chatInput.style.height = POPUP_INPUT_MAX_HEIGHT + 'px';
+            chatInput.style.overflowY = 'auto';
+        } else {
+            chatInput.style.overflowY = 'hidden';
+        }
     }
 
     chatInput.addEventListener('input', handlePopupInput);

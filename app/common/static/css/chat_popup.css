@@ -211,6 +211,7 @@
 }
 
 /* Message Bubbles */
+/* Message Bubbles */
 .chat-message {
     max-width: 85%;
     width: fit-content;
@@ -226,9 +227,11 @@
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
+    height: auto !important; /* Force auto height to prevent collapse */
+    min-height: auto !important;
 }
 
-.chat-popup .user-message {
+#chat-popup .user-message {
     align-self: flex-end;
     background: var(--primary-gradient);
     color: white;
@@ -237,7 +240,7 @@
     white-space: pre-wrap; /* Only user messages should preserve newlines */
 }
 
-.chat-popup .tutor-message {
+#chat-popup .tutor-message {
     align-self: flex-start;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border-subtle);
@@ -245,7 +248,7 @@
     border-bottom-left-radius: 4px;
 }
 
-body:not(.dark-mode) .chat-popup .tutor-message {
+body:not(.dark-mode) #chat-popup .tutor-message {
     background: #f8f9fa;
     border-color: #e9ecef;
 }
@@ -293,10 +296,12 @@ body:not(.dark-mode) .chat-input-wrapper-popup {
     font-size: 0.95rem;
     resize: none;
     max-height: 150px;
+    min-height: 24px; /* Ensure 1 line is always visible */
     outline: none;
     padding: 4px 0;
     line-height: 1.4;
     box-sizing: border-box;
+    overflow-y: hidden; /* Start hidden */
 }
 
 #chat-form-popup button[type="submit"] {
