@@ -202,11 +202,23 @@ const NotesManager = (() => {
         text = text.replace(/<h3>(.*?)<\/h3>/gi, '### $1\n');
 
         // Lists - Handle nested structure simply
-        text = text.replace(/<ul>/gi, '');
-        text = text.replace(/<\/ul>/gi, '');
-        text = text.replace(/<ol>/gi, '');
-        text = text.replace(/<\/ol>/gi, '');
-        text = text.replace(/<li>(.*?)<\/li>/gi, '- $1\n');
+        // Process Ordered Lists first
+        text = text.replace(/<ol>(.*?)<\/ol>/gis, (match, content) => {
+            let itemIndex = 1;
+            return content.replace(/<li>(.*?)<\/li>/gi, (m, c) => {
+                return `${itemIndex++}. ${c}\n`;
+            });
+        });
+
+        // Process Unordered Lists
+        text = text.replace(/<ul>(.*?)<\/ul>/gis, (match, content) => {
+            return content.replace(/<li>(.*?)<\/li>/gi, '- $1\n');
+        });
+
+        // Cleanup wrapper list tags if any remain or nested ones (simplified approach)
+        text = text.replace(/<(ul|ol)>/gi, '');
+        text = text.replace(/<\/(ul|ol)>/gi, '');
+        text = text.replace(/<li>(.*?)<\/li>/gi, '- $1\n'); // Fallback for orphans
 
         // Text Styles
         text = text.replace(/<b>(.*?)<\/b>/gi, '**$1**');
