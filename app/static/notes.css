@@ -211,6 +211,7 @@ body.dark-mode {
     background-image: linear-gradient(#f1f1f1 1px, transparent 1px);
     background-size: 100% 1.8rem;
     line-height: 1.8rem;
+    background-attachment: local;
 }
 
 .notes-sidebar-toggle-btn {

@@ -131,13 +131,18 @@ const NotesManager = (() => {
         if (sidebar) {
             sidebar.classList.toggle('active');
 
-            // If opening and empty, load notes
+            // Adjust body padding to push content
             if (sidebar.classList.contains('active')) {
+                const width = sidebar.offsetWidth;
+                document.body.style.transition = "padding-right 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
+                document.body.style.paddingRight = width + "px";
+
                 if (!_editor.innerHTML.trim()) {
                     loadNotes();
                 }
-                // Initialize resizer if not already done
                 initResizer(sidebar);
+            } else {
+                document.body.style.paddingRight = "0";
             }
         }
     }
@@ -154,6 +159,8 @@ const NotesManager = (() => {
         function startResize(e) {
             startX = e.clientX;
             startWidth = parseInt(document.defaultView.getComputedStyle(sidebar).width, 10);
+            document.body.style.transition = "none"; // Disable transition during drag
+            sidebar.style.transition = "none";
             document.documentElement.addEventListener('mousemove', doResize, false);
             document.documentElement.addEventListener('mouseup', stopResize, false);
             resizer.classList.add('resizing');
@@ -161,8 +168,9 @@ const NotesManager = (() => {
 
         function doResize(e) {
             const newWidth = startWidth + (startX - e.clientX);
-            if (newWidth > 200 && newWidth < 800) { // Min 200px, Max 800px
+            if (newWidth > 200 && newWidth < 800) {
                 sidebar.style.width = newWidth + 'px';
+                document.body.style.paddingRight = newWidth + 'px';
             }
         }
 
@@ -170,40 +178,51 @@ const NotesManager = (() => {
             document.documentElement.removeEventListener('mousemove', doResize, false);
             document.documentElement.removeEventListener('mouseup', stopResize, false);
             resizer.classList.remove('resizing');
+            // Re-enable transitions
+            document.body.style.transition = "padding-right 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
+            sidebar.style.transition = "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
         }
 
         resizer.addEventListener('mousedown', startResize, false);
     }
 
+    function htmlToMarkdown(html) {
+        let text = html;
+        // Basic conversions
+        text = text.replace(/<div>/gi, '\n');
+        text = text.replace(/<\/div>/gi, '');
+        text = text.replace(/<br\s*\/?>/gi, '\n');
+        text = text.replace(/<b>(.*?)<\/b>/gi, '**$1**');
+        text = text.replace(/<strong>(.*?)<\/strong>/gi, '**$1**');
+        text = text.replace(/<i>(.*?)<\/i>/gi, '*$1*');
+        text = text.replace(/<em>(.*?)<\/em>/gi, '*$1*');
+        text = text.replace(/<u>(.*?)<\/u>/gi, '__$1__'); // Markdown doesn't standardly support underline, but this is a convention
+        text = text.replace(/<s>(.*?)<\/s>/gi, '~~$1~~');
+        text = text.replace(/<strike>(.*?)<\/strike>/gi, '~~$1~~');
+        text = text.replace(/<ul>/gi, '');
+        text = text.replace(/<\/ul>/gi, '');
+        text = text.replace(/<ol>/gi, '');
+        text = text.replace(/<\/ol>/gi, '');
+        text = text.replace(/<li>(.*?)<\/li>/gi, '- $1\n');
+
+        // Cleanup HTML tags
+        text = text.replace(/<[^>]+>/g, '');
+
+        // Decode entities
+        const txt = document.createElement("textarea");
+        txt.innerHTML = text;
+        return txt.value;
+    }
+
     function exportNotes() {
         const content = _editor.innerHTML;
-        // Basic HTML structure with embedded styles for a better "Rich Text" export experience
-        const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>${_topicName} Notes</title>
-<style>
-    body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 2rem auto; padding: 0 1rem; color: #333; }
-    h1 { border-bottom: 2px solid #eee; padding-bottom: 0.5rem; }
-    /* Basic Markdown-ish styles */
-    blockquote { border-left: 4px solid #ccc; margin: 0; padding-left: 1rem; color: #666; }
-    code { background: #f4f4f4; padding: 0.2rem 0.4rem; border-radius: 3px; }
-    pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; }
-</style>
-</head>
-<body>
-    <h1>${_topicName}</h1>
-    ${content}
-</body>
-</html>`;
+        const markdown = htmlToMarkdown(content);
 
-        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const blob = new Blob([markdown], { type: 'text/markdown' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${_topicName}_notes.html`; // CHANGED: Export as HTML to preserve formatting
+        a.download = `${_topicName}_notes.md`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
