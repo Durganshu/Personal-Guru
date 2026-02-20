@@ -156,3 +156,4 @@ Thumbs.db
 *.mo
 *.potflask_session/
 ollama-data/
+.gemini/
