@@ -3,6 +3,7 @@ import requests
 import logging
 import threading
 import time
+from sqlalchemy.orm import joinedload
 from app.core.extensions import db
 from app.core.models import Installation, Topic, ChatMode, ChapterMode, QuizMode, FlashcardMode, User, TelemetryLog, Feedback, AIModelPerformance, PlanRevision, SyncLog
 
@@ -206,7 +207,7 @@ class DCSClient:
             # 2. Child Objects - Ensure Parent Topic is Included
 
             # ChatMode
-            chats = ChatMode.query.filter((ChatMode.sync_status == 'pending') | (ChatMode.sync_status is None)).limit(BATCH_SIZE).all()
+            chats = ChatMode.query.options(joinedload(ChatMode.topic)).filter((ChatMode.sync_status == 'pending') | (ChatMode.sync_status is None)).limit(BATCH_SIZE).all()
             for c in chats:
                 payload["chat_modes"].append({
                     "topic_id": c.topic_id,
@@ -224,7 +225,7 @@ class DCSClient:
                     add_topic_to_payload(c.topic)
 
             # ChapterMode
-            chapters = ChapterMode.query.filter((ChapterMode.sync_status == 'pending') | (ChapterMode.sync_status is None)).limit(BATCH_SIZE).all()
+            chapters = ChapterMode.query.options(joinedload(ChapterMode.topic)).filter((ChapterMode.sync_status == 'pending') | (ChapterMode.sync_status is None)).limit(BATCH_SIZE).all()
             for c in chapters:
                 payload["chapter_modes"].append({
                     "topic_id": c.topic_id,
@@ -246,7 +247,7 @@ class DCSClient:
                     add_topic_to_payload(c.topic)
 
             # QuizMode
-            quizzes = QuizMode.query.filter((QuizMode.sync_status == 'pending') | (QuizMode.sync_status is None)).limit(BATCH_SIZE).all()
+            quizzes = QuizMode.query.options(joinedload(QuizMode.topic)).filter((QuizMode.sync_status == 'pending') | (QuizMode.sync_status is None)).limit(BATCH_SIZE).all()
             for q in quizzes:
                 payload["quiz_modes"].append({
                     "topic_id": q.topic_id,
@@ -263,7 +264,7 @@ class DCSClient:
                     add_topic_to_payload(q.topic)
 
             # FlashcardMode
-            flashcards = FlashcardMode.query.filter((FlashcardMode.sync_status == 'pending') | (FlashcardMode.sync_status is None)).limit(BATCH_SIZE).all()
+            flashcards = FlashcardMode.query.options(joinedload(FlashcardMode.topic)).filter((FlashcardMode.sync_status == 'pending') | (FlashcardMode.sync_status is None)).limit(BATCH_SIZE).all()
             for f in flashcards:
                 payload["flashcard_modes"].append({
                     "topic_id": f.topic_id,
@@ -329,7 +330,7 @@ class DCSClient:
                 objects_to_update.append(f)
 
             # PlanRevision
-            plans = PlanRevision.query.filter((PlanRevision.sync_status == 'pending') | (PlanRevision.sync_status is None)).limit(BATCH_SIZE).all()
+            plans = PlanRevision.query.options(joinedload(PlanRevision.topic)).filter((PlanRevision.sync_status == 'pending') | (PlanRevision.sync_status is None)).limit(BATCH_SIZE).all()
             for pr in plans:
                 payload["plan_revisions"].append({
                     "topic_id": pr.topic_id,
