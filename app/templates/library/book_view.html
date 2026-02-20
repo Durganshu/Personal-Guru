@@ -208,12 +208,19 @@
         align-items: center;
     }
     .note-block {
-    .note-block {
         background: rgba(255,255,255,0.05);
         padding: 1rem;
         border-radius: 8px;
         margin-bottom: 1rem;
         border-left: 3px solid var(--primary-color);
+    }
+    .book-footer {
+        display: flex;
+        justify-content: center;
+        margin-top: 5rem;
+        padding-top: 3rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 3rem;
     }
 </style>
 <script>
@@ -385,6 +392,34 @@
                 <h4>This book is empty.</h4>
             </div>
         {% endif %}
+
+        <div class="book-footer">
+            <div class="page-nav">
+                {% if page_num > 1 %}
+                    <a href="{{ url_for('library.read_book', book_id=book.id, page_num=page_num-1) }}" class="btn btn-outline-secondary nav-btn">
+                        <i class="fas fa-chevron-left me-2"></i> Previous
+                    </a>
+                {% else %}
+                    <button class="btn btn-outline-secondary nav-btn" disabled>
+                        <i class="fas fa-chevron-left me-2"></i> Previous
+                    </button>
+                {% endif %}
+
+                <div class="nav-stats">
+                    Page {{ page_num }} / {{ total_pages }}
+                </div>
+
+                {% if page_num < total_pages %}
+                    <a href="{{ url_for('library.read_book', book_id=book.id, page_num=page_num+1) }}" class="btn btn-outline-secondary nav-btn">
+                        Next <i class="fas fa-chevron-right ms-2"></i>
+                    </a>
+                {% else %}
+                    <button class="btn btn-outline-secondary nav-btn" disabled>
+                        Next <i class="fas fa-chevron-right ms-2"></i>
+                    </button>
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     <div class="notes-sidebar" id="notesSidebar">
