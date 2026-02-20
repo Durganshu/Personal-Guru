@@ -134,7 +134,18 @@
         const query = document.getElementById('genInput').value;
         const btn = document.getElementById('genBtn');
         btn.disabled = true;
-        btn.innerText = "Generating...";
+        btn.innerText = "Structuring Book Plan...";
+
+        // Ensure progress container exists for inline loading
+        let progressContainer = document.getElementById('generate-progress-container');
+        if (!progressContainer) {
+            progressContainer = document.createElement('div');
+            progressContainer.id = 'generate-progress-container';
+            progressContainer.className = 'mt-4 text-center p-3 border rounded bg-light';
+            btn.parentElement.parentElement.appendChild(progressContainer);
+        }
+        progressContainer.style.display = 'block';
+        progressContainer.innerHTML = '<strong>Step 1/2:</strong> Structuring topics (takes ~10 seconds)...';
 
         try {
             const res = await fetch('/library/generate', {
@@ -147,14 +158,20 @@
                 body: JSON.stringify({query: query})
             });
             const data = await res.json();
-            if (data.success) {
-                window.location.href = data.redirect;
+            if (data.success && data.book && data.book.id) {
+                progressContainer.innerHTML = '<strong>Step 2/2:</strong> Book structured! Generating chapters...';
+                // Trigger the background content generation using the same logic as the dashboard cards
+                await openBookWithLoader(data.book.id, progressContainer);
+            } else if (data.success && data.redirect) {
+                 // Fallback if no book ID but success
+                 window.location.href = data.redirect;
             } else {
-                alert(data.error || "Failed to generate book");
+                progressContainer.innerHTML = `<span class="text-danger">Failed to generate book: ${data.error || "Unknown Error"}</span>`;
+                btn.disabled = false;
+                btn.innerText = "Generate Book Plan";
             }
         } catch(err) {
-            alert("Error: " + err.message);
-        } finally {
+            progressContainer.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
             btn.disabled = false;
             btn.innerText = "Generate Book Plan";
         }
