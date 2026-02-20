@@ -28,6 +28,64 @@
         overflow: hidden;
         border-left: none;
     }
+    .toc-sidebar {
+        width: 300px;
+        background: var(--surface-color, #1e1e2e);
+        border-right: 1px solid var(--border-color, #313244);
+        padding: 1.5rem;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+    }
+    .toc-item {
+        padding: 0.5rem 0.5rem 0.5rem 1.5rem; /* Left padding for indentation */
+        border-radius: 6px;
+        color: var(--text-color, #cdd6f4);
+        text-decoration: none;
+        display: block;
+        margin-bottom: 0.25rem;
+        transition: background 0.2s;
+        font-size: 0.9rem;
+        position: relative;
+    }
+    .toc-item::before {
+        content: '\f15c'; /* FontAwesome file-alt icon */
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 400;
+        position: absolute;
+        left: 0.5rem;
+        opacity: 0.5;
+        font-size: 0.8rem;
+        top: 0.65rem;
+    }
+    .toc-item:hover {
+        background: rgba(255,255,255,0.05);
+        color: var(--primary-color, #cba6f7);
+    }
+    .toc-item.active {
+        background: var(--primary-color, #cba6f7);
+        color: #11111b;
+        font-weight: bold;
+    }
+    .toc-item.active::before {
+        opacity: 1;
+        color: #11111b;
+    }
+    .toc-topic {
+        font-weight: bold;
+        color: var(--subtext-color, #a6adc8);
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 1px;
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .toc-topic i {
+        color: var(--primary-color);
+    }
     .book-header {
         display: flex;
         justify-content: space-between;
@@ -90,10 +148,36 @@
 
 {% block content %}
 <div class="book-layout">
+    <div class="toc-sidebar">
+        <a href="{{ url_for('library.dashboard') }}" class="text-decoration-none text-secondary mb-4">
+            <i class="fas fa-arrow-left me-2"></i> Back to Library
+        </a>
+        <h4 class="mb-2"><i class="fas fa-list-ul me-2"></i> Table of Contents</h4>
+        <hr class="border-secondary mt-0 mb-2">
+
+        {% set ns = namespace(current_topic=None) %}
+        {% for page in all_pages %}
+            {% if ns.current_topic != page.topic.name %}
+                <div class="toc-topic mt-4">
+                    <i class="fas fa-bookmark"></i> Ch. {{ page.topic_number }}: {{ page.topic.name }}
+                </div>
+                {% set ns.current_topic = page.topic.name %}
+            {% endif %}
+            <a href="{{ url_for('library.read_book', book_id=book.id, page_num=page.global_page) }}"
+               class="toc-item {% if page.global_page == page_num %}active{% endif %}">
+                {% if page.type == 'content' %}
+                    {{ page.chapter.title }}
+                {% else %}
+                    <!-- Placeholder handling in sidebar -->
+                    <i>Topic Placeholder</i>
+                {% endif %}
+            </a>
+        {% endfor %}
+    </div>
+
     <div class="book-content">
         <div class="book-header">
             <div>
-                <a href="{{ url_for('library.dashboard') }}" class="text-decoration-none text-secondary">← Back to Library</a>
                 <h2 class="mb-0 mt-2">{{ book.title }}</h2>
                 {% if book.user_id == current_user.userid %}
                     <div class="d-flex align-items-center gap-3 mt-3">

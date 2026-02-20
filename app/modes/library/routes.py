@@ -382,6 +382,7 @@ def read_book(book_id, page_num):
     return render_template(
         'book_view.html',
         book=book,
+        all_pages=flattened_pages,
         current_page_data=current_page_data,
         page_num=page_num,
         total_pages=total_pages,
