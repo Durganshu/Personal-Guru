@@ -16,18 +16,33 @@
         overflow-y: auto;
     }
     .notes-sidebar {
-        width: 350px;
+        width: var(--notes-sidebar-width, 350px);
         background: var(--surface-color, #1e1e2e);
         border-left: 1px solid var(--border-color, #313244);
         padding: 1.5rem;
         overflow-y: auto;
         transition: width 0.3s ease, padding 0.3s ease;
+        position: relative;
     }
     .notes-sidebar.collapsed {
-        width: 0;
+        width: 0 !important;
         padding: 0;
         overflow: hidden;
         border-left: none;
+    }
+    .resizer {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        cursor: col-resize;
+        background: transparent;
+        transition: background 0.2s;
+        z-index: 100;
+    }
+    .resizer:hover, .resizer.resizing {
+        background: var(--primary-color);
     }
     .toc-sidebar {
         width: 300px;
@@ -271,7 +286,7 @@
     /* Responsive Adjustments */
     @media (max-width: 1200px) {
         .toc-sidebar { width: 250px; }
-        .notes-sidebar { width: 300px; }
+        .notes-sidebar { width: var(--notes-sidebar-width, 300px); }
     }
 
     @media (max-width: 992px) {
@@ -383,8 +398,48 @@
             });
         }
         {% endif %}
+
+        // Resizer Logic
+        const sidebar = document.getElementById('notesSidebar');
+        const resizer = document.getElementById('sidebarResizer');
+        if (sidebar && resizer) {
+            let startX, startWidth;
+
+            resizer.addEventListener('mousedown', (e) => {
+                startX = e.clientX;
+                startWidth = sidebar.offsetWidth;
+                document.body.classList.add('resizing');
+                resizer.classList.add('resizing');
+                sidebar.style.transition = 'none';
+
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+            });
+
+            function handleMouseMove(e) {
+                const deltaX = startX - e.clientX;
+                const newWidth = Math.min(Math.max(200, startWidth + deltaX), 800);
+                document.documentElement.style.setProperty('--notes-sidebar-width', newWidth + 'px');
+                localStorage.setItem('book-notes-width', newWidth);
+            }
+
+            function handleMouseUp() {
+                document.body.classList.remove('resizing');
+                resizer.classList.remove('resizing');
+                sidebar.style.transition = 'width 0.3s ease, padding 0.3s ease';
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+            }
+        }
     });
+
 </script>
+<style>
+    body.resizing {
+        cursor: col-resize;
+        user-select: none;
+    }
+</style>
 <link rel="stylesheet" href="{{ url_for('static', filename='notes.css') }}">
 <script src="{{ url_for('static', filename='notes.js') }}"></script>
 {% endblock %}
@@ -529,9 +584,14 @@
     </div>
 
     <div class="notes-sidebar no-transition" id="notesSidebar">
+        <div class="resizer" id="sidebarResizer"></div>
         <script>
             if (localStorage.getItem('book-notes-collapsed') === 'true') {
                 document.getElementById('notesSidebar').classList.add('collapsed');
+            }
+            const savedWidth = localStorage.getItem('book-notes-width');
+            if (savedWidth) {
+                document.documentElement.style.setProperty('--notes-sidebar-width', savedWidth + 'px');
             }
         </script>
         <h4>Notebook</h4>
