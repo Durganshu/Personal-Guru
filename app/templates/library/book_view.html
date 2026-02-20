@@ -36,6 +36,13 @@
         overflow-y: auto;
         display: flex;
         flex-direction: column;
+        transition: width 0.3s ease, padding 0.3s ease;
+    }
+    .toc-sidebar.collapsed {
+        width: 0;
+        padding: 0;
+        overflow: hidden;
+        border-right: none;
     }
     .toc-item {
         padding: 0.5rem 0.5rem 0.5rem 1.5rem; /* Left padding for indentation */
@@ -143,12 +150,22 @@
             btn.innerHTML = '<i class="fas fa-book me-2"></i> Hide Notes';
         }
     }
+    function toggleTOC() {
+        const sidebar = document.getElementById('tocSidebar');
+        sidebar.classList.toggle('collapsed');
+        const btn = document.getElementById('toggleTOCBtn');
+        if (sidebar.classList.contains('collapsed')) {
+            btn.innerHTML = '<i class="fas fa-list-ul me-2"></i> Show Content';
+        } else {
+            btn.innerHTML = '<i class="fas fa-list-ul me-2"></i> Hide Content';
+        }
+    }
 </script>
 {% endblock %}
 
 {% block content %}
 <div class="book-layout">
-    <div class="toc-sidebar">
+    <div class="toc-sidebar" id="tocSidebar">
         <a href="{{ url_for('library.dashboard') }}" class="text-decoration-none text-secondary mb-4">
             <i class="fas fa-arrow-left me-2"></i> Back to Library
         </a>
@@ -181,6 +198,9 @@
                 <h2 class="mb-0 mt-2">{{ book.title }}</h2>
                 {% if book.user_id == current_user.userid %}
                     <div class="d-flex align-items-center gap-3 mt-3">
+                        <button id="toggleTOCBtn" class="btn btn-sm btn-outline-secondary" onclick="toggleTOC()">
+                            <i class="fas fa-list-ul me-2"></i> Hide Content
+                        </button>
                         <div class="form-check form-switch mb-0">
                             <input class="form-check-input" type="checkbox" id="shareToggle" onchange="toggleShare()" {% if book.is_shared %}checked{% endif %}>
                             <label class="form-check-label text-muted" for="shareToggle">Share with Community</label>
@@ -190,6 +210,12 @@
                             <i class="fas fa-book me-2"></i> Hide Notes
                         </button>
                         {% endif %}
+                    </div>
+                {% else %}
+                    <div class="d-flex align-items-center gap-3 mt-3">
+                         <button id="toggleTOCBtn" class="btn btn-sm btn-outline-secondary" onclick="toggleTOC()">
+                            <i class="fas fa-list-ul me-2"></i> Hide Content
+                        </button>
                     </div>
                 {% endif %}
             </div>
