@@ -64,7 +64,7 @@
                     if message.role == 'user' else 'AI Tutor' }}</div>
                 <div class="message {{ 'user-message' if message.role == 'user' else 'assistant-message' }}">
                     <div class="message-content"></div>
-                    <div class="raw-markdown" style="display: none;">{{ message.content | safe }}</div>
+                    <div class="raw-markdown" style="display: none;">{{ message.content | sanitize_html | safe }}</div>
                 </div>
             </div>
             {% endfor %}

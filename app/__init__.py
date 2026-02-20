@@ -29,6 +29,10 @@ def create_app(config_class=Config):
     app = Flask(__name__, template_folder='core/templates')
     app.config.from_object(config_class)
 
+    # Register Custom Filters
+    from app.common.utils import sanitize_html
+    app.jinja_env.filters['sanitize_html'] = sanitize_html
+
     # Initialize Flask extensions
     db.init_app(app)
     migrate.init_app(app, db)

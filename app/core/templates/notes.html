@@ -63,7 +63,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         initNotes({
-            topicName: "{{ topic.name | safe }}",
+            topicName: {{ topic.name | tojson }},
             csrfToken: "{{ csrf_token() }}",
             jweToken: "{{ jwe_token if jwe_token else '' }}"
         });

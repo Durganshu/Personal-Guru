@@ -8,6 +8,7 @@ import subprocess
 import logging
 import platform
 import psutil
+import bleach
 from datetime import datetime
 from dotenv import load_dotenv
 from app.core.exceptions import (
@@ -1070,3 +1071,32 @@ def _compare_versions(current_ver, release_data):
             "url": release_data["html_url"]
         }
     return None
+
+
+def sanitize_html(content):
+    """
+    Sanitize HTML content to prevent XSS.
+    Allowed tags and attributes can be customized.
+    """
+    if not content:
+        return ""
+
+    allowed_tags = [
+        'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+        'b', 'i', 'strong', 'em', 'u', 's', 'strike',
+        'code', 'pre', 'blockquote',
+        'table', 'thead', 'tbody', 'tr', 'th', 'td',
+        'span', 'div', 'img', 'a', 'hr',
+        'sup', 'sub'
+    ]
+
+    allowed_attributes = {
+        '*': ['class', 'title', 'id'],
+        'a': ['href', 'rel', 'target'],
+        'img': ['src', 'alt', 'width', 'height'],
+        'pre': ['data-lang'],
+        'code': ['class']
+    }
+
+    return bleach.clean(content, tags=allowed_tags, attributes=allowed_attributes, strip=True)
