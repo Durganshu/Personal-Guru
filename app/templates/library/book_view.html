@@ -221,9 +221,74 @@
         padding-top: 3rem;
         border-top: 1px solid rgba(255, 255, 255, 0.05);
         padding-bottom: 3rem;
+    }
+    .notes-editor {
+        width: 100%;
+        min-height: calc(100vh - 250px);
+        background: transparent;
+        border: none;
+        color: var(--text-color);
+        font-family: inherit;
+        font-size: 1rem;
+        line-height: 1.6;
+        resize: none;
+        outline: none;
+        padding: 0;
+    }
+    .notes-editor:focus {
+        background: rgba(255,255,255,0.02);
+    }
+    .save-notes-container {
+        position: sticky;
+        bottom: 0;
+        background: var(--surface-color);
+        padding: 1rem 0;
+        border-top: 1px solid var(--border-color);
+        margin-top: auto;
+    }
+    .save-status {
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+        transition: opacity 0.3s;
+        height: 1.2rem;
+    }
     .no-transition {
         transition: none !important;
     }
+
+    /* Responsive Adjustments */
+    @media (max-width: 1200px) {
+        .toc-sidebar { width: 250px; }
+        .notes-sidebar { width: 300px; }
+    }
+
+    @media (max-width: 992px) {
+        .toc-sidebar, .notes-sidebar {
+            position: fixed;
+            z-index: 1000;
+            height: 100vh;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+        }
+        .toc-sidebar { left: 0; }
+        .notes-sidebar {
+            right: 0;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+        }
+        .toc-sidebar.collapsed { transform: translateX(-100%); width: 300px; }
+        .notes-sidebar.collapsed { transform: translateX(100%); width: 350px; }
+
+        /* Overlays when open */
+        .book-layout::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 900;
+            display: none;
+            backdrop-filter: blur(2px);
+        }
+    }
+
     /* Smooth Fade-in Animation */
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(5px); }
@@ -297,6 +362,48 @@
             if (notes) notes.classList.remove('no-transition');
         }, 100);
     });
+
+    async function saveNotes() {
+        const btn = document.getElementById('saveNotesBtn');
+        const editor = document.getElementById('notesEditor');
+        const status = document.getElementById('saveStatus');
+        const originalText = btn.innerHTML;
+
+        {% if current_page_data %}
+        const topicName = "{{ current_page_data.topic.name }}";
+        {% else %}
+        return;
+        {% endif %}
+
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Saving...';
+            status.style.opacity = 0;
+
+            const res = await fetch(`/api/notes/${encodeURIComponent(topicName)}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ notes: editor.value })
+            });
+
+            if (!res.ok) throw new Error("Save failed");
+
+            status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i> Saved successfully</span>';
+            status.style.opacity = 1;
+            setTimeout(() => { status.style.opacity = 0; }, 3000);
+
+        } catch (e) {
+            status.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i> Failed to save</span>';
+            status.style.opacity = 1;
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
 </script>
 {% endblock %}
 
@@ -448,12 +555,17 @@
         <h4>Notebook</h4>
         <hr class="border-secondary">
         {% if show_notes %}
-            {% if current_page_data and current_page_data.topic.notes %}
-                <div class="note-block">
-                    {{ current_page_data.topic.notes | safe }}
+            {% if current_page_data %}
+                <textarea id="notesEditor" class="notes-editor" placeholder="Write your thoughts here...">{{ current_page_data.topic.notes or '' }}</textarea>
+
+                <div class="save-notes-container">
+                    <button id="saveNotesBtn" class="btn btn-primary w-100" onclick="saveNotes()">
+                        <i class="fas fa-save me-2"></i> Save Notes
+                    </button>
+                    <div id="saveStatus" class="save-status text-center" style="opacity: 0;"></div>
                 </div>
             {% else %}
-                <p class="text-muted text-center mt-4">No notes for this topic yet. Start taking notes in the chapter view!</p>
+                <p class="text-muted text-center mt-4">Empty topic.</p>
             {% endif %}
         {% else %}
             <div class="text-center mt-5 text-muted">
