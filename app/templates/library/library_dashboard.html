@@ -44,7 +44,6 @@
         border-radius: 12px;
         text-align: center;
         margin-top: 2rem;
-        display: none;
     }
     .active-tab {
         background: var(--primary-color, #cba6f7);
@@ -57,6 +56,21 @@
         document.getElementById(tabId).style.display = 'block';
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active-tab'));
         document.getElementById('btn-' + tabId).classList.add('active-tab');
+    }
+
+    function filterBooks(inputId, gridId) {
+        const query = document.getElementById(inputId).value.toLowerCase();
+        const grid = document.getElementById(gridId);
+        if (!grid) return;
+        const cards = grid.getElementsByClassName('book-card');
+        for (let i = 0; i < cards.length; i++) {
+            const textContent = cards[i].innerText || cards[i].textContent;
+            if (textContent.toLowerCase().includes(query)) {
+                cards[i].style.display = "";
+            } else {
+                cards[i].style.display = "none";
+            }
+        }
     }
 
     async function searchLibrary(e) {
@@ -163,7 +177,10 @@
     </div>
 
     <div id="my-books" class="tab-content">
-        <div class="grid-container">
+        <div class="search-bar mb-4">
+            <input type="text" id="myBooksSearch" class="form-control" placeholder="Search my books..." onkeyup="filterBooks('myBooksSearch', 'my-books-grid')">
+        </div>
+        <div class="grid-container" id="my-books-grid">
             {% for book in my_books %}
             <div class="book-card" onclick="window.location.href='{{ url_for('library.read_book', book_id=book.id, page_num=1) }}'">
                 <h3>{{ book.title }}</h3>
@@ -195,15 +212,18 @@
         <form class="generate-panel" onsubmit="generateBook(event)">
             <h3>Generate a New Book</h3>
             <p>Tell the AI Librarian what you want to learn, and it will structure a complete multi-topic book for you.</p>
-            <div class="d-flex gap-2 justify-content-center mt-3">
-                <input type="text" id="genInput" class="form-control w-50" placeholder="e.g. History of Rome or Quantum Computing">
+            <div class="search-bar mt-4">
+                <input type="text" id="genInput" class="form-control" placeholder="e.g. History of Rome or Quantum Computing">
                 <button class="btn btn-primary" id="genBtn" type="submit">Generate Book Plan</button>
             </div>
         </form>
     </div>
 
     <div id="shared-books" class="tab-content" style="display:none;">
-        <div class="grid-container">
+        <div class="search-bar mb-4">
+            <input type="text" id="sharedBooksSearch" class="form-control" placeholder="Search community books..." onkeyup="filterBooks('sharedBooksSearch', 'shared-books-grid')">
+        </div>
+        <div class="grid-container" id="shared-books-grid">
             {% for book in shared_books %}
             <div class="book-card" onclick="window.location.href='{{ url_for('library.read_book', book_id=book.id, page_num=1) }}'">
                 <h3>{{ book.title }}</h3>

@@ -109,7 +109,7 @@
                 <div class="text-center mt-5">
                     <h4>This topic hasn't been started yet.</h4>
                     <p>To generate the content for this chapter, open the topic from your main Dashboard.</p>
-                    <a href="{{ url_for('chapter.chapter_index', topic_id=current_page_data.topic.id) }}" class="btn btn-primary mt-3">Open Topic in Interactive Mode</a>
+                    <a href="{{ url_for('chapter.mode', topic_name=current_page_data.topic.name) }}" class="btn btn-primary mt-3">Open Topic in Interactive Mode</a>
                 </div>
             {% else %}
                 <h3 class="mb-4">{{ current_page_data.chapter.title }}</h3>

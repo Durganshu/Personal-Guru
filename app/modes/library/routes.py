@@ -97,9 +97,7 @@ def generate_book():
         for idx, topic_title in enumerate(book_plan.get('topics', [])):
             t = Topic(
                 name=topic_title,
-                user_id=current_user.userid,
-                status='in_progress',
-                completion_percentage=0.0
+                user_id=current_user.userid
             )
             db.session.add(t)
             db.session.flush() # Get t.id
