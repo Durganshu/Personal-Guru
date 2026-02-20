@@ -45,7 +45,7 @@ def load_environment_variables():
 class Config:
     """Application configuration settings loaded from environment variables."""
 
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
+    SECRET_KEY = os.environ.get('SECRET_KEY')
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///site.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -73,5 +73,6 @@ class Config:
 class TestConfig(Config):
     """Configuration for running tests."""
     TESTING = True
+    SECRET_KEY = 'test-secret-key-for-unit-tests'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     WTF_CSRF_ENABLED = False

@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request
 import os
 import sys
+import secrets
 
 
 from flask_wtf.csrf import CSRFProtect
@@ -61,7 +62,8 @@ def create_setup_app():
                 'LLM_MAX_OUTPUT_TOKENS': request.form.get('llm_ctx', '20000'),
                 'TTS_BASE_URL': request.form.get('tts_url', ''),
                 'OPENAI_API_KEY': request.form.get('openai_key', ''),
-                'YOUTUBE_API_KEY': request.form.get('youtube_key', '')
+                'YOUTUBE_API_KEY': request.form.get('youtube_key', ''),
+                'SECRET_KEY': os.environ.get('SECRET_KEY') or secrets.token_hex(32)
             }
 
             # Simple validation
