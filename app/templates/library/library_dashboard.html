@@ -309,7 +309,7 @@
         </div>
         <div class="grid-container" id="shared-books-grid">
             {% for book in shared_books %}
-            <div class="book-card" onclick="openBookWithLoader({{ book.id }})">
+            <div class="book-card" onclick="openBookWithLoader({{ book.id }}, this)">
                 <h3>{{ book.title }}</h3>
                 <p>{{ book.description | truncate(100) }}</p>
                 <div class="d-flex justify-content-between mt-3">
