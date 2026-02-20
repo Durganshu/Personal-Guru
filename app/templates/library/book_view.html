@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Reading: {{ book.title }} - Personal Guru{% endblock %}
+{% block head %}
+{{ super() }}
+<style>
+    .book-layout {
+        display: flex;
+        height: calc(100vh - 60px);
+        background: var(--bg-color, #11111b);
+    }
+    .book-content {
+        flex: 1;
+        padding: 2rem;
+        overflow-y: auto;
+    }
+    .notes-sidebar {
+        width: 350px;
+        background: var(--surface-color, #1e1e2e);
+        border-left: 1px solid var(--border-color, #313244);
+        padding: 1.5rem;
+        overflow-y: auto;
+    }
+    .book-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 1rem;
+    }
+    .page-nav {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+    .topic-indicator {
+        font-size: 0.9rem;
+        color: var(--primary-color, #cba6f7);
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .note-block {
+        background: rgba(255,255,255,0.05);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        border-left: 3px solid var(--primary-color);
+    }
+</style>
+<script>
+    async function toggleShare() {
+        const isShared = document.getElementById('shareToggle').checked;
+        try {
+            const res = await fetch('/library/{{ book.id }}/toggle-share', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({is_shared: isShared})
+            });
+            if(!res.ok) throw new Error("Share toggle failed");
+        } catch (e) {
+            alert("Failed to update status.");
+            document.getElementById('shareToggle').checked = !isShared;
+        }
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="book-layout">
+    <div class="book-content">
+        <div class="book-header">
+            <div>
+                <a href="{{ url_for('library.dashboard') }}" class="text-decoration-none text-secondary">← Back to Library</a>
+                <h2 class="mb-0 mt-2">{{ book.title }}</h2>
+                {% if book.user_id == current_user.userid %}
+                    <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="shareToggle" onchange="toggleShare()" {% if book.is_shared %}checked{% endif %}>
+                        <label class="form-check-label text-muted" for="shareToggle">Share with Community</label>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="page-nav">
+                {% if page_num > 1 %}
+                    <a href="{{ url_for('library.read_book', book_id=book.id, page_num=page_num-1) }}" class="btn btn-outline-secondary">Previous</a>
+                {% else %}
+                    <button class="btn btn-outline-secondary" disabled>Previous</button>
+                {% endif %}
+
+                <span>Page {{ page_num }} of {{ total_pages }}</span>
+
+                {% if page_num < total_pages %}
+                    <a href="{{ url_for('library.read_book', book_id=book.id, page_num=page_num+1) }}" class="btn btn-primary">Next</a>
+                {% else %}
+                    <button class="btn btn-primary" disabled>Next</button>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if current_page_data %}
+            <div class="topic-indicator mb-3">Topic {{ current_page_data.topic_number }}: {{ current_page_data.topic.name }}</div>
+
+            {% if current_page_data.type == 'placeholder' %}
+                <div class="text-center mt-5">
+                    <h4>This topic hasn't been started yet.</h4>
+                    <p>To generate the content for this chapter, open the topic from your main Dashboard.</p>
+                    <a href="{{ url_for('chapter.chapter_index', topic_id=current_page_data.topic.id) }}" class="btn btn-primary mt-3">Open Topic in Interactive Mode</a>
+                </div>
+            {% else %}
+                <h3 class="mb-4">{{ current_page_data.chapter.title }}</h3>
+                <div class="fs-5" style="line-height: 1.8;">
+                    {{ current_page_data.chapter.content | safe }}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center mt-5">
+                <h4>This book is empty.</h4>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="notes-sidebar">
+        <h4>Notebook</h4>
+        <hr class="border-secondary">
+        {% if show_notes %}
+            {% if current_page_data and current_page_data.topic.notes %}
+                <div class="note-block">
+                    {{ current_page_data.topic.notes | safe }}
+                </div>
+            {% else %}
+                <p class="text-muted text-center mt-4">No notes for this topic yet. Start taking notes in the chapter view!</p>
+            {% endif %}
+        {% else %}
+            <div class="text-center mt-5 text-muted">
+                <i class="fas fa-lock mb-3 fs-2"></i>
+                <p>Private notes are hidden when viewing community books.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

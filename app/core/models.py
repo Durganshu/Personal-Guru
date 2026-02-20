@@ -43,6 +43,7 @@ class Topic(TimestampMixin, SyncMixin, db.Model):
     flashcard_mode = db.relationship('FlashcardMode', back_populates='topic', cascade='all, delete-orphan')
     chat_mode = db.relationship('ChatMode', back_populates='topic', uselist=False, cascade='all, delete-orphan')
     plan_revisions = db.relationship('PlanRevision', back_populates='topic', uselist=True, cascade='all, delete-orphan')
+    book_topics = db.relationship('BookTopic', back_populates='topic', cascade='all, delete-orphan')
     login = db.relationship('Login', back_populates='topics')
 
 class ChatMode(TimestampMixin, SyncMixin, db.Model):
@@ -290,6 +291,36 @@ class PlanRevision(TimestampMixin, SyncMixin, db.Model):
     login = db.relationship('Login', back_populates='plan_revisions')
 
 
+class Book(TimestampMixin, SyncMixin, db.Model):
+    """A collection of topics organized into a book."""
+
+    __tablename__ = 'books'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(100), db.ForeignKey('logins.userid'), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    is_shared = db.Column(db.Boolean, default=False, nullable=False)
+
+    # Relationships
+    login = db.relationship('Login', back_populates='books')
+    book_topics = db.relationship('BookTopic', back_populates='book', cascade='all, delete-orphan', order_by='BookTopic.order_index')
+
+
+class BookTopic(db.Model):
+    """Association table linking books to topics with ordering."""
+
+    __tablename__ = 'book_topics'
+
+    book_id = db.Column(db.Integer, db.ForeignKey('books.id'), primary_key=True)
+    topic_id = db.Column(db.Integer, db.ForeignKey('topics.id'), primary_key=True)
+    order_index = db.Column(db.Integer, nullable=False, default=0)
+
+    # Relationships
+    book = db.relationship('Book', back_populates='book_topics')
+    topic = db.relationship('Topic', back_populates='book_topics')
+
+
 class Login(UserMixin, TimestampMixin, db.Model):
     """User authentication and identity model."""
 
@@ -332,6 +363,7 @@ class Login(UserMixin, TimestampMixin, db.Model):
     # Relationships
     installation = db.relationship('Installation', back_populates='logins')
     topics = db.relationship('Topic', back_populates='login', cascade='all, delete-orphan')
+    books = db.relationship('Book', back_populates='login', cascade='all, delete-orphan')
     feedbacks = db.relationship('Feedback', back_populates='login', cascade='all, delete-orphan')
     telemetry_logs = db.relationship('TelemetryLog', back_populates='login', cascade='all, delete-orphan')
     ai_model_performances = db.relationship('AIModelPerformance', back_populates='login', cascade='all, delete-orphan')

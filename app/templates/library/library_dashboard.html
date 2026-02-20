@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Library - Personal Guru{% endblock %}
+{% block head %}
+{{ super() }}
+<style>
+    .library-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .library-tabs {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    .grid-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+    .book-card {
+        background: var(--surface-color, #1e1e2e);
+        border: 1px solid var(--border-color, #313244);
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: transform 0.2s;
+        cursor: pointer;
+    }
+    .book-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--primary-color, #cba6f7);
+    }
+    .search-bar {
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto 2rem;
+        display: flex;
+        gap: 0.5rem;
+    }
+    .generate-panel {
+        background: rgba(203, 166, 247, 0.1);
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        margin-top: 2rem;
+        display: none;
+    }
+    .active-tab {
+        background: var(--primary-color, #cba6f7);
+        color: #11111b;
+    }
+</style>
+<script>
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.getElementById(tabId).style.display = 'block';
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active-tab'));
+        document.getElementById('btn-' + tabId).classList.add('active-tab');
+    }
+
+    async function searchLibrary(e) {
+        e.preventDefault();
+        const query = document.getElementById('searchInput').value;
+        const resultsDiv = document.getElementById('searchResults');
+        resultsDiv.innerHTML = "Searching and curating...";
+
+        try {
+            const res = await fetch(`/library/search?q=${encodeURIComponent(query)}`);
+            if (!res.ok) {
+                if (res.status === 404) {
+                    resultsDiv.innerHTML = "No existing content found. Try Generating a new book!";
+                    return;
+                }
+                throw new Error("Search failed");
+            }
+            const data = await res.json();
+
+            const cardHtml = `
+                <div class="book-card" id="suggested-book-card">
+                    <h3>Curated: ${data.title}</h3>
+                    <p>${data.description}</p>
+                    <small>Topics: ${data.topic_ids.join(', ')}</small>
+                    <button class="btn btn-sm" style="width:100%; margin-top:1rem;">Save this Book</button>
+                </div>
+            `;
+            resultsDiv.innerHTML = cardHtml;
+
+            // Avoid inline onclick to prevent quote escaping issues
+            document.getElementById('suggested-book-card').addEventListener('click', () => {
+                createFromSuggestion(data.title, data.description, data.topic_ids);
+            });
+        } catch (err) {
+            resultsDiv.innerHTML = "Error during search: " + err.message;
+        }
+    }
+
+    async function createFromSuggestion(title, description, topic_ids) {
+        try {
+            const res = await fetch('/library/create-from-suggestion', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({title, description, topic_ids})
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = `/library/${data.book_id}/page/1`;
+            }
+        } catch (err) {
+            alert("Error saving book.");
+        }
+    }
+
+    async function generateBook(e) {
+        e.preventDefault();
+        const query = document.getElementById('genInput').value;
+        const btn = document.getElementById('genBtn');
+        btn.disabled = true;
+        btn.innerText = "Generating...";
+
+        try {
+            const res = await fetch('/library/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({query: query})
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = data.redirect;
+            } else {
+                alert(data.error || "Failed to generate book");
+            }
+        } catch(err) {
+            alert("Error: " + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Generate Book Plan";
+        }
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="library-header">
+        <h1>Library</h1>
+        <p>Curate, Discover, and Generate Knowledge Books</p>
+    </div>
+
+    <div class="library-tabs">
+        <button id="btn-my-books" class="btn tab-btn active-tab" onclick="switchTab('my-books')">My Books</button>
+        <button id="btn-search-topics" class="btn tab-btn" onclick="switchTab('search-topics')">Curate from Topics</button>
+        <button id="btn-generate-book" class="btn tab-btn" onclick="switchTab('generate-book')">AI Book Generation</button>
+        <button id="btn-shared-books" class="btn tab-btn" onclick="switchTab('shared-books')">Community Books</button>
+    </div>
+
+    <div id="my-books" class="tab-content">
+        <div class="grid-container">
+            {% for book in my_books %}
+            <div class="book-card" onclick="window.location.href='{{ url_for('library.read_book', book_id=book.id, page_num=1) }}'">
+                <h3>{{ book.title }}</h3>
+                <p>{{ book.description | truncate(100) }}</p>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <small>{{ book.book_topics | length }} Topics</small>
+                    <span class="badge {{ 'bg-success' if book.is_shared else 'bg-secondary' }}">
+                        {{ 'Shared' if book.is_shared else 'Private' }}
+                    </span>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-center w-100">You don't have any books yet. Try curating or generating one!</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div id="search-topics" class="tab-content" style="display:none;">
+        <form class="search-bar" onsubmit="searchLibrary(event)">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search your knowledge base (e.g. 'Advanced Python')">
+            <button class="btn btn-primary" type="submit">Curate</button>
+        </form>
+        <div id="searchResults" class="grid-container">
+            <!-- Results populate here -->
+        </div>
+    </div>
+
+    <div id="generate-book" class="tab-content" style="display:none;">
+        <form class="generate-panel" onsubmit="generateBook(event)">
+            <h3>Generate a New Book</h3>
+            <p>Tell the AI Librarian what you want to learn, and it will structure a complete multi-topic book for you.</p>
+            <div class="d-flex gap-2 justify-content-center mt-3">
+                <input type="text" id="genInput" class="form-control w-50" placeholder="e.g. History of Rome or Quantum Computing">
+                <button class="btn btn-primary" id="genBtn" type="submit">Generate Book Plan</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="shared-books" class="tab-content" style="display:none;">
+        <div class="grid-container">
+            {% for book in shared_books %}
+            <div class="book-card" onclick="window.location.href='{{ url_for('library.read_book', book_id=book.id, page_num=1) }}'">
+                <h3>{{ book.title }}</h3>
+                <p>{{ book.description | truncate(100) }}</p>
+                <div class="d-flex justify-content-between mt-3">
+                    <small>By: {{ book.login.email }}</small>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-center w-100">No community books available right now.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -4,7 +4,6 @@ REQUIRED_VARS = [
     "LLM_BASE_URL",
     "LLM_MODEL_NAME",
     "DATABASE_URL",
-    "SECRET_KEY",
 ]
 
 

@@ -34,7 +34,9 @@ TARGET_MODELS = [
     models.Feedback,
     models.AIModelPerformance,
     models.PlanRevision,
-    models.Login
+    models.Login,
+    models.Book,
+    models.BookTopic
 ]
 
 def get_column_type(column):
@@ -45,6 +47,7 @@ def get_column_type(column):
     return str(column.type).upper()
 
 def update_database():
+    os.environ['SKIP_BACKGROUND_TASKS'] = 'True'
     app = create_app()
     with app.app_context():
         logger.info("Starting database update...")
