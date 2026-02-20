@@ -238,8 +238,11 @@
     function toggleNotes() {
         const sidebar = document.getElementById('notesSidebar');
         sidebar.classList.toggle('collapsed');
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        localStorage.setItem('book-notes-collapsed', isCollapsed);
+
         const btn = document.getElementById('toggleNotesBtn');
-        if (sidebar.classList.contains('collapsed')) {
+        if (isCollapsed) {
             btn.innerHTML = '<i class="fas fa-book-open me-2"></i> Show Notes';
         } else {
             btn.innerHTML = '<i class="fas fa-book me-2"></i> Hide Notes';
@@ -248,13 +251,34 @@
     function toggleTOC() {
         const sidebar = document.getElementById('tocSidebar');
         sidebar.classList.toggle('collapsed');
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        localStorage.setItem('book-toc-collapsed', isCollapsed);
+
         const btn = document.getElementById('toggleTOCBtn');
-        if (sidebar.classList.contains('collapsed')) {
+        if (isCollapsed) {
             btn.innerHTML = '<i class="fas fa-list-ul me-2"></i> Show Content';
         } else {
             btn.innerHTML = '<i class="fas fa-list-ul me-2"></i> Hide Content';
         }
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Restore TOC state
+        if (localStorage.getItem('book-toc-collapsed') === 'true') {
+            document.getElementById('tocSidebar').classList.add('collapsed');
+            const btn = document.getElementById('toggleTOCBtn');
+            if (btn) btn.innerHTML = '<i class="fas fa-list-ul me-2"></i> Show Content';
+        }
+        // Restore Notes state
+        if (localStorage.getItem('book-notes-collapsed') === 'true') {
+            const sidebar = document.getElementById('notesSidebar');
+            if (sidebar) {
+                sidebar.classList.add('collapsed');
+                const btn = document.getElementById('toggleNotesBtn');
+                if (btn) btn.innerHTML = '<i class="fas fa-book-open me-2"></i> Show Notes';
+            }
+        }
+    });
 </script>
 {% endblock %}
 
