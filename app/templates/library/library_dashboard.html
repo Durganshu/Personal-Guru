@@ -313,7 +313,7 @@
                 <h3>{{ book.title }}</h3>
                 <p>{{ book.description | truncate(100) }}</p>
                 <div class="d-flex justify-content-between mt-3">
-                    <small>By: {{ book.login.email }}</small>
+                    <small>By: {{ book.login.display_name }}</small>
                 </div>
             </div>
             {% else %}
