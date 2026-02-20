@@ -251,6 +251,18 @@
         margin-top: 0.5rem;
         transition: opacity 0.3s;
         height: 1.2rem;
+        color: var(--text-color);
+        opacity: 0.7;
+    }
+    .sidebar-toolbar {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+    .sidebar-toolbar .toolbar-group {
+        gap: 0.15rem;
+    }
+    .sidebar-toolbar .toolbar-btn {
+        padding: 0.25rem 0.4rem;
     }
     .no-transition {
         transition: none !important;
@@ -361,50 +373,20 @@
             const notes = document.getElementById('notesSidebar');
             if (notes) notes.classList.remove('no-transition');
         }, 100);
-    });
-
-    async function saveNotes() {
-        const btn = document.getElementById('saveNotesBtn');
-        const editor = document.getElementById('notesEditor');
-        const status = document.getElementById('saveStatus');
-        const originalText = btn.innerHTML;
-
+        // Initialize Rich Notes
         {% if current_page_data %}
-        const topicName = "{{ current_page_data.topic.name }}";
-        {% else %}
-        return;
-        {% endif %}
-
-        try {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Saving...';
-            status.style.opacity = 0;
-
-            const res = await fetch(`/api/notes/${encodeURIComponent(topicName)}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
-                },
-                body: JSON.stringify({ notes: editor.value })
+        if (typeof initNotes === 'function') {
+            initNotes({
+                topicName: "{{ current_page_data.topic.name }}",
+                csrfToken: document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                jweToken: document.querySelector('meta[name="jwe-token"]').getAttribute('content')
             });
-
-            if (!res.ok) throw new Error("Save failed");
-
-            status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i> Saved successfully</span>';
-            status.style.opacity = 1;
-            setTimeout(() => { status.style.opacity = 0; }, 3000);
-
-        } catch (e) {
-            status.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i> Failed to save</span>';
-            status.style.opacity = 1;
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
         }
-    }
+        {% endif %}
+    });
 </script>
+<link rel="stylesheet" href="{{ url_for('static', filename='notes.css') }}">
+<script src="{{ url_for('static', filename='notes.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -556,13 +538,38 @@
         <hr class="border-secondary">
         {% if show_notes %}
             {% if current_page_data %}
-                <textarea id="notesEditor" class="notes-editor" placeholder="Write your thoughts here...">{{ current_page_data.topic.notes or '' }}</textarea>
+                <div class="notes-sidebar-content p-0" style="display: flex; flex-direction: column; height: calc(100% - 60px);">
+                    <div class="toolbar sidebar-toolbar mb-3">
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
+                            <button class="toolbar-btn" data-command="italic" title="Italic"><i class="fas fa-italic"></i></button>
+                            <button class="toolbar-btn" data-command="underline" title="Underline"><i class="fas fa-underline"></i></button>
+                            <button class="toolbar-btn" data-command="strikeThrough" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
+                        </div>
+                        <div class="toolbar-divider"></div>
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" data-command="insertUnorderedList" title="Bullet List"><i class="fas fa-list-ul"></i></button>
+                            <button class="toolbar-btn" data-command="insertOrderedList" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+                        </div>
+                        <div class="toolbar-divider"></div>
+                        <div class="toolbar-group">
+                            <select id="font-select" class="form-select form-select-sm font-select" title="Font Family" style="width: auto; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: inherit;">
+                                <option value="Font" disabled>Font</option>
+                                <option value="Inter, sans-serif" selected>Sans Serif</option>
+                                <option value="'Courier New', Courier, monospace">Monospace</option>
+                                <option value="'Times New Roman', Times, serif">Serif</option>
+                                <option value="'Dancing Script', cursive">Handwriting</option>
+                            </select>
+                        </div>
+                    </div>
 
-                <div class="save-notes-container">
-                    <button id="saveNotesBtn" class="btn btn-primary w-100" onclick="saveNotes()">
-                        <i class="fas fa-save me-2"></i> Save Notes
-                    </button>
-                    <div id="saveStatus" class="save-status text-center" style="opacity: 0;"></div>
+                    <div id="notes-editor" class="notes-editor" contenteditable="true" placeholder="Start typing your notes..." style="flex-grow: 1; overflow-y: auto;">
+                        {{ current_page_data.topic.notes | safe }}
+                    </div>
+
+                    <div class="notes-sidebar-footer text-center mt-3 pt-2" style="border-top: 1px solid rgba(255,255,255,0.05);">
+                        <span id="save-status" class="save-status">Saved</span>
+                    </div>
                 </div>
             {% else %}
                 <p class="text-muted text-center mt-4">Empty topic.</p>
