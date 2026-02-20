@@ -1,7 +1,6 @@
 import pytest
 import threading
 import sys
-import time
 import os
 
 def run_tests():
