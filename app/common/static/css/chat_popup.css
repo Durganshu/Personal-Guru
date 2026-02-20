@@ -391,10 +391,6 @@ body:not(.dark-mode) .chat-popup .skeleton-line {
     cursor: wait;
 }
 
-/* Markdown Content Styling */
-.chat-message {
-    overflow-wrap: break-word; /* Ensure long words break */
-}
 
 .chat-message pre {
     background-color: rgba(0, 0, 0, 0.05);
