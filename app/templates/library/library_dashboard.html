@@ -160,10 +160,71 @@
         }
     }
 
-    function openBookWithLoader(bookId) {
-        document.getElementById('loader').style.display = 'flex';
-        // The /init route will take care of generation before redirecting to page 1
-        window.location.href = `/library/${bookId}/init`;
+    async function openBookWithLoader(bookId, element) {
+        // Prevent multiple clicks
+        if (element.classList.contains('generating')) return;
+        element.classList.add('generating');
+        element.style.opacity = '0.7';
+        element.style.pointerEvents = 'none'; // Disable clicking again
+
+        let progressDiv = element.querySelector('.generation-progress');
+        if (!progressDiv) {
+            progressDiv = document.createElement('div');
+            progressDiv.className = 'generation-progress mt-2 fw-bold text-primary';
+            progressDiv.style.fontSize = '0.85em';
+            element.appendChild(progressDiv);
+        }
+        progressDiv.style.display = 'block';
+        progressDiv.innerText = "Initializing Book...";
+
+        try {
+            const res = await fetch(`/library/${bookId}/init`);
+            const data = await res.json();
+
+            if (data.status === 'ready') {
+                window.location.href = data.redirect || `/library/${bookId}/page/1`;
+            } else if (data.status === 'generating') {
+                progressDiv.innerText = data.message || "Generating Content...";
+
+                // Polling progress every 3 seconds
+                const pollInterval = setInterval(async () => {
+                    try {
+                        const pollRes = await fetch(`/library/${bookId}/progress`);
+                        const pollData = await pollRes.json();
+
+                        if (pollData.status === 'ready') {
+                            clearInterval(pollInterval);
+                            progressDiv.innerText = "Complete! Opening book...";
+                            window.location.href = `/library/${bookId}/page/1`;
+                        } else if (pollData.status === 'error') {
+                            clearInterval(pollInterval);
+                            alert("Generation Error: " + pollData.message);
+                            progressDiv.innerText = "Error generating book.";
+                            progressDiv.className = 'generation-progress mt-2 fw-bold text-danger';
+                            element.classList.remove('generating');
+                            element.style.opacity = '1';
+                            element.style.pointerEvents = 'auto';
+                        } else if (pollData.status === 'generating') {
+                            progressDiv.innerText = pollData.message || "Generating Content...";
+                        }
+                    } catch (e) {
+                        console.error("Polling error:", e);
+                    }
+                }, 3000);
+            } else {
+                alert("Error initializing book.");
+                progressDiv.innerText = "Error initializing book.";
+                element.classList.remove('generating');
+                element.style.opacity = '1';
+                element.style.pointerEvents = 'auto';
+            }
+        } catch (e) {
+            alert("Error: " + e.message);
+            progressDiv.innerText = "Error connecting to server.";
+            element.classList.remove('generating');
+            element.style.opacity = '1';
+            element.style.pointerEvents = 'auto';
+        }
     }
 </script>
 {% endblock %}
@@ -188,7 +249,7 @@
         </div>
         <div class="grid-container" id="my-books-grid">
             {% for book in my_books %}
-            <div class="book-card" onclick="openBookWithLoader({{ book.id }})">
+            <div class="book-card" onclick="openBookWithLoader({{ book.id }}, this)">
                 <h3>{{ book.title }}</h3>
                 <p>{{ book.description | truncate(100) }}</p>
                 <div class="d-flex justify-content-between align-items-center mt-3">

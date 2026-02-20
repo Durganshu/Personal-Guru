@@ -1,4 +1,5 @@
-from flask import render_template, request, jsonify, redirect, url_for
+from threading import Thread
+from flask import render_template, request, jsonify, redirect, url_for, current_app
 from flask_login import login_required, current_user
 from app.core.extensions import db
 from app.core.models import Book, BookTopic, Topic, ChapterMode
@@ -163,73 +164,157 @@ def create_from_suggestion():
         return jsonify({"error": str(e)}), 500
 
 
-@library_bp.route('/<int:book_id>/init')
+
+# Global dictionary to track generation progress for books.
+# Format: { book_id: {'status': 'generating'|'ready'|'error', 'total': int, 'current': int, 'message': str} }
+active_generations = {}
+
+def generate_book_background(app_context, book_id, user_background, user_id):
+    """Background task to generate all content for a book."""
+    with app_context:
+        try:
+            from app.core.models import Login
+            import flask
+            with current_app.test_request_context():
+                user = Login.query.filter_by(userid=user_id).first()
+                if user:
+                    flask.g._login_user = user
+
+                planner = PlannerAgent()
+                teacher = ChapterTeachingAgent()
+
+                book = Book.query.get(book_id)
+                if not book:
+                    active_generations[book_id] = {'status': 'error', 'message': 'Book not found'}
+                    return
+
+                total_topics = len(book.book_topics)
+                active_generations[book_id] = {'status': 'generating', 'total': total_topics, 'current': 0, 'message': f'Generating plan for Topic 1 of {total_topics}...'}
+
+                for idx, bt in enumerate(book.book_topics):
+                    topic = bt.topic
+                    active_generations[book_id]['current'] = idx
+                    active_generations[book_id]['message'] = f'Checking plan for Topic {idx + 1}/{total_topics}: {topic.name}'
+
+                    chapters = ChapterMode.query.filter_by(topic_id=topic.id).order_by(ChapterMode.step_index).all()
+                    if not chapters:
+                        active_generations[book_id]['message'] = f'Generating plan for Topic {idx + 1}/{total_topics}: {topic.name}...'
+                        try:
+                            plan_steps = planner.generate_study_plan(topic.name, user_background)
+                            from app.common.storage import load_topic, save_topic
+                            topic_data = load_topic(topic.name) or {"name": topic.name}
+                            topic_data['plan'] = plan_steps
+                            topic_data['chapter_mode'] = [{'title': step_title, 'step_index': i} for i, step_title in enumerate(plan_steps)]
+                            save_topic(topic.name, topic_data)
+                            chapters = ChapterMode.query.filter_by(topic_id=topic.id).order_by(ChapterMode.step_index).all()
+                        except Exception as e:
+                            print(f"Failed to generate plan for {topic.name}: {e}")
+                            continue
+
+                    topic_data = None
+                    total_chapters = len(chapters)
+                    for ch_idx, chapter in enumerate(chapters):
+                        if not chapter.content:
+                            active_generations[book_id]['message'] = f'Writing Topic {idx + 1}/{total_topics}: Chapter {ch_idx + 1}/{total_chapters}...'
+                            if not topic_data:
+                                from app.common.storage import load_topic
+                                topic_data = load_topic(topic.name)
+                            try:
+                                plan_steps = topic_data.get('plan', [])
+                                step_title = plan_steps[chapter.step_index] if chapter.step_index < len(plan_steps) else "Chapter Content"
+                                material = teacher.generate_teaching_material(step_title, plan_steps, user_background, None)
+
+                                topic_data['chapter_mode'][chapter.step_index]['teaching_material'] = material
+                                from app.common.storage import save_topic
+                                save_topic(topic.name, topic_data)
+
+                                chapter.content = material
+                            except Exception as e:
+                                print(f"Failed to generate material for {topic.name} chapter {chapter.step_index}: {e}")
+
+                db.session.commit()
+                active_generations[book_id] = {'status': 'ready'}
+        except Exception as e:
+            print(f"Generation failed: {e}")
+            active_generations[book_id] = {'status': 'error', 'message': str(e)}
+
+@library_bp.route('/<int:book_id>/progress')
+@login_required
+def generation_progress(book_id):
+    """Returns the current progress of the background generation process."""
+    # Check if we have an active generation state
+    state = active_generations.get(book_id)
+    if state:
+        return jsonify(state)
+
+    # If not actively generating, check DB to see if it's already complete or needs generation
+    book = Book.query.get_or_404(book_id)
+    if book.user_id != current_user.userid and not book.is_shared:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+
+    # Check if empty chapters exist
+    requires_generation = False
+    for bt in book.book_topics:
+        chapters = ChapterMode.query.filter_by(topic_id=bt.topic.id).all()
+        if not chapters:
+            requires_generation = True
+            break
+        for ch in chapters:
+            if not ch.content:
+                requires_generation = True
+                break
+        if requires_generation:
+            break
+
+    if requires_generation:
+        return jsonify({"status": "pending"}) # Needs to route to /init
+    else:
+        return jsonify({"status": "ready"})
+
+@library_bp.route('/<int:book_id>/init', methods=['POST', 'GET'])
 @login_required
 def init_book(book_id):
     """
-    Initializes a book before reading. Checks all topics and chapters.
-    If a topic lacks chapters (not yet generated), it uses PlannerAgent to generate a plan.
-    If a chapter lacks teaching material, it uses ChapterTeachingAgent to generate it.
-    This ensures the book is fully readable when opened.
+    Spawns background generation for the book if it is not completely generated.
+    Returns JSON describing the status, allowing the frontend to poll /progress.
     """
     book = Book.query.get_or_404(book_id)
 
     if book.user_id != current_user.userid and not book.is_shared:
-        return render_template('error.html', error_message="You don't have permission to view this book."), 403
-
-    planner = PlannerAgent()
-    teacher = ChapterTeachingAgent()
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
 
     from app.common.utils import get_user_context
     user_background = get_user_context()
 
-    # Pre-generate any missing content for the entire book
+    # Determine if generation is required
+    requires_generation = False
     for bt in book.book_topics:
-        topic = bt.topic
-        # 1. Check if the topic has a plan (chapters)
-        chapters = ChapterMode.query.filter_by(topic_id=topic.id).order_by(ChapterMode.step_index).all()
+        chapters = ChapterMode.query.filter_by(topic_id=bt.topic.id).all()
         if not chapters:
-            try:
-                plan_steps = planner.generate_study_plan(topic.name, user_background)
-                from app.common.storage import load_topic, save_topic
-                # Generate topic JSON data structure
-                topic_data = load_topic(topic.name) or {"name": topic.name}
-                topic_data['plan'] = plan_steps
-                topic_data['chapter_mode'] = [{'title': step_title, 'step_index': i} for i, step_title in enumerate(plan_steps)]
-                save_topic(topic.name, topic_data)
+            requires_generation = True
+            break
+        for ch in chapters:
+            if not ch.content:
+                requires_generation = True
+                break
+        if requires_generation:
+            break
 
-                # Fetch newly created chapters from DB
-                chapters = ChapterMode.query.filter_by(topic_id=topic.id).order_by(ChapterMode.step_index).all()
-            except Exception as e:
-                # Log error and continue to the next topic (graceful degradation)
-                print(f"Failed to generate plan for {topic.name}: {e}")
-                continue
+    # If already generating, just return generating status
+    current_state = active_generations.get(book_id)
+    if current_state and current_state.get('status') == 'generating':
+        return jsonify(current_state)
 
-        # 2. Check each chapter for teaching material
-        topic_data = None
-        for chapter in chapters:
-            if not chapter.content:
-                if not topic_data:
-                    from app.common.storage import load_topic
-                    topic_data = load_topic(topic.name)
+    if requires_generation:
+        # Start background job
+        active_generations[book_id] = {'status': 'generating', 'total': len(book.book_topics), 'current': 0, 'message': 'Initializing AI Generation...'}
+        app_context = current_app._get_current_object().app_context()
+        user_id = current_user.userid
+        thread = Thread(target=generate_book_background, args=(app_context, book_id, user_background, user_id))
+        thread.start()
+        return jsonify(active_generations[book_id])
 
-                try:
-                    plan_steps = topic_data.get('plan', [])
-                    step_title = plan_steps[chapter.step_index] if chapter.step_index < len(plan_steps) else "Chapter Content"
-                    material = teacher.generate_teaching_material(step_title, plan_steps, user_background, None)
-
-                    # Save to JSON storage and DB
-                    topic_data['chapter_mode'][chapter.step_index]['teaching_material'] = material
-                    from app.common.storage import save_topic
-                    save_topic(topic.name, topic_data)
-
-                    # Ensure DB model is updated in current session
-                    chapter.content = material
-                except Exception as e:
-                    print(f"Failed to generate material for {topic.name} chapter {chapter.step_index}: {e}")
-
-    db.session.commit()
-    return redirect(url_for('library.read_book', book_id=book.id, page_num=1))
+    return jsonify({"status": "ready", "redirect": url_for('library.read_book', book_id=book.id, page_num=1)})
 
 
 @library_bp.route('/<int:book_id>/page/<int:page_num>')
