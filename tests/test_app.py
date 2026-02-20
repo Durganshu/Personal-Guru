@@ -251,6 +251,7 @@ def test_validate_config_all_present(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql://localhost:5432/db")
     monkeypatch.setenv("LLM_BASE_URL", "http://localhost:11434")
     monkeypatch.setenv("LLM_MODEL_NAME", "llama3")
+    monkeypatch.setenv("SECRET_KEY", "test_secret_key")
 
     missing = validate_config()
     assert len(missing) == 0
