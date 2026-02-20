@@ -3,6 +3,7 @@
 {% block title %}Reading: {{ book.title }} - Personal Guru{% endblock %}
 {% block head %}
 {{ super() }}
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
     .book-layout {
         display: flex;
@@ -95,24 +96,118 @@
     }
     .book-header {
         display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
+        padding: 1.5rem;
+        background: rgba(30, 30, 46, 0.4);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+    }
+    .header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 2rem;
+    }
+    .header-bottom {
+        display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 2rem;
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .book-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #fff 0%, #cba6f7 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 1.1;
+        margin-bottom: 0.5rem;
     }
     .page-nav {
         display: flex;
-        gap: 1rem;
+        gap: 0.5rem;
         align-items: center;
+        background: rgba(0,0,0,0.2);
+        padding: 0.25rem;
+        border-radius: 8px;
+    }
+    .nav-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .nav-stats {
+        padding: 0 1rem;
+        font-size: 0.85rem;
+        color: var(--subtext-color);
+        font-family: 'JetBrains Mono', monospace;
     }
     .topic-indicator {
-        font-size: 0.9rem;
+        font-size: 0.75rem;
         color: var(--primary-color, #cba6f7);
         font-weight: bold;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 2px;
+        margin-bottom: 0.5rem;
+        opacity: 0.8;
     }
+    /* Simple Premium Toggle Switch */
+    .premium-switch {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        cursor: pointer;
+        padding: 0.5rem 0.75rem;
+        background: rgba(255,255,255,0.05);
+        border-radius: 20px;
+        transition: background 0.2s;
+    }
+    .premium-switch:hover {
+        background: rgba(255,255,255,0.1);
+    }
+    .switch-label {
+        font-size: 0.85rem;
+        color: var(--subtext-color);
+        user-select: none;
+    }
+    .switch-track {
+        width: 36px;
+        height: 20px;
+        background: #313244;
+        border-radius: 10px;
+        position: relative;
+        transition: background 0.3s;
+    }
+    .switch-track::after {
+        content: '';
+        width: 14px;
+        height: 14px;
+        background: #fff;
+        border-radius: 50%;
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        transition: transform 0.3s;
+    }
+    input:checked + .premium-switch .switch-track {
+        background: var(--primary-color);
+    }
+    input:checked + .premium-switch .switch-track::after {
+        transform: translateX(16px);
+    }
+    .toolbar {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+    }
+    .note-block {
     .note-block {
         background: rgba(255,255,255,0.05);
         padding: 1rem;
@@ -194,51 +289,61 @@
 
     <div class="book-content">
         <div class="book-header">
-            <div>
-                <h2 class="mb-0 mt-2">{{ book.title }}</h2>
-                {% if book.user_id == current_user.userid %}
-                    <div class="d-flex align-items-center gap-3 mt-3">
-                        <button id="toggleTOCBtn" class="btn btn-sm btn-outline-secondary" onclick="toggleTOC()">
-                            <i class="fas fa-list-ul me-2"></i> Hide Content
-                        </button>
-                        <div class="form-check form-switch mb-0">
-                            <input class="form-check-input" type="checkbox" id="shareToggle" onchange="toggleShare()" {% if book.is_shared %}checked{% endif %}>
-                            <label class="form-check-label text-muted" for="shareToggle">Share with Community</label>
-                        </div>
-                        {% if show_notes %}
+            <div class="header-top">
+                <div style="flex: 1;">
+                    {% if current_page_data %}
+                        <div class="topic-indicator">Topic {{ current_page_data.topic_number }}: {{ current_page_data.topic.name }}</div>
+                    {% endif %}
+                    <h1 class="book-title">{{ book.title }}</h1>
+                </div>
+
+                <div class="page-nav">
+                    {% if page_num > 1 %}
+                        <a href="{{ url_for('library.read_book', book_id=book.id, page_num=page_num-1) }}" class="btn btn-outline-secondary nav-btn"><i class="fas fa-chevron-left"></i></a>
+                    {% else %}
+                        <button class="btn btn-outline-secondary nav-btn" disabled><i class="fas fa-chevron-left"></i></button>
+                    {% endif %}
+
+                    <div class="nav-stats">
+                        {{ page_num }} / {{ total_pages }}
+                    </div>
+
+                    {% if page_num < total_pages %}
+                        <a href="{{ url_for('library.read_book', book_id=book.id, page_num=page_num+1) }}" class="btn btn-outline-secondary nav-btn"><i class="fas fa-chevron-right"></i></a>
+                    {% else %}
+                        <button class="btn btn-outline-secondary nav-btn" disabled><i class="fas fa-chevron-right"></i></button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="header-bottom">
+                <div class="toolbar">
+                    <button id="toggleTOCBtn" class="btn btn-sm btn-outline-primary" onclick="toggleTOC()">
+                        <i class="fas fa-list-ul me-2"></i> Hide Content
+                    </button>
+
+                    {% if show_notes %}
                         <button id="toggleNotesBtn" class="btn btn-sm btn-outline-secondary" onclick="toggleNotes()">
                             <i class="fas fa-book me-2"></i> Hide Notes
                         </button>
-                        {% endif %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center gap-3 mt-3">
-                         <button id="toggleTOCBtn" class="btn btn-sm btn-outline-secondary" onclick="toggleTOC()">
-                            <i class="fas fa-list-ul me-2"></i> Hide Content
-                        </button>
-                    </div>
-                {% endif %}
-            </div>
-            <div class="page-nav">
-                {% if page_num > 1 %}
-                    <a href="{{ url_for('library.read_book', book_id=book.id, page_num=page_num-1) }}" class="btn btn-outline-secondary">Previous</a>
-                {% else %}
-                    <button class="btn btn-outline-secondary" disabled>Previous</button>
-                {% endif %}
+                    {% endif %}
+                </div>
 
-                <span>Page {{ page_num }} of {{ total_pages }}</span>
-
-                {% if page_num < total_pages %}
-                    <a href="{{ url_for('library.read_book', book_id=book.id, page_num=page_num+1) }}" class="btn btn-primary">Next</a>
-                {% else %}
-                    <button class="btn btn-primary" disabled>Next</button>
-                {% endif %}
+                <div class="toolbar">
+                    {% if book.user_id == current_user.userid %}
+                        <label style="cursor: pointer;">
+                            <input type="checkbox" id="shareToggle" onchange="toggleShare()" {% if book.is_shared %}checked{% endif %} style="display: none;">
+                            <div class="premium-switch">
+                                <span class="switch-label">Share with Community</span>
+                                <div class="switch-track"></div>
+                            </div>
+                        </label>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
         {% if current_page_data %}
-            <div class="topic-indicator mb-3">Topic {{ current_page_data.topic_number }}: {{ current_page_data.topic.name }}</div>
-
             {% if current_page_data.type == 'placeholder' %}
                 <div class="text-center mt-5">
                     <h4>This topic hasn't been started yet.</h4>
