@@ -159,6 +159,12 @@
             btn.innerText = "Generate Book Plan";
         }
     }
+
+    function openBookWithLoader(bookId) {
+        document.getElementById('loader').style.display = 'flex';
+        // The /init route will take care of generation before redirecting to page 1
+        window.location.href = `/library/${bookId}/init`;
+    }
 </script>
 {% endblock %}
 
@@ -182,7 +188,7 @@
         </div>
         <div class="grid-container" id="my-books-grid">
             {% for book in my_books %}
-            <div class="book-card" onclick="window.location.href='{{ url_for('library.read_book', book_id=book.id, page_num=1) }}'">
+            <div class="book-card" onclick="openBookWithLoader({{ book.id }})">
                 <h3>{{ book.title }}</h3>
                 <p>{{ book.description | truncate(100) }}</p>
                 <div class="d-flex justify-content-between align-items-center mt-3">
@@ -225,7 +231,7 @@
         </div>
         <div class="grid-container" id="shared-books-grid">
             {% for book in shared_books %}
-            <div class="book-card" onclick="window.location.href='{{ url_for('library.read_book', book_id=book.id, page_num=1) }}'">
+            <div class="book-card" onclick="openBookWithLoader({{ book.id }})">
                 <h3>{{ book.title }}</h3>
                 <p>{{ book.description | truncate(100) }}</p>
                 <div class="d-flex justify-content-between mt-3">

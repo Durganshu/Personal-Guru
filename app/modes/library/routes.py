@@ -3,8 +3,12 @@ from flask_login import login_required, current_user
 from app.core.extensions import db
 from app.core.models import Book, BookTopic, Topic, ChapterMode
 from app.modes.library import library_bp
-from app.common.agents import LibrarianAgent
+from app.modes.chapter.agent import ChapterTeachingAgent
+from app.common.agents import LibrarianAgent, PlannerAgent
 from app.common.vector_db import VectorDB
+from markdown_it import MarkdownIt
+
+md = MarkdownIt()
 
 # A global/in-memory VectorDB for searching user's topics
 # In a real setup, this would be persisted or re-indexed efficiently
@@ -159,6 +163,75 @@ def create_from_suggestion():
         return jsonify({"error": str(e)}), 500
 
 
+@library_bp.route('/<int:book_id>/init')
+@login_required
+def init_book(book_id):
+    """
+    Initializes a book before reading. Checks all topics and chapters.
+    If a topic lacks chapters (not yet generated), it uses PlannerAgent to generate a plan.
+    If a chapter lacks teaching material, it uses ChapterTeachingAgent to generate it.
+    This ensures the book is fully readable when opened.
+    """
+    book = Book.query.get_or_404(book_id)
+
+    if book.user_id != current_user.userid and not book.is_shared:
+        return render_template('error.html', error_message="You don't have permission to view this book."), 403
+
+    planner = PlannerAgent()
+    teacher = ChapterTeachingAgent()
+
+    from app.common.utils import get_user_context
+    user_background = get_user_context()
+
+    # Pre-generate any missing content for the entire book
+    for bt in book.book_topics:
+        topic = bt.topic
+        # 1. Check if the topic has a plan (chapters)
+        chapters = ChapterMode.query.filter_by(topic_id=topic.id).order_by(ChapterMode.step_index).all()
+        if not chapters:
+            try:
+                plan_steps = planner.generate_study_plan(topic.name, user_background)
+                from app.common.storage import load_topic, save_topic
+                # Generate topic JSON data structure
+                topic_data = load_topic(topic.name) or {"name": topic.name}
+                topic_data['plan'] = plan_steps
+                topic_data['chapter_mode'] = [{'title': step_title, 'step_index': i} for i, step_title in enumerate(plan_steps)]
+                save_topic(topic.name, topic_data)
+
+                # Fetch newly created chapters from DB
+                chapters = ChapterMode.query.filter_by(topic_id=topic.id).order_by(ChapterMode.step_index).all()
+            except Exception as e:
+                # Log error and continue to the next topic (graceful degradation)
+                print(f"Failed to generate plan for {topic.name}: {e}")
+                continue
+
+        # 2. Check each chapter for teaching material
+        topic_data = None
+        for chapter in chapters:
+            if not chapter.content:
+                if not topic_data:
+                    from app.common.storage import load_topic
+                    topic_data = load_topic(topic.name)
+
+                try:
+                    plan_steps = topic_data.get('plan', [])
+                    step_title = plan_steps[chapter.step_index] if chapter.step_index < len(plan_steps) else "Chapter Content"
+                    material = teacher.generate_teaching_material(step_title, plan_steps, user_background, None)
+
+                    # Save to JSON storage and DB
+                    topic_data['chapter_mode'][chapter.step_index]['teaching_material'] = material
+                    from app.common.storage import save_topic
+                    save_topic(topic.name, topic_data)
+
+                    # Ensure DB model is updated in current session
+                    chapter.content = material
+                except Exception as e:
+                    print(f"Failed to generate material for {topic.name} chapter {chapter.step_index}: {e}")
+
+    db.session.commit()
+    return redirect(url_for('library.read_book', book_id=book.id, page_num=1))
+
+
 @library_bp.route('/<int:book_id>/page/<int:page_num>')
 @login_required
 def read_book(book_id, page_num):
@@ -209,6 +282,13 @@ def read_book(book_id, page_num):
         return redirect(url_for('library.read_book', book_id=book.id, page_num=max(1, min(page_num, total_pages))))
 
     current_page_data = flattened_pages[page_num - 1]
+
+    # Convert markdown to html if this is a content page
+    if current_page_data["type"] == "content" and current_page_data["chapter"].content:
+        # We need a copy or attribute to store rendered html so we don't save raw html to DB
+        current_page_data["chapter_html"] = md.render(current_page_data["chapter"].content)
+    else:
+        current_page_data["chapter_html"] = ""
 
     # Handle Notes exposure
     # If viewed by owner, we embed the notes. If viewed by others, we hide notes.

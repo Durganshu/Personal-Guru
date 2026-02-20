@@ -20,6 +20,13 @@
         border-left: 1px solid var(--border-color, #313244);
         padding: 1.5rem;
         overflow-y: auto;
+        transition: width 0.3s ease, padding 0.3s ease;
+    }
+    .notes-sidebar.collapsed {
+        width: 0;
+        padding: 0;
+        overflow: hidden;
+        border-left: none;
     }
     .book-header {
         display: flex;
@@ -67,6 +74,15 @@
             alert("Failed to update status.");
             document.getElementById('shareToggle').checked = !isShared;
         }
+    function toggleNotes() {
+        const sidebar = document.getElementById('notesSidebar');
+        sidebar.classList.toggle('collapsed');
+        const btn = document.getElementById('toggleNotesBtn');
+        if (sidebar.classList.contains('collapsed')) {
+            btn.innerHTML = '<i class="fas fa-book-open me-2"></i> Show Notes';
+        } else {
+            btn.innerHTML = '<i class="fas fa-book me-2"></i> Hide Notes';
+        }
     }
 </script>
 {% endblock %}
@@ -79,9 +95,16 @@
                 <a href="{{ url_for('library.dashboard') }}" class="text-decoration-none text-secondary">← Back to Library</a>
                 <h2 class="mb-0 mt-2">{{ book.title }}</h2>
                 {% if book.user_id == current_user.userid %}
-                    <div class="form-check form-switch mt-2">
-                        <input class="form-check-input" type="checkbox" id="shareToggle" onchange="toggleShare()" {% if book.is_shared %}checked{% endif %}>
-                        <label class="form-check-label text-muted" for="shareToggle">Share with Community</label>
+                    <div class="d-flex align-items-center gap-3 mt-3">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="shareToggle" onchange="toggleShare()" {% if book.is_shared %}checked{% endif %}>
+                            <label class="form-check-label text-muted" for="shareToggle">Share with Community</label>
+                        </div>
+                        {% if show_notes %}
+                        <button id="toggleNotesBtn" class="btn btn-sm btn-outline-secondary" onclick="toggleNotes()">
+                            <i class="fas fa-book me-2"></i> Hide Notes
+                        </button>
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>
@@ -113,8 +136,8 @@
                 </div>
             {% else %}
                 <h3 class="mb-4">{{ current_page_data.chapter.title }}</h3>
-                <div class="fs-5" style="line-height: 1.8;">
-                    {{ current_page_data.chapter.content | safe }}
+                <div class="fs-5 markdown-content" style="line-height: 1.8;">
+                    {{ current_page_data.chapter_html | safe }}
                 </div>
             {% endif %}
         {% else %}
@@ -124,7 +147,7 @@
         {% endif %}
     </div>
 
-    <div class="notes-sidebar">
+    <div class="notes-sidebar" id="notesSidebar">
         <h4>Notebook</h4>
         <hr class="border-secondary">
         {% if show_notes %}
