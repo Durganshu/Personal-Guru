@@ -213,24 +213,32 @@
 /* Message Bubbles */
 .chat-message {
     max-width: 85%;
+    width: fit-content;
     padding: 12px 18px;
     border-radius: 18px;
     font-size: 0.95rem;
     line-height: 1.5;
     position: relative;
-    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal; /* AI responses should collapse HTML whitespace */
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    height: auto !important; /* Force auto height to prevent collapse */
+    min-height: auto !important;
 }
 
-.user-message {
+#chat-popup .user-message {
     align-self: flex-end;
     background: var(--primary-gradient);
     color: white;
     border-bottom-right-radius: 4px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    white-space: pre-wrap; /* Only user messages should preserve newlines */
 }
 
-.tutor-message {
+#chat-popup .tutor-message {
     align-self: flex-start;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border-subtle);
@@ -238,7 +246,7 @@
     border-bottom-left-radius: 4px;
 }
 
-body:not(.dark-mode) .tutor-message {
+body:not(.dark-mode) #chat-popup .tutor-message {
     background: #f8f9fa;
     border-color: #e9ecef;
 }
@@ -253,6 +261,7 @@ body:not(.dark-mode) .tutor-message {
     align-items: flex-end;
     border-bottom-left-radius: 18px;
     border-bottom-right-radius: 18px;
+    box-sizing: border-box;
 }
 
 .chat-input-wrapper-popup {
@@ -262,6 +271,7 @@ body:not(.dark-mode) .tutor-message {
     padding: 8px 15px;
     border: 1px solid transparent;
     transition: all 0.2s;
+    box-sizing: border-box;
 }
 
 body:not(.dark-mode) .chat-input-wrapper-popup {
@@ -283,10 +293,13 @@ body:not(.dark-mode) .chat-input-wrapper-popup {
     font-family: inherit;
     font-size: 0.95rem;
     resize: none;
-    max-height: 100px;
+    max-height: 150px;
+    min-height: 24px; /* Ensure 1 line is always visible */
     outline: none;
     padding: 4px 0;
     line-height: 1.4;
+    box-sizing: border-box;
+    overflow-y: hidden; /* Start hidden */
 }
 
 #chat-form-popup button[type="submit"] {
@@ -331,7 +344,7 @@ body:not(.dark-mode) .chat-input-wrapper-popup {
 }
 
 /* Skeleton Loading */
-.skeleton-line {
+.chat-popup .skeleton-line {
     height: 10px;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 5px;
@@ -339,7 +352,7 @@ body:not(.dark-mode) .chat-input-wrapper-popup {
     animation: skeleton-pulse 1.5s infinite ease-in-out;
 }
 
-body:not(.dark-mode) .skeleton-line {
+body:not(.dark-mode) .chat-popup .skeleton-line {
     background: rgba(0, 0, 0, 0.06);
 }
 
@@ -376,4 +389,82 @@ body:not(.dark-mode) .skeleton-line {
 #mic-button-popup:disabled {
     opacity: 1 !important;
     cursor: wait;
+}
+
+
+.chat-message pre {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 10px 0;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    font-size: 0.9em;
+}
+
+body:not(.dark-mode) .chat-message pre {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+}
+
+.chat-message code {
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+body:not(.dark-mode) .chat-message code {
+    background-color: #e9ecef;
+}
+
+/* Ensure pre inside code doesn't double pad */
+.chat-message pre code {
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+
+/* General markdown styles */
+.chat-message p {
+    margin: 0 0 10px 0;
+}
+
+.chat-message p:last-child {
+    margin-bottom: 0;
+}
+
+.chat-message ul, .chat-message ol {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.chat-message li {
+    margin-bottom: 5px;
+}
+
+.chat-message h1, .chat-message h2, .chat-message h3, .chat-message h4 {
+    margin: 10px 0 8px 0;
+    font-size: 1.1em;
+    font-weight: 700;
+}
+
+/* MathJax Specific Styles for Popup */
+.chat-message .mjx-chtml {
+    white-space: normal;
+    margin: 10px 0 !important;
+    display: block !important;
+    text-align: center;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.chat-message .mjx-container {
+    margin: 10px 0 !important;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-align: center;
 }

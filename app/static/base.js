@@ -357,3 +357,66 @@ function setupInputValidation() {
 }
 
 document.addEventListener('DOMContentLoaded', setupInputValidation);
+
+// Math Rendering Helper
+window.renderMath = function(container = document) {
+    // 1. Convert <equation> tags to LaTeX blocks
+    const equations = container.querySelectorAll('equation');
+    equations.forEach(eq => {
+        const tex = eq.textContent;
+        const span = document.createElement('span');
+        // Use $$ for display math
+        span.innerHTML = '$$' + tex + '$$';
+        eq.replaceWith(span);
+    });
+
+    // 2. Trigger MathJax Typeset
+    if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([container]).then(() => {
+            // Force user-select on all rendered math elements
+            container.querySelectorAll('mjx-container').forEach(el => {
+                el.style.setProperty('user-select', 'text', 'important');
+                el.style.setProperty('-webkit-user-select', 'text', 'important');
+                el.style.cursor = 'text';
+            });
+        }).catch((err) => console.log('MathJax typeset failed: ' + err.message));
+    }
+};
+
+// Highlight.js Theme Observer
+function setupThemeObserver() {
+    const themeLink = document.getElementById('highlight-theme');
+    if (!themeLink) return;
+
+    const updateTheme = () => {
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        const sun = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-light.min.css';
+        const moon = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css';
+
+        const newHref = isDarkMode ? moon : sun;
+        if (themeLink.href !== newHref) {
+            themeLink.href = newHref;
+        }
+    };
+
+    // Initial check
+    updateTheme();
+
+    // Observe body class changes using MutationObserver
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+}
+
+document.addEventListener('DOMContentLoaded', setupThemeObserver);
+
+// Force reload of styles to apply critical fixes (MathJax Selection)
+(function forceStyleReload() {
+    const links = document.querySelectorAll('link[rel="stylesheet"]');
+    links.forEach(link => {
+        if (link.href.includes('style.css') || link.href.includes('chat_popup.css')) {
+            const newHref = new URL(link.href);
+            newHref.searchParams.set('v', Date.now());
+            link.href = newHref.toString();
+        }
+    });
+})();

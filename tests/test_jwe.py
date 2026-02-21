@@ -2,12 +2,11 @@ import pytest
 from app import create_app
 from app.common.auth import create_jwe, decrypt_jwe
 from app.core.models import Login
+from config import TestConfig
 
 @pytest.fixture
 def app():
-    app = create_app()
-    app.config['TESTING'] = True
-    app.config['WTF_CSRF_ENABLED'] = False  # Disable CSRF for easier API testing
+    app = create_app(TestConfig)
     app.config['SECRET_KEY'] = 'test-secret-key-very-long-enough-for-sha256'
 
     # Setup DB
@@ -248,9 +247,10 @@ def test_jwe_injection_in_templates(client, app):
         content = response.data.decode('utf-8')
 
         # Check for meta tag
+        # Check for meta tag
         import re
         # Look for <meta name="jwe-token" content="...">
-        match = re.search(r'<meta name="jwe-token" content="([^"]+)">', content)
+        match = re.search(r'<meta name="jwe-token" content="([^"]+)"\s*/?>', content)
         assert match, "JWE Meta tag not found in Chapter template"
         token = match.group(1)
         assert token and token.strip() != '', "JWE Token is empty"

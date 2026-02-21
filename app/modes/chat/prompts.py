@@ -100,5 +100,6 @@ INSTRUCTIONS:
 4. **No Artifacts**: Do not output internal thought processes, pig tags, or <think> tags. Output ONLY the answer.
 5. **Formatting**: You can use bullet points for lists, but keep them compact.
 6. **No Code**: Do not output code.
+7. **Math Formatting**: Use LaTeX formatting for all mathematical equations. Enclose inline math in `$` or `\\(` and display math in `$$`.
 """
     return base_prompt

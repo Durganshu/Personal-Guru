@@ -65,11 +65,6 @@ pip-wheel-metadata/
 pip-log.txt
 pip-delete-this-directory.txt
 
-# AppImage / Linux Build
-AppDir/
-*.AppImage
-build_env_release/
-
 # ==============================================================================
 # TESTING & COVERAGE
 # ==============================================================================
@@ -161,3 +156,4 @@ Thumbs.db
 *.mo
 *.potflask_session/
 ollama-data/
+.gemini/

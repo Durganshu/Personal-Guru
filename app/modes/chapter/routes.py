@@ -233,16 +233,6 @@ def learn_topic(topic_name, step_index):
 
     plan_steps = topic_data.get('plan', [])
 
-    # If topic has no plan (quiz/flashcard only), redirect
-    # Not needed after issue #28 is fixed, but keeping the commented logic for now
-    # if not plan_steps:
-    #     # Checking logic from app.py
-    #     if 'flashcards' in topic_data and topic_data['flashcards']:
-    #         return redirect(url_for('flashcard.mode', topic_name=topic_name)) # Adjusted endpoint name
-    #     elif 'quiz' in topic_data:
-    # return redirect(url_for('quiz.mode', topic_name=topic_name)) # Adjusted
-    # endpoint name
-
     if not 0 <= step_index < len(plan_steps):
         return "Invalid step index", 404
 

@@ -22,8 +22,9 @@ INSTRUCTIONS:
 3. **Context First**: Answer based primarily on the provided learning material content.
 4. **Directness**: Do not use "Certainly!" or "Here is the answer". Just answer.
 5. **No Artifacts**: Do not output internal thought processes, pig tags, or <think> tags. Output ONLY the answer.
-6. **Formatting**: You can use bullet points for lists, but keep them compact.
-7. **No Code**: Do not output code.
+26. **Formatting**: You can use bullet points for lists, but keep them compact.
+27. **No Code**: Do not output code.
+28. **Math Formatting**: Use LaTeX formatting for all mathematical equations. Enclose inline math in `$` or `\\(` and display math in `$$`.
 
 """
     return base_prompt

@@ -251,6 +251,7 @@ def test_validate_config_all_present(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql://localhost:5432/db")
     monkeypatch.setenv("LLM_BASE_URL", "http://localhost:11434")
     monkeypatch.setenv("LLM_MODEL_NAME", "llama3")
+    monkeypatch.setenv("SECRET_KEY", "test_secret_key")
 
     missing = validate_config()
     assert len(missing) == 0
@@ -503,6 +504,14 @@ def test_log_telemetry(mocker):
     from app.common.utils import log_telemetry
     from app.core.models import TelemetryLog
 
+    """Test the log_telemetry utility function."""
+    from app.common.utils import log_telemetry
+    from app.core.models import TelemetryLog
+    import os
+
+    # Patch OFFLINE_MODE to False for this test
+    mocker.patch.dict(os.environ, {"OFFLINE_MODE": "False"})
+
     # Mock current_user
     mock_user = MagicMock()
     mock_user.is_authenticated = True
@@ -683,6 +692,9 @@ def test_dcs_registration(dcs_app, mocker):
             'os_version': 'TestOS', 'install_method': 'test'
         })
 
+        # Ensure OFFLINE_MODE is False for valid registration testing
+        mocker.patch('app.common.dcs.OFFLINE_MODE', False)
+
         # Mock Register Response
         mock_reg_resp = MagicMock()
         mock_reg_resp.status_code = 201
@@ -718,6 +730,11 @@ def test_dcs_sync(dcs_app, mocker):
         # Pre-seed installation
         inst = Installation(installation_id="test-uuid-sync", install_method="test")
         db.session.add(inst)
+
+
+
+        # Ensure OFFLINE_MODE is False for sync testing
+        mocker.patch('app.common.dcs.OFFLINE_MODE', False)
 
         # Add some data
         topic = Topic(name="Test Topic", user_id="test_user", sync_status="pending")

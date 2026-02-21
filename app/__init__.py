@@ -29,6 +29,10 @@ def create_app(config_class=Config):
     app = Flask(__name__, template_folder='core/templates')
     app.config.from_object(config_class)
 
+    # Register Custom Filters
+    from app.common.utils import sanitize_html
+    app.jinja_env.filters['sanitize_html'] = sanitize_html
+
     # Initialize Flask extensions
     db.init_app(app)
     migrate.init_app(app, db)
@@ -61,7 +65,7 @@ def create_app(config_class=Config):
     Swagger(app, config=swagger_config)
 
     # Initialize Telemetry Log Capture
-    if app.config.get('ENABLE_TELEMETRY_LOGGING', True):
+    if app.config.get('ENABLE_TELEMETRY_LOGGING', True) and not app.config.get('TESTING'):
         from app.common.log_capture import LogCapture
         LogCapture(app)
 
@@ -299,12 +303,17 @@ def create_app(config_class=Config):
         # Not frozen, not debug. Likely Docker or production run.
         should_start_sync = True
 
+    # Do not start sync in TESTING mode
+    if app.config.get('TESTING'):
+        should_start_sync = False
+
     # DEBUG: Trace startup logic
     print("=== STARTUP DEBUG ===")
     print(f"is_frozen: {is_frozen}")
     print(f"app.debug: {app.debug}")
     print(f"WERKZEUG_RUN_MAIN: {run_main_env}")
-    print(f"should_start_sync: {should_start_sync}")
+    print(f"should_start_sync: {should_start_sync} (Background Manager)")
+    print(f"OFFLINE_MODE: {os.getenv('OFFLINE_MODE', 'False')}")
     print("=====================")
 
     if should_start_sync:

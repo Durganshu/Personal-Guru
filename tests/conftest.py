@@ -1,6 +1,6 @@
 import pytest
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 # Mock weasyprint to avoid GTK dependency issues during tests
 sys.modules['weasyprint'] = MagicMock()
@@ -46,14 +46,21 @@ def logger(show_llm_responses):
 def app():
     """Create and configure a new app instance for each test."""
     from config import TestConfig
-    app = create_app(TestConfig)
 
-    with app.app_context():
-        # Import models to register them with SQLAlchemy before create_all
-        from app.core.models import User, Login, Topic, Installation
-        db.create_all()
-        yield app
-        db.drop_all()
+    # Mock SyncManager to prevent background thread
+    with patch('app.common.dcs.SyncManager') as MockSyncManager:
+        # Configure the mock instance
+        mock_instance = MockSyncManager.return_value
+        mock_instance.start.return_value = None
+
+        app = create_app(TestConfig)
+
+        with app.app_context():
+            # Import models to register them with SQLAlchemy before create_all
+            from app.core.models import User, Login, Topic, Installation
+            db.create_all()
+            yield app
+            db.drop_all()
 
 @pytest.fixture
 def client(app):

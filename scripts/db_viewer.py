@@ -5,7 +5,7 @@ from sqlalchemy.orm import class_mapper
 from dotenv import load_dotenv
 
 # Add the project root to the python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Load environment variables
 load_dotenv()

@@ -251,7 +251,8 @@ def signup():
 
         uid = Login.generate_userid(inst_id)
 
-        new_login = Login(userid=uid, username=username, name=username, installation_id=inst_id)
+        # Removed auto-fill of name with username
+        new_login = Login(userid=uid, username=username, name='', installation_id=inst_id)
         new_login.set_password(password)
         db.session.add(new_login)
 
@@ -737,6 +738,52 @@ def submit_feedback():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@main_bp.route('/notes/<topic_name>')
+@login_required
+def notes_view(topic_name):
+    """Render the dedicated notes page for a topic."""
+    from app.core.models import Topic
+
+    # Ensure topic exists and belongs to user
+    topic = Topic.query.filter_by(user_id=current_user.userid, name=topic_name).first()
+    if not topic:
+        return redirect(url_for('main.index'))
+
+    return render_template('notes.html', topic=topic)
+
+@main_bp.route('/api/notes/<topic_name>', methods=['GET'])
+@login_required
+def get_notes(topic_name):
+    """Get notes content for a topic."""
+    from app.core.models import Topic
+    from flask import jsonify
+
+    topic = Topic.query.filter_by(user_id=current_user.userid, name=topic_name).first()
+    if not topic:
+        return jsonify({'error': 'Topic not found'}), 404
+
+    return jsonify({'notes': topic.notes or ''})
+
+@main_bp.route('/api/notes/<topic_name>', methods=['POST'])
+@login_required
+def save_notes(topic_name):
+    """Save notes content for a topic."""
+    from app.core.models import Topic
+    from app.core.extensions import db
+    from flask import jsonify
+
+    data = request.get_json()
+    notes_content = data.get('notes', '')
+
+    topic = Topic.query.filter_by(user_id=current_user.userid, name=topic_name).first()
+    if not topic:
+        return jsonify({'error': 'Topic not found'}), 404
+
+    topic.notes = notes_content
+    db.session.commit()
+
+    return jsonify({'success': True})
 
 @main_bp.before_app_request
 def enforce_jwe_security():
