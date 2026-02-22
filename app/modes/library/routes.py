@@ -376,8 +376,11 @@ def read_book(book_id, page_num):
         current_page_data["chapter_html"] = ""
 
     # Handle Notes exposure
-    # If viewed by owner, we embed the notes. If viewed by others, we hide notes.
-    show_notes = (book.user_id == current_user.userid)
+    # Determine note visibility and ownership
+    is_owner = (book.user_id == current_user.userid)
+    show_notes = is_owner or (book.is_shared and book.notes_shared)
+    notes_are_shared = book.is_shared and book.notes_shared and not is_owner
+    owner_name = book.login.display_name if book.login else "Book Owner"
 
     return render_template(
         'book_view.html',
@@ -386,7 +389,10 @@ def read_book(book_id, page_num):
         current_page_data=current_page_data,
         page_num=page_num,
         total_pages=total_pages,
-        show_notes=show_notes
+        show_notes=show_notes,
+        is_owner=is_owner,
+        notes_are_shared=notes_are_shared,
+        owner_name=owner_name
     )
 
 @library_bp.route('/<int:book_id>/toggle-share', methods=['POST'])
@@ -399,6 +405,33 @@ def toggle_share(book_id):
 
     data = request.json
     book.is_shared = data.get('is_shared', False)
+
+    # If book is being un-shared, automatically disable note sharing
+    if not book.is_shared:
+        book.notes_shared = False
+
     db.session.commit()
 
     return jsonify({"success": True, "is_shared": book.is_shared})
+
+@library_bp.route('/<int:book_id>/toggle-notes-share', methods=['POST'])
+@login_required
+def toggle_notes_share(book_id):
+    """Toggles the notes_shared status of a book."""
+    book = Book.query.get_or_404(book_id)
+
+    # Authorization: Only book owner can toggle
+    if book.user_id != current_user.userid:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.json
+    notes_shared = data.get('notes_shared', False)
+
+    # Validation: notes_shared requires is_shared
+    if notes_shared and not book.is_shared:
+        return jsonify({"error": "Cannot share notes when book is not shared"}), 400
+
+    book.notes_shared = notes_shared
+    db.session.commit()
+
+    return jsonify({"success": True, "notes_shared": book.notes_shared})

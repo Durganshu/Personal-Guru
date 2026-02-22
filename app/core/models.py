@@ -301,10 +301,16 @@ class Book(TimestampMixin, SyncMixin, db.Model):
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     is_shared = db.Column(db.Boolean, default=False, nullable=False)
+    notes_shared = db.Column(db.Boolean, default=False, nullable=False)
 
     # Relationships
     login = db.relationship('Login', back_populates='books')
     book_topics = db.relationship('BookTopic', back_populates='book', cascade='all, delete-orphan', order_by='BookTopic.order_index')
+
+    # Constraint: notes_shared can only be True if is_shared is True
+    __table_args__ = (
+        db.CheckConstraint('NOT notes_shared OR is_shared', name='notes_shared_requires_is_shared'),
+    )
 
 
 class BookTopic(db.Model):

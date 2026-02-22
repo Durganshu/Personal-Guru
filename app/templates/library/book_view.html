@@ -349,11 +349,36 @@
                 body: JSON.stringify({is_shared: isShared})
             });
             if(!res.ok) throw new Error("Share toggle failed");
+
+            // If book is being un-shared, reload page to hide notes toggle
+            if (!isShared) {
+                location.reload();
+            }
         } catch (e) {
             alert("Failed to update status.");
             document.getElementById('shareToggle').checked = !isShared;
         }
     }
+
+    async function toggleNotesShare() {
+        const notesShared = document.getElementById('notesShareToggle').checked;
+        try {
+            const res = await fetch('/library/{{ book.id }}/toggle-notes-share', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({notes_shared: notesShared})
+            });
+            if(!res.ok) throw new Error("Notes share toggle failed");
+        } catch (e) {
+            alert("Failed to update notes sharing status.");
+            document.getElementById('notesShareToggle').checked = !notesShared;
+        }
+    }
+
     function toggleNotes() {
         const sidebar = document.getElementById('notesSidebar');
         sidebar.classList.toggle('collapsed');
@@ -404,7 +429,8 @@
             initNotes({
                 topicName: "{{ current_page_data.topic.name }}",
                 csrfToken: document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                jweToken: document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                jweToken: document.querySelector('meta[name="jwe-token"]').getAttribute('content'),
+                readOnly: {% if notes_are_shared %}true{% else %}false{% endif %}
             });
         }
         {% endif %}
@@ -538,6 +564,16 @@
                                 <div class="switch-track"></div>
                             </div>
                         </label>
+
+                        {% if book.is_shared %}
+                        <label style="cursor: pointer;">
+                            <input type="checkbox" id="notesShareToggle" onchange="toggleNotesShare()" {% if book.notes_shared %}checked{% endif %} style="display: none;">
+                            <div class="premium-switch">
+                                <span class="switch-label">Share Notes</span>
+                                <div class="switch-track"></div>
+                            </div>
+                        </label>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -602,11 +638,18 @@
                 document.documentElement.style.setProperty('--notes-sidebar-width', savedWidth + 'px');
             }
         </script>
-        <h4>Notebook</h4>
+        <h4>{% if notes_are_shared %}Owner's Notes{% else %}Notebook{% endif %}</h4>
         <hr class="border-secondary">
         {% if show_notes %}
             {% if current_page_data %}
+                {% if notes_are_shared %}
+                    <div class="alert alert-info" style="margin: 0 1rem 1rem 1rem; padding: 0.5rem 0.75rem; font-size: 0.85rem; background: rgba(137, 180, 250, 0.1); border: 1px solid rgba(137, 180, 250, 0.3); border-radius: 6px;">
+                        <i class="fas fa-info-circle me-2"></i>Shared by {{ owner_name }}
+                    </div>
+                {% endif %}
+
                 <div class="notes-sidebar-content p-0" style="display: flex; flex-direction: column; flex-grow: 1;">
+                    {% if not notes_are_shared %}
                     <div class="toolbar sidebar-toolbar mb-3 px-1">
                         <div class="toolbar-group">
                             <button class="toolbar-btn" data-command="bold" title="Bold"><i class="fas fa-bold"></i></button>
@@ -628,14 +671,17 @@
                             </select>
                         </div>
                     </div>
+                    {% endif %}
 
-                    <div id="notes-editor" class="notes-editor" contenteditable="true" placeholder="Start typing your notes..." style="flex-grow: 1; overflow-y: auto;">
+                    <div id="notes-editor" class="notes-editor" contenteditable="{% if notes_are_shared %}false{% else %}true{% endif %}" placeholder="{% if notes_are_shared %}{% else %}Start typing your notes...{% endif %}" style="flex-grow: 1; overflow-y: auto; {% if notes_are_shared %}background: rgba(137, 180, 250, 0.03); cursor: default;{% endif %}">
                         {{ current_page_data.topic.notes | safe }}
                     </div>
 
+                    {% if not notes_are_shared %}
                     <div class="notes-sidebar-footer text-center mt-3 pt-2" style="border-top: 1px solid rgba(255,255,255,0.05);">
                         <span id="save-status" class="save-status">Saved</span>
                     </div>
+                    {% endif %}
                 </div>
             {% else %}
                 <p class="text-muted text-center mt-4">Empty topic.</p>
