@@ -503,14 +503,13 @@ def test_log_telemetry(mocker):
     """Test the log_telemetry utility function."""
     from app.common.utils import log_telemetry
     from app.core.models import TelemetryLog
-
-    """Test the log_telemetry utility function."""
-    from app.common.utils import log_telemetry
-    from app.core.models import TelemetryLog
     import os
 
     # Patch OFFLINE_MODE to False for this test
     mocker.patch.dict(os.environ, {"OFFLINE_MODE": "False"})
+
+    # Mock has_request_context to return True
+    mocker.patch('flask.has_request_context', return_value=True)
 
     # Mock current_user
     mock_user = MagicMock()

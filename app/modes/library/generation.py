@@ -100,19 +100,31 @@ def generate_book_content_background(app_context, book_id, user_id, user_backgro
             total_topics = len(book.book_topics)
             progress.total_topics = total_topics
 
-            # First pass: count total chapters needed
-            total_chapters_needed = 0
+            # Calculate accurate chapter counts at start
+            # This ensures we have the correct baseline even on resume
+            total_chapters = 0
+            completed_chapters = 0
+            topics_without_plans = 0
+
             for bt in book.book_topics:
                 topic = bt.topic
                 chapters = ChapterMode.query.filter_by(topic_id=topic.id).all()
-                if not chapters:
-                    # Estimate 5 chapters per topic (will be updated when plan is generated)
-                    total_chapters_needed += 5
+                if chapters:
+                    total_chapters += len(chapters)
+                    # Count completed chapters
+                    for ch in chapters:
+                        if ch.content:
+                            completed_chapters += 1
                 else:
-                    total_chapters_needed += len(chapters)
+                    # Estimate 5 chapters per topic without a plan
+                    total_chapters += 5
+                    topics_without_plans += 1
 
-            progress.total_chapters = total_chapters_needed
+            progress.total_chapters = total_chapters
+            progress.completed_chapters = completed_chapters
             db.session.commit()
+
+            logger.info(f"Book {book_id}: Starting generation - {total_chapters} total chapters ({topics_without_plans} topics need plans), {completed_chapters} already complete")
 
             # Generate content for each topic
             for idx, bt in enumerate(sorted(book.book_topics, key=lambda x: x.order_index)):
@@ -147,10 +159,13 @@ def generate_book_content_background(app_context, book_id, user_id, user_backgro
 
                         db.session.commit()
 
-                        # Update total chapters count
+                        # Update total chapters count: replace estimate (5) with actual count
                         actual_chapters = len(plan_steps)
-                        progress.total_chapters = progress.total_chapters - 5 + actual_chapters
+                        chapters_diff = actual_chapters - 5  # Difference from estimate
+                        progress.total_chapters = progress.total_chapters + chapters_diff
                         db.session.commit()
+
+                        logger.info(f"Generated plan for {topic.name}: {actual_chapters} chapters (estimate was 5, diff: {chapters_diff}). New total: {progress.total_chapters}")
 
                         # Reload chapters
                         chapters = ChapterMode.query.filter_by(topic_id=topic.id).order_by(ChapterMode.step_index).all()
@@ -164,8 +179,7 @@ def generate_book_content_background(app_context, book_id, user_id, user_backgro
                 for ch_idx, chapter in enumerate(chapters):
                     if chapter.content:
                         # Already has content, skip
-                        progress.completed_chapters += 1
-                        db.session.commit()
+                        logger.debug(f"Skipping {topic.name} chapter {ch_idx + 1} - already has content")
                         continue
 
                     progress.current_message = f'Writing {topic.name}: Chapter {ch_idx + 1}/{len(chapters)}'
@@ -175,6 +189,8 @@ def generate_book_content_background(app_context, book_id, user_id, user_backgro
                         # Get plan steps from topic
                         plan_steps = topic.study_plan if topic.study_plan else []
                         step_title = plan_steps[chapter.step_index] if chapter.step_index < len(plan_steps) else chapter.title or "Chapter Content"
+
+                        logger.info(f"Generating content for {topic.name} chapter {ch_idx + 1}: {step_title}")
 
                         # Generate teaching material
                         material = teacher.generate_teaching_material(
@@ -189,18 +205,42 @@ def generate_book_content_background(app_context, book_id, user_id, user_backgro
                         progress.completed_chapters += 1
                         db.session.commit()
 
+                        logger.info(f"Completed {topic.name} chapter {ch_idx + 1}. Progress: {progress.completed_chapters}/{progress.total_chapters}")
+
                     except Exception as e:
                         logger.error(f"Failed to generate content for {topic.name} chapter {chapter.step_index}: {e}")
                         progress.current_message = f'Error in {topic.name} chapter {ch_idx + 1}: {str(e)}'
                         db.session.commit()
+                        # Continue with next chapter even if one fails
 
-            # Mark as completed
-            progress.status = 'completed'
-            progress.current_message = 'Generation complete!'
-            progress.completed_at = datetime.datetime.utcnow()
-            db.session.commit()
+            # Verify completion before marking as complete
+            final_check_complete = True
+            for bt in book.book_topics:
+                chapters = ChapterMode.query.filter_by(topic_id=bt.topic.id).all()
+                if not chapters:
+                    final_check_complete = False
+                    break
+                for ch in chapters:
+                    if not ch.content:
+                        final_check_complete = False
+                        break
+                if not final_check_complete:
+                    break
 
-            logger.info(f"Book {book_id} generation completed successfully")
+            if final_check_complete:
+                # Mark as completed
+                progress.status = 'completed'
+                progress.current_message = 'Generation complete!'
+                progress.completed_at = datetime.datetime.utcnow()
+                db.session.commit()
+                logger.info(f"Book {book_id} generation completed successfully")
+            else:
+                # Some chapters failed, mark as error
+                progress.status = 'error'
+                progress.error_message = 'Some chapters failed to generate'
+                progress.completed_at = datetime.datetime.utcnow()
+                db.session.commit()
+                logger.warning(f"Book {book_id} generation incomplete - some chapters failed")
 
         except Exception as e:
             logger.error(f"Book generation failed for {book_id}: {e}", exc_info=True)
@@ -223,41 +263,95 @@ def get_generation_progress(book_id):
     if not book:
         return {'status': 'error', 'message': 'Book not found'}
 
+    # Check if book has incomplete content
     needs_generation = False
+    total_chapters_actual = 0
+    completed_chapters_actual = 0
+
     for bt in book.book_topics:
         chapters = ChapterMode.query.filter_by(topic_id=bt.topic.id).all()
         if not chapters:
             needs_generation = True
             break
+        total_chapters_actual += len(chapters)
         for ch in chapters:
-            if not ch.content:
+            if ch.content:
+                completed_chapters_actual += 1
+            else:
                 needs_generation = True
-                break
-        if needs_generation:
-            break
 
     # If no progress record exists
     if not progress:
         if needs_generation:
-            return {'status': 'pending', 'message': 'Ready to generate', 'book_id': book_id}
+            return {
+                'status': 'pending',
+                'message': 'Ready to generate',
+                'book_id': book_id,
+                'total_chapters': total_chapters_actual,
+                'completed_chapters': completed_chapters_actual
+            }
         else:
-            return {'status': 'completed', 'message': 'Already generated', 'book_id': book_id}
+            return {
+                'status': 'completed',
+                'message': 'Already generated',
+                'book_id': book_id,
+                'total_chapters': total_chapters_actual,
+                'completed_chapters': completed_chapters_actual
+            }
+
+    # If book is actually complete but progress says otherwise, fix it
+    if not needs_generation and progress.status != 'completed':
+        logger.info(f"Book {book_id} is complete but status was {progress.status}, fixing")
+        progress.status = 'completed'
+        progress.current_message = 'Generation complete!'
+        progress.completed_at = datetime.datetime.utcnow()
+        progress.total_chapters = total_chapters_actual
+        progress.completed_chapters = completed_chapters_actual
+        db.session.commit()
 
     # If progress exists but marked completed, but actually needs generation
     # (e.g., user added new topics to the book)
     if progress.status == 'completed' and needs_generation:
-        # Reset progress to pending
+        logger.info(f"Book {book_id} marked complete but needs more content, resetting")
         progress.status = 'pending'
         progress.current_message = 'Additional content needed'
+        progress.total_chapters = total_chapters_actual
+        progress.completed_chapters = completed_chapters_actual
         db.session.commit()
 
     # If progress exists but marked error, and still needs generation
     if progress.status == 'error' and needs_generation:
-        # Allow retry by resetting to pending
+        logger.info(f"Book {book_id} had error, resetting to pending for retry")
         progress.status = 'pending'
         progress.error_message = None
         progress.current_message = 'Ready to retry generation'
+        progress.total_chapters = total_chapters_actual
+        progress.completed_chapters = completed_chapters_actual
         db.session.commit()
+
+    # If progress is marked as 'generating' but the book still needs generation
+    # Check if the generation is stale (no updates in last 60 seconds)
+    if progress.status == 'generating':
+        # Check when the progress was last updated using modified_at from TimestampMixin
+        if progress.modified_at:
+            time_since_update = datetime.datetime.utcnow() - progress.modified_at
+            if time_since_update.total_seconds() > 60:
+                if needs_generation:
+                    logger.warning(f"Book {book_id} generation appears stale (no updates in {time_since_update.total_seconds()}s), resetting to pending")
+                    progress.status = 'pending'
+                    progress.current_message = 'Generation interrupted, click to resume'
+                    progress.total_chapters = total_chapters_actual
+                    progress.completed_chapters = completed_chapters_actual
+                    db.session.commit()
+                else:
+                    # Generation is stale but book is complete - mark as complete
+                    logger.info(f"Book {book_id} was generating but is now complete")
+                    progress.status = 'completed'
+                    progress.current_message = 'Generation complete!'
+                    progress.completed_at = datetime.datetime.utcnow()
+                    progress.total_chapters = total_chapters_actual
+                    progress.completed_chapters = completed_chapters_actual
+                    db.session.commit()
 
     return progress.to_dict()
 

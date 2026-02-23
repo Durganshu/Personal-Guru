@@ -52,15 +52,40 @@ def dashboard():
     # Discover others' shared books
     shared_books = Book.query.filter_by(is_shared=True).filter(Book.user_id != current_user.userid).order_by(Book.modified_at.desc()).limit(20).all()
 
-    # Get generation progress for user's books
-    from app.core.models import BookGenerationProgress
-    book_progress = {}
-    for book in my_books:
-        progress = BookGenerationProgress.query.filter_by(book_id=book.id).first()
-        if progress and progress.status in ['pending', 'generating']:
-            book_progress[book.id] = progress.to_dict()
+    # Get generation progress for user's books (but don't auto-start)
+    from app.modes.library.generation import get_generation_progress
 
-    return render_template('library_dashboard.html', my_books=my_books, shared_books=shared_books, book_progress=book_progress)
+    book_progress = {}
+    book_needs_generation = {}
+
+    for book in my_books:
+        # Check if book has incomplete content
+        needs_generation = False
+        for bt in book.book_topics:
+            chapters = ChapterMode.query.filter_by(topic_id=bt.topic.id).all()
+            if not chapters:
+                needs_generation = True
+                break
+            for ch in chapters:
+                if not ch.content:
+                    needs_generation = True
+                    break
+            if needs_generation:
+                break
+
+        # Store whether book needs generation
+        book_needs_generation[book.id] = needs_generation
+
+        # Check current progress
+        progress_data = get_generation_progress(book.id)
+
+        # Add to progress dict if actively generating
+        if progress_data['status'] == 'generating':
+            book_progress[book.id] = progress_data
+
+        logger.info(f"Book {book.id} ({book.title}): needs_generation={needs_generation}, status={progress_data['status']}")
+
+    return render_template('library_dashboard.html', my_books=my_books, shared_books=shared_books, book_progress=book_progress, book_needs_generation=book_needs_generation)
 
 @library_bp.route('/search', methods=['GET'])
 @login_required

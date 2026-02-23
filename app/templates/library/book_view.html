@@ -338,6 +338,8 @@
 <script>
     async function toggleShare() {
         const isShared = document.getElementById('shareToggle').checked;
+        const notesShareContainer = document.getElementById('notesShareContainer');
+
         try {
             const res = await fetch('/library/{{ book.id }}/toggle-share', {
                 method: 'POST',
@@ -350,9 +352,13 @@
             });
             if(!res.ok) throw new Error("Share toggle failed");
 
-            // If book is being un-shared, reload page to hide notes toggle
-            if (!isShared) {
-                location.reload();
+            // Show/hide notes share toggle dynamically
+            if (isShared) {
+                notesShareContainer.style.display = 'block';
+            } else {
+                notesShareContainer.style.display = 'none';
+                // Also uncheck the notes toggle when hiding
+                document.getElementById('notesShareToggle').checked = false;
             }
         } catch (e) {
             alert("Failed to update status.");
@@ -571,15 +577,13 @@
                             </div>
                         </label>
 
-                        {% if book.is_shared %}
-                        <label style="cursor: pointer;">
+                        <label id="notesShareContainer" style="cursor: pointer; display: {% if book.is_shared %}block{% else %}none{% endif %};">
                             <input type="checkbox" id="notesShareToggle" onchange="toggleNotesShare()" {% if book.notes_shared %}checked{% endif %} style="display: none;">
                             <div class="premium-switch">
                                 <span class="switch-label">Share Notes</span>
                                 <div class="switch-track"></div>
                             </div>
                         </label>
-                        {% endif %}
                     {% endif %}
                 </div>
             </div>

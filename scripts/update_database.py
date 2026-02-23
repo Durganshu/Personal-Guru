@@ -101,7 +101,25 @@ def update_database():
         inspector = inspect(db.engine) # Re-inspect after create/rename
 
         if db.engine.name == 'sqlite':
-            logger.info("SQLite mode: Skipping advanced schema inspections (Postgres-specific).")
+            logger.info("SQLite mode: Performing basic column additions...")
+
+            # Special handling for SQLite - add missing columns
+            # Check if books table has notes_shared column
+            try:
+                books_columns = inspector.get_columns('books')
+                books_col_names = [col['name'] for col in books_columns]
+
+                if 'notes_shared' not in books_col_names:
+                    logger.info("  [+] Adding missing column: notes_shared to books table")
+                    sql = text('ALTER TABLE books ADD COLUMN notes_shared BOOLEAN DEFAULT 0 NOT NULL')
+                    db.session.execute(sql)
+                    db.session.commit()
+                    logger.info("      -> Added successfully.")
+            except Exception as e:
+                logger.error(f"      -> FAILED to add notes_shared column: {e}")
+                db.session.rollback()
+
+            logger.info("SQLite mode: Basic updates complete. Skipping advanced schema inspections (Postgres-specific).")
             return
 
         for model in TARGET_MODELS:
