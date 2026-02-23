@@ -78,13 +78,14 @@
         -webkit-backface-visibility: hidden;
         border-radius: 12px;
         overflow: hidden;
-        transition: opacity 0.3s;
+        /* Removed opacity transition as it causes mirroring artifacts in 3D space */
     }
     .flip-card-front {
         background: #000;
         border: 1px solid var(--border-color, #313244);
         box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         z-index: 2;
+        transform: translateZ(1px); /* Ensure front is strictly on top */
     }
     /* When flipped, hide front from pointer events */
     .flip-card.flipped .flip-card-front {
@@ -93,13 +94,13 @@
     .flip-card-back {
         background: var(--surface-color, #1e1e2e);
         border: 1px solid var(--primary-color, #cba6f7);
-        transform: rotateY(180deg);
+        transform: rotateY(180deg) translateZ(1px); /* Consistent 3D separation */
         display: flex;
         flex-direction: column;
         padding: 1.5rem;
         box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         z-index: 1;
-        pointer-events: none; /* Hidden by default */
+        pointer-events: none;
     }
     /* When flipped, enable pointer events on back */
     .flip-card.flipped .flip-card-back {
