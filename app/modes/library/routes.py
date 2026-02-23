@@ -59,31 +59,42 @@ def dashboard():
     book_needs_generation = {}
 
     for book in my_books:
-        # Check if book has incomplete content
+        # Check current progress first (trust the database-backed system)
+        progress_data = get_generation_progress(book.id)
+
         needs_generation = False
-        for bt in book.book_topics:
-            chapters = ChapterMode.query.filter_by(topic_id=bt.topic.id).all()
-            if not chapters:
-                needs_generation = True
-                break
-            for ch in chapters:
-                if not ch.content:
+        if progress_data['status'] == 'completed':
+            needs_generation = False
+            logger.info(f"Book {book.id} ({book.title}): Status is completed. Marked as complete.")
+        elif progress_data['status'] == 'generating':
+            # While generating, we don't show the "Incomplete content" warning separately
+            # as the "Publishing" loader takes over.
+            needs_generation = False
+        else:
+            # Fallback manual check for status like 'pending' or 'error'
+            for bt in book.book_topics:
+                # Optimized check: use topic relationship
+                chapters = bt.topic.chapter_mode
+                if not chapters:
                     needs_generation = True
+                    logger.info(f"Book {book.id} ({book.title}): Topic '{bt.topic.name}' has no chapters.")
                     break
-            if needs_generation:
-                break
+                for ch in chapters:
+                    if not ch.content or not ch.content.strip():
+                        needs_generation = True
+                        logger.info(f"Book {book.id} ({book.title}): Chapter '{ch.title}' has no content.")
+                        break
+                if needs_generation:
+                    break
 
         # Store whether book needs generation
         book_needs_generation[book.id] = needs_generation
-
-        # Check current progress
-        progress_data = get_generation_progress(book.id)
 
         # Add to progress dict if actively generating
         if progress_data['status'] == 'generating':
             book_progress[book.id] = progress_data
 
-        logger.info(f"Book {book.id} ({book.title}): needs_generation={needs_generation}, status={progress_data['status']}")
+        logger.info(f"Book {book.id} ({book.title}): final_needs_generation={needs_generation}, status={progress_data['status']}")
 
     return render_template('library/library_dashboard.html', my_books=my_books, shared_books=shared_books, book_progress=book_progress, book_needs_generation=book_needs_generation)
 
