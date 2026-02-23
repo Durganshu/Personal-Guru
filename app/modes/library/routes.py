@@ -4,9 +4,10 @@ from app.core.extensions import db
 from app.core.models import Book, BookTopic, Topic, ChapterMode
 from app.modes.library import library_bp
 from app.modes.library.agent import LibrarianAgent
+import logging
+import os
 from app.common.vector_db import VectorDB
 from markdown_it import MarkdownIt
-import logging
 
 logger = logging.getLogger(__name__)
 md = MarkdownIt()
@@ -393,9 +394,32 @@ def delete_book(book_id):
         return jsonify({"error": "Unauthorized"}), 403
 
     try:
+        # Store cover path for deletion after DB deletion
+        cover_to_delete = book.cover_path
+
         # Delete the book (cascade will handle book_topics)
         db.session.delete(book)
         db.session.commit()
+
+        # Delete cover file if it exists
+        if cover_to_delete:
+            target_path = cover_to_delete
+            # Resolve path (same logic as serve_cover)
+            if os.path.isabs(target_path) and not os.path.exists(target_path):
+                filename = os.path.basename(target_path)
+                fallback_path = os.path.join(os.getcwd(), 'data', 'book_cover', filename)
+                if os.path.exists(fallback_path):
+                    target_path = fallback_path
+
+            if not os.path.isabs(target_path):
+                target_path = os.path.join(os.getcwd(), target_path)
+
+            if os.path.exists(target_path):
+                try:
+                    os.remove(target_path)
+                    logger.info(f"Deleted book cover file: {target_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to delete cover file {target_path}: {e}")
 
         # Invalidate vector DB cache
         if current_user.userid in vector_db_cache:
@@ -437,7 +461,6 @@ def retry_cover(book_id):
 @login_required
 def serve_cover(book_id):
     """Serves the book cover image file."""
-    import os
     from flask import send_file
 
     book = Book.query.get_or_404(book_id)
