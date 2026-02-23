@@ -435,3 +435,27 @@ def toggle_notes_share(book_id):
     db.session.commit()
 
     return jsonify({"success": True, "notes_shared": book.notes_shared})
+
+@library_bp.route('/<int:book_id>/delete', methods=['POST'])
+@login_required
+def delete_book(book_id):
+    """Deletes a book owned by the current user."""
+    book = Book.query.get_or_404(book_id)
+
+    # Authorization: Only book owner can delete
+    if book.user_id != current_user.userid:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    try:
+        # Delete the book (cascade will handle book_topics)
+        db.session.delete(book)
+        db.session.commit()
+
+        # Invalidate vector DB cache
+        if current_user.userid in vector_db_cache:
+            del vector_db_cache[current_user.userid]
+
+        return jsonify({"success": True, "message": "Book deleted successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500

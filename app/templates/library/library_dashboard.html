@@ -243,6 +243,35 @@
             element.style.pointerEvents = 'auto';
         }
     }
+
+    async function deleteBook(bookId, event) {
+        event.stopPropagation(); // Prevent card click
+
+        if (!confirm('Are you sure you want to delete this book? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/library/${bookId}/delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                }
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                // Remove the card from the UI
+                event.target.closest('.book-card').remove();
+            } else {
+                alert('Failed to delete book: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('Error deleting book: ' + e.message);
+        }
+    }
 </script>
 {% endblock %}
 
@@ -267,7 +296,12 @@
         <div class="grid-container" id="my-books-grid">
             {% for book in my_books %}
             <div class="book-card" onclick="openBookWithLoader({{ book.id }}, this)">
-                <h3>{{ book.title }}</h3>
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h3 style="flex: 1; margin: 0;">{{ book.title }}</h3>
+                    <button class="btn btn-sm btn-danger" onclick="deleteBook({{ book.id }}, event)" title="Delete book" style="padding: 0.25rem 0.5rem;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
                 <p>{{ book.description | truncate(100) }}</p>
                 <div class="d-flex justify-content-between align-items-center mt-3">
                     <small>{{ book.book_topics | length }} Topics</small>
