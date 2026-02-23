@@ -38,7 +38,10 @@ MODELS = {
     'Feedback': models.Feedback,
     'AIModelPerformance': models.AIModelPerformance,
     'PlanRevision': models.PlanRevision,
-    'Login': models.Login
+    'Login': models.Login,
+    'Book': models.Book,
+    'BookTopic': models.BookTopic,
+    'SyncLog': models.SyncLog
 }
 
 VIEWER_HTML = """

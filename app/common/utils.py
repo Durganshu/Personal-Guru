@@ -154,12 +154,14 @@ def call_llm(prompt_or_messages, is_json=False):
         # Database Logging Hook
         try:
             # Local imports to avoid circular dependency
+            from flask import has_request_context
             from app.core.extensions import db
             from app.core.models import AIModelPerformance
             from flask_login import current_user
 
-            # Only log if user is authenticated and we are in a request context
-            if current_user and current_user.is_authenticated:
+            # Only log if we're in a request context and user is authenticated
+            # In background threads, current_user is not available
+            if has_request_context() and current_user and current_user.is_authenticated:
                 perf_log = AIModelPerformance(
                     user_id=current_user.userid,
                     model_type='LLM',
@@ -484,11 +486,12 @@ def generate_audio(text, step_index):
         try:
             end_time = time.time()
             latency_ms = int((end_time - start_time) * 1000)
+            from flask import has_request_context
             from app.core.extensions import db
             from app.core.models import AIModelPerformance
             from flask_login import current_user
 
-            if current_user and current_user.is_authenticated:
+            if has_request_context() and current_user and current_user.is_authenticated:
                 perf_log = AIModelPerformance(
                     user_id=current_user.userid,
                     model_type='TTS',
@@ -748,6 +751,7 @@ def generate_podcast_audio(transcript, output_filename):
         try:
             end_time = time.time()
             latency_ms = int((end_time - start_time) * 1000)
+            from flask import has_request_context
             from app.core.extensions import db
             from app.core.models import AIModelPerformance
             from flask_login import current_user
@@ -755,7 +759,7 @@ def generate_podcast_audio(transcript, output_filename):
             # Calculate approx input length from lines
             total_chars = sum(len(txt) for _, txt in lines)
 
-            if current_user and current_user.is_authenticated:
+            if has_request_context() and current_user and current_user.is_authenticated:
                 perf_log = AIModelPerformance(
                     user_id=current_user.userid,
                     model_type='TTS',
@@ -801,13 +805,14 @@ def transcribe_audio(audio_file_path):
         try:
             end_time = time.time()
             latency_ms = int((end_time - start_time) * 1000)
+            from flask import has_request_context
             from app.core.extensions import db
             from app.core.models import AIModelPerformance
             from flask_login import current_user
 
             output_len = len(transcript) if transcript else 0
 
-            if current_user and current_user.is_authenticated:
+            if has_request_context() and current_user and current_user.is_authenticated:
                 perf_log = AIModelPerformance(
                     user_id=current_user.userid,
                     model_type='STT',
@@ -880,7 +885,8 @@ def log_telemetry(event_type: str, triggers: dict, payload: dict, installation_i
     try:
         # Resolve User ID (Nullable)
         user_id = None
-        if current_user and current_user.is_authenticated:
+        from flask import has_request_context
+        if has_request_context() and current_user and current_user.is_authenticated:
             user_id = current_user.userid
             # If installation_id not provided, try to get from user
             if not installation_id:

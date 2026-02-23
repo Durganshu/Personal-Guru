@@ -33,6 +33,7 @@ For detailed installation and setup instructions, please visit our **[Getting St
 * 🏗️ [**Architecture**](https://samosa-ai.com/personal-guru/docs/architecture): High-level system design (C4 Model).
 * 🗄️ [**Database Schema**](https://samosa-ai.com/personal-guru/docs/database): Database tables and migration guide.
 * 🔌 **API Documentation**: Interactive Swagger UI available at `/apidocs/` after running the app. 🔍
+* 🎨 [**Book Cover Setup**](docs/BOOK_COVER_SETUP.md): Instructions on configuring ComfyUI for dynamic AI book cover generation.
 
 ## 🤝 Project & Community
 
