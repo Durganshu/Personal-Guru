@@ -120,7 +120,7 @@ class BookCoverService:
 
         return prompt_api
 
-    def generate_cover(self, book_title, book_description, output_path):
+    def generate_cover(self, book_title, book_description, output_path, refined_prompt=None):
         """
         Generate a book cover image and save it to output_path.
 
@@ -128,6 +128,7 @@ class BookCoverService:
             book_title: Title of the book.
             book_description: Short description for the image prompt.
             output_path: Absolute path to save the generated PNG.
+            refined_prompt: Optional pre-refined LLM prompt. If None, it builds one.
 
         Returns:
             tuple: (success: bool, error_message: str or None)
@@ -147,12 +148,15 @@ class BookCoverService:
 
             workflow_json = self._load_workflow()
 
-            # Build prompt
-            refined_prompt = (
-                f"Professional book cover art for '{book_title}'. "
-                f"{book_description}. "
-                "High quality, cinematic, dramatic lighting, artistic style."
-            )
+            # Build or use prompt
+            if not refined_prompt:
+                refined_prompt = (
+                    f"Professional book cover art for '{book_title}'. "
+                    f"{book_description}. "
+                    "High quality, cinematic, dramatic lighting, artistic style."
+                )
+
+            logger.info(f"Using refined prompt for {book_title}: {refined_prompt}")
             prompt_api = self._build_prompt_api(workflow_json, refined_prompt)
 
             # Connect via websocket and submit

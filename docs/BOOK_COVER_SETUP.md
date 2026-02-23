@@ -41,7 +41,7 @@ ComfyUI operates using graphical "workflows" that can be saved into JSON formatt
 To instruct Personal-Guru on what kind of book covers to generate:
 
 1. You must provide a valid ComfyUI workflow JSON file at the path specified by `COMFYUI_WORKFLOW_PATH`. We provide `scripts/example_workflow.json` as a default.
-2. The backend integration (`app/common/book_cover.py`) replaces specific nodes dynamically containing standard ComfyUI widgets (such as `CLIPTextEncode` for positive prompt, and aspects of `EmptySD3LatentImage`, `KSampler`, etc.).
+2. The backend integration (`app/modes/library/book_cover.py`) replaces specific nodes dynamically containing standard ComfyUI widgets (such as `CLIPTextEncode` for positive prompt, and aspects of `EmptySD3LatentImage`, `KSampler`, etc.).
 3. **Important:** The provided JSON must be in **API Format**. To export an API Format JSON from ComfyUI, you must enable "Enable Dev mode Options" in the ComfyUI settings (gear icon), then click the "Save (API Format)" button.
 
 ## Testing the Setup

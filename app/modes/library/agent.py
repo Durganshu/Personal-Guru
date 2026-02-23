@@ -399,7 +399,7 @@ def _generate_book_cover(book):
         logger.warning(f"ComfyUI workflow not found at {workflow_path}, skipping cover generation")
         return
 
-    from app.common.book_cover import BookCoverService
+    from app.modes.library.book_cover import BookCoverService
     service = BookCoverService(server_address, workflow_path)
 
     # Build output path relative to project root
@@ -412,10 +412,23 @@ def _generate_book_cover(book):
     abs_output_path = os.path.join(abs_cover_dir, filename)
     rel_output_path = os.path.join(rel_cover_dir, filename)
 
+    # Refine prompt using LLM for better quality
+    from app.common.utils import call_llm
+    from app.modes.library.prompts import get_book_cover_prompt
+
+    refined_prompt = None
+    try:
+        llm_prompt = get_book_cover_prompt(book.title, book.description or "A book about " + book.title)
+        refined_prompt = call_llm(llm_prompt, is_json=False)
+        logger.info(f"Refined cover prompt for book {book.id}: {refined_prompt}")
+    except Exception as e:
+        logger.warning(f"Failed to refine cover prompt with LLM: {e}. Falling back to basic prompt.")
+
     success, error_msg = service.generate_cover(
         book.title,
         book.description or '',
-        abs_output_path
+        abs_output_path,
+        refined_prompt=refined_prompt
     )
 
     if success:
