@@ -8,7 +8,9 @@ from app.modes.chapter.agent import ChapterTeachingAgent
 from app.common.agents import LibrarianAgent, PlannerAgent
 from app.common.vector_db import VectorDB
 from markdown_it import MarkdownIt
+import logging
 
+logger = logging.getLogger(__name__)
 md = MarkdownIt()
 
 # A global/in-memory VectorDB for searching user's topics
@@ -458,4 +460,293 @@ def delete_book(book_id):
         return jsonify({"success": True, "message": "Book deleted successfully"})
     except Exception as e:
         db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@library_bp.route('/<int:book_id>/edit', methods=['GET'])
+@login_required
+def edit_book(book_id):
+    """Renders the book editing interface."""
+    book = Book.query.get_or_404(book_id)
+
+    # Authorization: Only book owner can edit
+    if book.user_id != current_user.userid:
+        return render_template('error.html', error_message="You don't have permission to edit this book."), 403
+
+    # Get all user's topics for adding to book
+    user_topics = Topic.query.filter_by(user_id=current_user.userid).all()
+
+    # Get topics already in the book
+    book_topic_ids = [bt.topic_id for bt in book.book_topics]
+
+    return render_template('library_edit.html', book=book, user_topics=user_topics, book_topic_ids=book_topic_ids)
+
+@library_bp.route('/<int:book_id>/update-metadata', methods=['POST'])
+@login_required
+def update_book_metadata(book_id):
+    """Updates book title and description."""
+    book = Book.query.get_or_404(book_id)
+
+    # Authorization: Only book owner can edit
+    if book.user_id != current_user.userid:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.json
+    title = data.get('title', '').strip()
+    description = data.get('description', '').strip()
+
+    if not title:
+        return jsonify({"error": "Title is required"}), 400
+
+    try:
+        book.title = title
+        book.description = description
+        db.session.commit()
+        return jsonify({"success": True, "message": "Book updated successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@library_bp.route('/<int:book_id>/add-topic', methods=['POST'])
+@login_required
+def add_topic_to_book(book_id):
+    """Adds an existing topic to the book."""
+    book = Book.query.get_or_404(book_id)
+
+    # Authorization: Only book owner can edit
+    if book.user_id != current_user.userid:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.json
+    topic_id = data.get('topic_id')
+
+    if not topic_id:
+        return jsonify({"error": "Topic ID is required"}), 400
+
+    # Verify user owns the topic
+    topic = Topic.query.filter_by(id=topic_id, user_id=current_user.userid).first()
+    if not topic:
+        return jsonify({"error": "Topic not found or unauthorized"}), 404
+
+    # Check if topic is already in the book
+    existing = BookTopic.query.filter_by(book_id=book_id, topic_id=topic_id).first()
+    if existing:
+        return jsonify({"error": "Topic already in book"}), 400
+
+    try:
+        # Get the max order_index and add 1
+        max_order = db.session.query(db.func.max(BookTopic.order_index)).filter_by(book_id=book_id).scalar() or -1
+
+        bt = BookTopic(
+            book_id=book_id,
+            topic_id=topic_id,
+            order_index=max_order + 1
+        )
+        db.session.add(bt)
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Topic added successfully",
+            "topic": {"id": topic.id, "name": topic.name}
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@library_bp.route('/<int:book_id>/remove-topic/<int:topic_id>', methods=['POST'])
+@login_required
+def remove_topic_from_book(book_id, topic_id):
+    """Removes a topic from the book."""
+    book = Book.query.get_or_404(book_id)
+
+    # Authorization: Only book owner can edit
+    if book.user_id != current_user.userid:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    # Find the BookTopic association
+    bt = BookTopic.query.filter_by(book_id=book_id, topic_id=topic_id).first()
+    if not bt:
+        return jsonify({"error": "Topic not in book"}), 404
+
+    try:
+        db.session.delete(bt)
+
+        # Reorder remaining topics
+        remaining_topics = BookTopic.query.filter_by(book_id=book_id).order_by(BookTopic.order_index).all()
+        for idx, topic in enumerate(remaining_topics):
+            topic.order_index = idx
+
+        db.session.commit()
+        return jsonify({"success": True, "message": "Topic removed successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@library_bp.route('/<int:book_id>/reorder-topics', methods=['POST'])
+@login_required
+def reorder_topics(book_id):
+    """Reorders topics in the book."""
+    book = Book.query.get_or_404(book_id)
+
+    # Authorization: Only book owner can edit
+    if book.user_id != current_user.userid:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.json
+    topic_ids = data.get('topic_ids', [])
+
+    if not topic_ids:
+        return jsonify({"error": "Topic IDs are required"}), 400
+
+    try:
+        # Update order_index for each topic
+        for idx, topic_id in enumerate(topic_ids):
+            bt = BookTopic.query.filter_by(book_id=book_id, topic_id=topic_id).first()
+            if bt:
+                bt.order_index = idx
+
+        db.session.commit()
+        return jsonify({"success": True, "message": "Topics reordered successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@library_bp.route('/<int:book_id>/apply-ai-suggestions', methods=['POST'])
+@login_required
+def apply_ai_suggestions(book_id):
+    """Applies AI suggestions to add/remove topics from the book."""
+    book = Book.query.get_or_404(book_id)
+
+    # Authorization: Only book owner can edit
+    if book.user_id != current_user.userid:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.json
+    topics_to_add = data.get('add', [])  # List of topic IDs
+    topics_to_remove = data.get('remove', [])  # List of topic IDs
+
+    try:
+        # Get current book topics
+        current_topic_ids = [bt.topic_id for bt in book.book_topics]
+
+        # Remove topics
+        for topic_id in topics_to_remove:
+            if topic_id in current_topic_ids:
+                bt = BookTopic.query.filter_by(book_id=book_id, topic_id=topic_id).first()
+                if bt:
+                    db.session.delete(bt)
+
+        # Add topics
+        for topic_id in topics_to_add:
+            if topic_id not in current_topic_ids:
+                # Verify user owns the topic
+                topic = Topic.query.filter_by(id=topic_id, user_id=current_user.userid).first()
+                if topic:
+                    # Get the max order_index and add 1
+                    max_order = db.session.query(db.func.max(BookTopic.order_index)).filter_by(book_id=book_id).scalar() or -1
+
+                    bt = BookTopic(
+                        book_id=book_id,
+                        topic_id=topic_id,
+                        order_index=max_order + 1
+                    )
+                    db.session.add(bt)
+
+        # Reorder remaining topics
+        remaining_topics = BookTopic.query.filter_by(book_id=book_id).order_by(BookTopic.order_index).all()
+        for idx, topic in enumerate(remaining_topics):
+            topic.order_index = idx
+
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": f"Applied changes: {len(topics_to_add)} added, {len(topics_to_remove)} removed"
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error applying AI suggestions: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@library_bp.route('/<int:book_id>/ai-update', methods=['POST'])
+@login_required
+def ai_update_book(book_id):
+    """Uses AI to suggest topics to add/remove based on a query."""
+    book = Book.query.get_or_404(book_id)
+
+    # Authorization: Only book owner can edit
+    if book.user_id != current_user.userid:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.json
+    query = data.get('query', '').strip()
+
+    if not query:
+        return jsonify({"error": "Query is required"}), 400
+
+    try:
+        from app.common.utils import call_llm
+        from app.modes.library.prompts import get_book_update_prompt
+
+        # Get user's topics
+        user_topics = Topic.query.filter_by(user_id=current_user.userid).all()
+
+        # Get current book topics
+        current_topics = [bt.topic for bt in book.book_topics]
+
+        # Build lists for prompt
+        current_topic_names = [t.name for t in current_topics]
+        all_topic_names = [t.name for t in user_topics]
+
+        # Get prompt from prompts file
+        prompt = get_book_update_prompt(
+            book_title=book.title,
+            book_description=book.description,
+            current_topics=current_topic_names,
+            all_topics=all_topic_names,
+            user_query=query
+        )
+
+        response = call_llm(prompt, is_json=True)
+
+        # Parse response
+        suggestions_data = response if isinstance(response, dict) else {}
+        add_names = suggestions_data.get('add', [])
+        remove_names = suggestions_data.get('remove', [])
+        reasoning = suggestions_data.get('reasoning', '')
+
+        # Map topic names to IDs
+        topic_name_to_id = {t.name: t.id for t in user_topics}
+
+        topics_to_add = []
+        for name in add_names:
+            if name in topic_name_to_id:
+                topic_id = topic_name_to_id[name]
+                # Only add if not already in book
+                if topic_id not in [t.id for t in current_topics]:
+                    topic = next((t for t in user_topics if t.id == topic_id), None)
+                    if topic:
+                        topics_to_add.append({"id": topic.id, "name": topic.name})
+
+        topics_to_remove = []
+        for name in remove_names:
+            if name in topic_name_to_id:
+                topic_id = topic_name_to_id[name]
+                # Only remove if currently in book
+                if topic_id in [t.id for t in current_topics]:
+                    topic = next((t for t in current_topics if t.id == topic_id), None)
+                    if topic:
+                        topics_to_remove.append({"id": topic.id, "name": topic.name})
+
+        return jsonify({
+            "success": True,
+            "suggestions": {
+                "add": topics_to_add,
+                "remove": topics_to_remove,
+                "message": reasoning
+            }
+        })
+    except Exception as e:
+        logger.error(f"AI update error: {e}")
         return jsonify({"error": str(e)}), 500

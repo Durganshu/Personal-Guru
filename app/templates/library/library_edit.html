@@ -1,0 +1,499 @@
+{% extends "base.html" %}
+
+{% block title %}Edit: {{ book.title }} - Personal Guru{% endblock %}
+{% block head %}
+{{ super() }}
+<style>
+    .edit-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    .edit-header {
+        background: var(--surface-color, #1e1e2e);
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        border: 1px solid var(--border-color, #313244);
+    }
+    .topics-section {
+        background: var(--surface-color, #1e1e2e);
+        padding: 2rem;
+        border-radius: 12px;
+        border: 1px solid var(--border-color, #313244);
+    }
+    .topic-item {
+        background: rgba(255,255,255,0.05);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: move;
+    }
+    .topic-item:hover {
+        background: rgba(255,255,255,0.08);
+    }
+    .topic-item.dragging {
+        opacity: 0.5;
+    }
+    .ai-panel {
+        background: rgba(203, 166, 247, 0.1);
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        border: 1px solid rgba(203, 166, 247, 0.3);
+    }
+    .suggestion-item {
+        background: rgba(255,255,255,0.05);
+        padding: 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .add-topic-select {
+        background: var(--surface-color);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+        padding: 0.5rem;
+        border-radius: 6px;
+        width: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-edit me-2"></i>Edit Book</h1>
+        <a href="{{ url_for('library.dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Library
+        </a>
+    </div>
+
+    <!-- Book Metadata -->
+    <div class="edit-header">
+        <h3 class="mb-3">Book Details</h3>
+        <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" id="bookTitle" class="form-control" value="{{ book.title }}" placeholder="Book title">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea id="bookDescription" class="form-control" rows="3" placeholder="Book description">{{ book.description }}</textarea>
+        </div>
+        <button class="btn btn-primary" onclick="updateMetadata()">
+            <i class="fas fa-save me-2"></i>Save Changes
+        </button>
+    </div>
+
+    <!-- AI Update Panel -->
+    <div class="ai-panel">
+        <h4 class="mb-3"><i class="fas fa-magic me-2"></i>AI-Powered Book Update</h4>
+        <p class="text-muted mb-3">Ask AI to suggest topics to add or remove based on your query.</p>
+        <div class="d-flex gap-2 mb-3">
+            <input type="text" id="aiQuery" class="form-control" placeholder="e.g., 'Add more advanced topics' or 'Focus on basics'">
+            <button class="btn btn-primary" onclick="getAISuggestions()">
+                <i class="fas fa-wand-magic-sparkles me-2"></i>Get Suggestions
+            </button>
+        </div>
+        <div id="aiSuggestions" style="display: none;">
+            <div id="suggestionsToAdd" class="mb-3"></div>
+            <div id="suggestionsToRemove"></div>
+        </div>
+    </div>
+
+    <!-- Topics Management -->
+    <div class="topics-section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>Topics in Book</h3>
+            <span class="badge bg-primary">{{ book.book_topics | length }} Topics</span>
+        </div>
+
+        <!-- Current Topics (Draggable) -->
+        <div id="topicsList" class="mb-4">
+            {% for bt in book.book_topics | sort(attribute='order_index') %}
+            <div class="topic-item" draggable="true" data-topic-id="{{ bt.topic_id }}">
+                <div>
+                    <i class="fas fa-grip-vertical me-2 text-muted"></i>
+                    <strong>{{ bt.topic.name }}</strong>
+                </div>
+                <button class="btn btn-sm btn-danger" onclick="removeTopic({{ bt.topic_id }})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            {% else %}
+            <p class="text-muted text-center">No topics in this book yet.</p>
+            {% endfor %}
+        </div>
+
+        <!-- Add Topic -->
+        <div>
+            <h4 class="mb-3">Add Topic</h4>
+            {% if user_topics %}
+            <div class="d-flex gap-2">
+                <select id="topicSelect" class="add-topic-select">
+                    <option value="">Select a topic to add...</option>
+                    {% for topic in user_topics %}
+                    <option value="{{ topic.id }}" {% if topic.id in book_topic_ids %}disabled{% endif %}>
+                        {{ topic.name }}{% if topic.id in book_topic_ids %} (already in book){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-success" onclick="addTopic()">
+                    <i class="fas fa-plus me-2"></i>Add
+                </button>
+            </div>
+            {% else %}
+            <p class="text-muted">You don't have any topics yet. Create topics first to add them to books.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    let draggedElement = null;
+
+    // Drag and Drop for reordering
+    document.addEventListener('DOMContentLoaded', () => {
+        const topicsList = document.getElementById('topicsList');
+
+        topicsList.addEventListener('dragstart', (e) => {
+            if (e.target.classList.contains('topic-item')) {
+                draggedElement = e.target;
+                e.target.classList.add('dragging');
+            }
+        });
+
+        topicsList.addEventListener('dragend', (e) => {
+            if (e.target.classList.contains('topic-item')) {
+                e.target.classList.remove('dragging');
+                saveOrder();
+            }
+        });
+
+        topicsList.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const afterElement = getDragAfterElement(topicsList, e.clientY);
+            if (afterElement == null) {
+                topicsList.appendChild(draggedElement);
+            } else {
+                topicsList.insertBefore(draggedElement, afterElement);
+            }
+        });
+    });
+
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.topic-item:not(.dragging)')];
+
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    async function saveOrder() {
+        const topicItems = document.querySelectorAll('.topic-item');
+        const topicIds = Array.from(topicItems).map(item => parseInt(item.dataset.topicId));
+
+        try {
+            const res = await fetch('/library/{{ book.id }}/reorder-topics', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ topic_ids: topicIds })
+            });
+
+            const data = await res.json();
+            if (!data.success) {
+                alert('Failed to reorder topics: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) {
+            console.error('Error reordering topics:', e);
+        }
+    }
+
+    async function updateMetadata() {
+        const title = document.getElementById('bookTitle').value.trim();
+        const description = document.getElementById('bookDescription').value.trim();
+
+        if (!title) {
+            alert('Title is required');
+            return;
+        }
+
+        try {
+            const res = await fetch('/library/{{ book.id }}/update-metadata', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ title, description })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                alert('Book updated successfully!');
+            } else {
+                alert('Failed to update book: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('Error updating book: ' + e.message);
+        }
+    }
+
+    async function addTopic() {
+        const select = document.getElementById('topicSelect');
+        const topicId = select.value;
+
+        if (!topicId) {
+            alert('Please select a topic');
+            return;
+        }
+
+        try {
+            const res = await fetch('/library/{{ book.id }}/add-topic', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ topic_id: parseInt(topicId) })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                location.reload(); // Reload to show updated list
+            } else {
+                alert('Failed to add topic: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('Error adding topic: ' + e.message);
+        }
+    }
+
+    async function removeTopic(topicId) {
+        if (!confirm('Remove this topic from the book?')) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/library/{{ book.id }}/remove-topic/${topicId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                }
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                location.reload(); // Reload to show updated list
+            } else {
+                alert('Failed to remove topic: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('Error removing topic: ' + e.message);
+        }
+    }
+
+    async function getAISuggestions() {
+        const query = document.getElementById('aiQuery').value.trim();
+
+        if (!query) {
+            alert('Please enter a query');
+            return;
+        }
+
+        const btn = event.target;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analyzing...';
+
+        try {
+            const res = await fetch('/library/{{ book.id }}/ai-update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ query })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                displaySuggestions(data.suggestions);
+            } else {
+                alert('Failed to get suggestions: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('Error getting suggestions: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles me-2"></i>Get Suggestions';
+        }
+    }
+
+    function displaySuggestions(suggestions) {
+        const container = document.getElementById('aiSuggestions');
+        const addDiv = document.getElementById('suggestionsToAdd');
+        const removeDiv = document.getElementById('suggestionsToRemove');
+
+        addDiv.innerHTML = '';
+        removeDiv.innerHTML = '';
+
+        // Store suggestions globally for apply all
+        window.currentSuggestions = suggestions;
+
+        // Show reasoning if available
+        if (suggestions.message) {
+            const reasoningDiv = document.createElement('div');
+            reasoningDiv.className = 'alert alert-info mb-3';
+            reasoningDiv.innerHTML = `<strong><i class="fas fa-lightbulb me-2"></i>AI Reasoning:</strong> ${suggestions.message}`;
+            addDiv.appendChild(reasoningDiv);
+        }
+
+        if (suggestions.add && suggestions.add.length > 0) {
+            const header = document.createElement('h5');
+            header.className = 'text-success mb-2';
+            header.innerHTML = '<i class="fas fa-plus-circle me-2"></i>Suggested to Add:';
+            addDiv.appendChild(header);
+
+            suggestions.add.forEach(topic => {
+                const item = document.createElement('div');
+                item.className = 'suggestion-item';
+                item.innerHTML = `
+                    <span>${topic.name}</span>
+                    <button class="btn btn-sm btn-success" onclick="addTopicById(${topic.id})">
+                        <i class="fas fa-plus"></i> Add
+                    </button>
+                `;
+                addDiv.appendChild(item);
+            });
+        }
+
+        if (suggestions.remove && suggestions.remove.length > 0) {
+            const header = document.createElement('h5');
+            header.className = 'text-warning mb-2 mt-3';
+            header.innerHTML = '<i class="fas fa-minus-circle me-2"></i>Suggested to Remove:';
+            removeDiv.appendChild(header);
+
+            suggestions.remove.forEach(topic => {
+                const item = document.createElement('div');
+                item.className = 'suggestion-item';
+                item.innerHTML = `
+                    <span>${topic.name}</span>
+                    <button class="btn btn-sm btn-warning" onclick="removeTopic(${topic.id})">
+                        <i class="fas fa-minus"></i> Remove
+                    </button>
+                `;
+                removeDiv.appendChild(item);
+            });
+        }
+
+        if (suggestions.add.length === 0 && suggestions.remove.length === 0) {
+            // No changes suggested
+            const noChangesDiv = document.createElement('div');
+            noChangesDiv.className = 'alert alert-success';
+            noChangesDiv.innerHTML = '<i class="fas fa-check-circle me-2"></i>No changes suggested. Your book looks good!';
+            addDiv.appendChild(noChangesDiv);
+        } else {
+            // Add "Apply All Changes" button
+            const applyAllDiv = document.createElement('div');
+            applyAllDiv.className = 'mt-4 text-center';
+            applyAllDiv.innerHTML = `
+                <button class="btn btn-primary btn-lg" onclick="applyAllSuggestions()">
+                    <i class="fas fa-check-circle me-2"></i>Apply All Changes (${suggestions.add.length} to add, ${suggestions.remove.length} to remove)
+                </button>
+            `;
+            removeDiv.appendChild(applyAllDiv);
+        }
+
+        container.style.display = 'block';
+    }
+
+    async function applyAllSuggestions() {
+        if (!window.currentSuggestions) {
+            alert('No suggestions to apply');
+            return;
+        }
+
+        const addIds = window.currentSuggestions.add.map(t => t.id);
+        const removeIds = window.currentSuggestions.remove.map(t => t.id);
+
+        const totalChanges = addIds.length + removeIds.length;
+        if (!confirm(`Apply all ${totalChanges} suggested changes?\n\n${addIds.length} topics will be added\n${removeIds.length} topics will be removed`)) {
+            return;
+        }
+
+        const btn = event.target;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Applying changes...';
+
+        try {
+            const res = await fetch('/library/{{ book.id }}/apply-ai-suggestions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ add: addIds, remove: removeIds })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Failed to apply changes: ' + (data.error || 'Unknown error'));
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Apply All Changes';
+            }
+        } catch (e) {
+            alert('Error applying changes: ' + e.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Apply All Changes';
+        }
+    }
+
+    async function addTopicById(topicId) {
+        try {
+            const res = await fetch('/library/{{ book.id }}/add-topic', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ topic_id: topicId })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to add topic: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('Error adding topic: ' + e.message);
+        }
+    }
+</script>
+{% endblock %}

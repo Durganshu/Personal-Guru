@@ -298,9 +298,14 @@
             <div class="book-card" onclick="openBookWithLoader({{ book.id }}, this)">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <h3 style="flex: 1; margin: 0;">{{ book.title }}</h3>
-                    <button class="btn btn-sm btn-danger" onclick="deleteBook({{ book.id }}, event)" title="Delete book" style="padding: 0.25rem 0.5rem;">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                    <div class="d-flex gap-1">
+                        <a href="{{ url_for('library.edit_book', book_id=book.id) }}" class="btn btn-sm btn-warning" onclick="event.stopPropagation()" title="Edit book" style="padding: 0.25rem 0.5rem;">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button class="btn btn-sm btn-danger" onclick="deleteBook({{ book.id }}, event)" title="Delete book" style="padding: 0.25rem 0.5rem;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </div>
                 <p>{{ book.description | truncate(100) }}</p>
                 <div class="d-flex justify-content-between align-items-center mt-3">

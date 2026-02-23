@@ -553,6 +553,12 @@
                     <button id="toggleNotesBtn" class="btn btn-sm btn-outline-secondary" onclick="toggleNotes()">
                         <i class="fas fa-book me-2"></i> Hide Notes
                     </button>
+
+                    {% if book.user_id == current_user.userid %}
+                    <a href="{{ url_for('library.edit_book', book_id=book.id) }}" class="btn btn-sm btn-outline-warning">
+                        <i class="fas fa-edit me-2"></i> Edit Book
+                    </a>
+                    {% endif %}
                 </div>
 
                 <div class="toolbar">

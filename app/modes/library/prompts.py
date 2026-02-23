@@ -1,0 +1,38 @@
+def get_book_update_prompt(book_title, book_description, current_topics, all_topics, user_query):
+    """Generate the prompt for AI-powered book update suggestions."""
+
+    current_topics_text = "\n".join(f"- {name}" for name in current_topics) if current_topics else "- (empty book)"
+    all_topics_text = "\n".join(f"- {name}" for name in all_topics)
+
+    return f"""You are a book curator helping to organize a knowledge book.
+
+Current Book: "{book_title}"
+Description: {book_description or "No description"}
+
+Current Topics in Book:
+{current_topics_text}
+
+All Available Topics:
+{all_topics_text}
+
+User Request: "{user_query}"
+
+Based on the user's request, suggest which topics should be added to or removed from the book.
+
+IMPORTANT GUIDELINES:
+1. Try to honor the user's request as much as possible
+2. If the user asks to add topics, look for the BEST AVAILABLE options even if not perfect
+3. Consider relevance to the book's theme, but be flexible
+4. Consider logical flow and organization
+5. Avoid redundancy with existing topics
+6. If truly no suitable topics exist, explain why in the reasoning
+
+Respond in JSON format:
+{{
+    "add": ["topic1", "topic2"],
+    "remove": ["topic3"],
+    "reasoning": "Brief explanation of your suggestions"
+}}
+
+CRITICAL: Only suggest topics from the "All Available Topics" list above. Use the EXACT topic names.
+If no changes are appropriate, return empty arrays for add and remove, but provide helpful reasoning."""
