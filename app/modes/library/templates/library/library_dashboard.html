@@ -640,6 +640,31 @@
             placeholder.innerHTML = '<i class="fas fa-image"></i><span>Click to retry cover</span><small style="font-size:0.7rem;color:#f38ba8;">Network error</small>';
         }
     }
+    // Reset loaders and interactive states when navigating back to this page (e.g. via browser back button)
+    window.addEventListener('pageshow', function(event) {
+        // Reset 3D flip loaders
+        document.querySelectorAll('.book-card.generating, .flip-card.generating').forEach(el => {
+            el.classList.remove('generating');
+            el.style.opacity = '1';
+            el.style.pointerEvents = 'auto';
+            const progressDiv = el.querySelector('.generation-progress');
+            if (progressDiv) progressDiv.style.display = 'none';
+        });
+
+        // Reset cover retry placeholders
+        document.querySelectorAll('.mini-placeholder.retrying').forEach(el => {
+            el.classList.remove('retrying');
+            el.innerHTML = '<i class="fas fa-image"></i><span>Generate cover</span>';
+        });
+
+        // Reset manual generation buttons
+        document.querySelectorAll('.book-card button').forEach(btn => {
+            if (btn.innerText.includes('Publishing')) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-play"></i> Generate Content';
+            }
+        });
+    });
 </script>
 {% endblock %}
 
