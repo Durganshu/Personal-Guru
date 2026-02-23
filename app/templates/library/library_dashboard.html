@@ -26,10 +26,31 @@
         padding: 1.5rem;
         transition: transform 0.2s;
         cursor: pointer;
+        position: relative;
     }
     .book-card:hover {
         transform: translateY(-5px);
         border-color: var(--primary-color, #cba6f7);
+    }
+    .book-card.generating {
+        border-color: #667eea;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    }
+    .generation-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        animation: pulse-badge 2s infinite;
+    }
+    @keyframes pulse-badge {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
     }
     .search-bar {
         width: 100%;
@@ -295,6 +316,16 @@
         </div>
         <div class="grid-container" id="my-books-grid">
             {% for book in my_books %}
+            {% if book.id in book_progress %}
+            <!-- Book is generating - show enhanced progress -->
+            <div class="book-card generating">
+                <span class="generation-badge">
+                    <i class="fas fa-spinner fa-spin"></i> Publishing
+                </span>
+                {% include '_book_generation_progress.html' %}
+            </div>
+            {% else %}
+            <!-- Normal book card -->
             <div class="book-card" onclick="openBookWithLoader({{ book.id }}, this)">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <h3 style="flex: 1; margin: 0;">{{ book.title }}</h3>
@@ -315,6 +346,7 @@
                     </span>
                 </div>
             </div>
+            {% endif %}
             {% else %}
             <p class="text-center w-100">You don't have any books yet. Try curating or generating one!</p>
             {% endfor %}

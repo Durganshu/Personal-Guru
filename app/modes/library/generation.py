@@ -21,15 +21,15 @@ def start_book_generation(book_id, user_id, user_background):
     # Create or get progress record
     progress = BookGenerationProgress.query.filter_by(book_id=book_id).first()
 
+    book = Book.query.get(book_id)
+    if not book:
+        logger.error(f"Book {book_id} not found")
+        return False
+
+    total_topics = len(book.book_topics)
+
     if not progress:
-        # Count total chapters needed
-        book = Book.query.get(book_id)
-        if not book:
-            logger.error(f"Book {book_id} not found")
-            return False
-
-        total_topics = len(book.book_topics)
-
+        # Create new progress record
         progress = BookGenerationProgress(
             book_id=book_id,
             user_id=user_id,
@@ -43,11 +43,21 @@ def start_book_generation(book_id, user_id, user_background):
         )
         db.session.add(progress)
         db.session.commit()
+    else:
+        # Update existing progress record
+        if progress.status == 'generating':
+            logger.info(f"Book {book_id} is already generating")
+            return True
 
-    # Check if already generating
-    if progress.status == 'generating':
-        logger.info(f"Book {book_id} is already generating")
-        return True
+        # Reset progress for retry
+        progress.status = 'pending'
+        progress.total_topics = total_topics
+        progress.current_topic_index = 0
+        progress.error_message = None
+        progress.current_message = 'Restarting generation...'
+        progress.started_at = datetime.datetime.utcnow()
+        progress.completed_at = None
+        db.session.commit()
 
     # Start background thread
     app_context = current_app._get_current_object().app_context()
@@ -122,15 +132,20 @@ def generate_book_content_background(app_context, book_id, user_id, user_backgro
                     try:
                         plan_steps = planner.generate_study_plan(topic.name, user_background)
 
-                        # Save plan
-                        from app.common.storage import load_topic, save_topic
-                        topic_data = load_topic(topic.name) or {"name": topic.name}
-                        topic_data['plan'] = plan_steps
-                        topic_data['chapter_mode'] = [
-                            {'title': step_title, 'step_index': i}
-                            for i, step_title in enumerate(plan_steps)
-                        ]
-                        save_topic(topic.name, topic_data)
+                        # Save plan directly to database (bypass storage.py which needs current_user)
+                        topic.study_plan = plan_steps
+
+                        # Create chapter records
+                        for i, step_title in enumerate(plan_steps):
+                            chapter = ChapterMode(
+                                user_id=user_id,
+                                topic_id=topic.id,
+                                step_index=i,
+                                title=step_title
+                            )
+                            db.session.add(chapter)
+
+                        db.session.commit()
 
                         # Update total chapters count
                         actual_chapters = len(plan_steps)
@@ -146,7 +161,6 @@ def generate_book_content_background(app_context, book_id, user_id, user_backgro
                         continue
 
                 # Generate content for each chapter
-                topic_data = None
                 for ch_idx, chapter in enumerate(chapters):
                     if chapter.content:
                         # Already has content, skip
@@ -158,12 +172,9 @@ def generate_book_content_background(app_context, book_id, user_id, user_backgro
                     db.session.commit()
 
                     try:
-                        if not topic_data:
-                            from app.common.storage import load_topic
-                            topic_data = load_topic(topic.name)
-
-                        plan_steps = topic_data.get('plan', [])
-                        step_title = plan_steps[chapter.step_index] if chapter.step_index < len(plan_steps) else "Chapter Content"
+                        # Get plan steps from topic
+                        plan_steps = topic.study_plan if topic.study_plan else []
+                        step_title = plan_steps[chapter.step_index] if chapter.step_index < len(plan_steps) else chapter.title or "Chapter Content"
 
                         # Generate teaching material
                         material = teacher.generate_teaching_material(
@@ -173,12 +184,7 @@ def generate_book_content_background(app_context, book_id, user_id, user_backgro
                             None
                         )
 
-                        # Save to storage
-                        topic_data['chapter_mode'][chapter.step_index]['teaching_material'] = material
-                        from app.common.storage import save_topic
-                        save_topic(topic.name, topic_data)
-
-                        # Save to database
+                        # Save to database directly
                         chapter.content = material
                         progress.completed_chapters += 1
                         db.session.commit()
@@ -212,30 +218,46 @@ def get_generation_progress(book_id):
     """
     progress = BookGenerationProgress.query.filter_by(book_id=book_id).first()
 
-    if not progress:
-        # Check if book needs generation
-        book = Book.query.get(book_id)
-        if not book:
-            return {'status': 'error', 'message': 'Book not found'}
+    # Check if book actually needs generation
+    book = Book.query.get(book_id)
+    if not book:
+        return {'status': 'error', 'message': 'Book not found'}
 
-        # Check if any chapters are missing content
-        needs_generation = False
-        for bt in book.book_topics:
-            chapters = ChapterMode.query.filter_by(topic_id=bt.topic.id).all()
-            if not chapters:
+    needs_generation = False
+    for bt in book.book_topics:
+        chapters = ChapterMode.query.filter_by(topic_id=bt.topic.id).all()
+        if not chapters:
+            needs_generation = True
+            break
+        for ch in chapters:
+            if not ch.content:
                 needs_generation = True
                 break
-            for ch in chapters:
-                if not ch.content:
-                    needs_generation = True
-                    break
-            if needs_generation:
-                break
-
         if needs_generation:
-            return {'status': 'pending', 'message': 'Ready to generate'}
+            break
+
+    # If no progress record exists
+    if not progress:
+        if needs_generation:
+            return {'status': 'pending', 'message': 'Ready to generate', 'book_id': book_id}
         else:
-            return {'status': 'completed', 'message': 'Already generated'}
+            return {'status': 'completed', 'message': 'Already generated', 'book_id': book_id}
+
+    # If progress exists but marked completed, but actually needs generation
+    # (e.g., user added new topics to the book)
+    if progress.status == 'completed' and needs_generation:
+        # Reset progress to pending
+        progress.status = 'pending'
+        progress.current_message = 'Additional content needed'
+        db.session.commit()
+
+    # If progress exists but marked error, and still needs generation
+    if progress.status == 'error' and needs_generation:
+        # Allow retry by resetting to pending
+        progress.status = 'pending'
+        progress.error_message = None
+        progress.current_message = 'Ready to retry generation'
+        db.session.commit()
 
     return progress.to_dict()
 
