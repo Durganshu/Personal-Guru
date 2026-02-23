@@ -558,8 +558,14 @@
             const data = await res.json();
             if (data.success) {
                 // Remove the card from the UI
-                const card = event.target.closest('.book-card') || event.target.closest('.flip-card');
-                if (card) card.remove();
+                const card = document.getElementById('book-card-' + bookId) ||
+                             document.getElementById('book-card-shared-' + bookId) ||
+                             event.target.closest('.book-card') ||
+                             event.target.closest('.flip-card');
+                if (card) {
+                    card.style.opacity = '0';
+                    setTimeout(() => card.remove(), 300);
+                }
             } else {
                 alert('Failed to delete book: ' + (data.error || 'Unknown error'));
             }
@@ -754,7 +760,7 @@
                                 <a href="{{ url_for('library.edit_book', book_id=book.id) }}" class="btn btn-sm btn-warning" onclick="event.stopPropagation()">
                                     <i class="fas fa-edit"></i> Edit
                                 </a>
-                                <button class="btn btn-sm btn-danger" onclick="deleteBook({{ book.id }}, event)">
+                                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteBook({{ book.id }}, event)">
                                     <i class="fas fa-trash"></i> Delete
                                 </button>
                             </div>
