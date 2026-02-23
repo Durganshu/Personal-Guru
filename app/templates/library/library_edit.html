@@ -100,6 +100,12 @@
                 <i class="fas fa-wand-magic-sparkles me-2"></i>Get Suggestions
             </button>
         </div>
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="updateDescriptionCheckbox" checked>
+            <label class="form-check-label" for="updateDescriptionCheckbox">
+                Update book description automatically based on new topics
+            </label>
+        </div>
         <div id="aiSuggestions" style="display: none;">
             <div id="suggestionsToAdd" class="mb-3"></div>
             <div id="suggestionsToRemove"></div>
@@ -436,9 +442,10 @@
 
         const addIds = window.currentSuggestions.add.map(t => t.id);
         const removeIds = window.currentSuggestions.remove.map(t => t.id);
+        const updateDescription = document.getElementById('updateDescriptionCheckbox').checked;
 
         const totalChanges = addIds.length + removeIds.length;
-        if (!confirm(`Apply all ${totalChanges} suggested changes?\n\n${addIds.length} topics will be added\n${removeIds.length} topics will be removed`)) {
+        if (!confirm(`Apply all ${totalChanges} suggested changes?\n\n${addIds.length} topics will be added\n${removeIds.length} topics will be removed${updateDescription ? '\n\nBook description will be updated automatically.' : ''}`)) {
             return;
         }
 
@@ -454,7 +461,11 @@
                     'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({ add: addIds, remove: removeIds })
+                body: JSON.stringify({
+                    add: addIds,
+                    remove: removeIds,
+                    update_description: updateDescription
+                })
             });
 
             const data = await res.json();

@@ -36,3 +36,24 @@ Respond in JSON format:
 
 CRITICAL: Only suggest topics from the "All Available Topics" list above. Use the EXACT topic names.
 If no changes are appropriate, return empty arrays for add and remove, but provide helpful reasoning."""
+
+
+
+def get_book_description_prompt(book_title, topic_names):
+    """Generate the prompt for creating a book description based on topics."""
+
+    topics_text = "\n".join(f"- {name}" for name in topic_names)
+
+    return f"""You are a book curator writing a concise description for a knowledge book.
+
+Book Title: "{book_title}"
+
+Topics in this Book:
+{topics_text}
+
+Write a brief, engaging description (2-3 sentences) that:
+1. Summarizes what the book covers
+2. Highlights the key themes or learning areas
+3. Is clear and informative
+
+Respond with ONLY the description text, no JSON, no extra formatting."""

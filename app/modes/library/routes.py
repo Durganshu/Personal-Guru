@@ -625,6 +625,7 @@ def apply_ai_suggestions(book_id):
     data = request.json
     topics_to_add = data.get('add', [])  # List of topic IDs
     topics_to_remove = data.get('remove', [])  # List of topic IDs
+    update_description = data.get('update_description', False)
 
     try:
         # Get current book topics
@@ -658,11 +659,29 @@ def apply_ai_suggestions(book_id):
         for idx, topic in enumerate(remaining_topics):
             topic.order_index = idx
 
+        # Update description if requested
+        if update_description and (topics_to_add or topics_to_remove):
+            from app.common.utils import call_llm
+            from app.modes.library.prompts import get_book_description_prompt
+
+            # Get updated topic list
+            updated_topics = [bt.topic for bt in remaining_topics]
+            topic_names = [t.name for t in updated_topics]
+
+            if topic_names:
+                prompt = get_book_description_prompt(book.title, topic_names)
+                new_description = call_llm(prompt, is_json=False)
+                book.description = new_description.strip()
+
         db.session.commit()
+
+        message = f"Applied changes: {len(topics_to_add)} added, {len(topics_to_remove)} removed"
+        if update_description and (topics_to_add or topics_to_remove):
+            message += ". Book description updated."
 
         return jsonify({
             "success": True,
-            "message": f"Applied changes: {len(topics_to_add)} added, {len(topics_to_remove)} removed"
+            "message": message
         })
     except Exception as e:
         db.session.rollback()
