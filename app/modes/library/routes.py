@@ -443,7 +443,8 @@ def retry_cover(book_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@library_bp.route('/<int:book_id>/cover')
+`@library_bp.route`('/<int:book_id>/cover')
+`@login_required`
 def serve_cover(book_id):
     """Serves the book cover image file."""
     import os
