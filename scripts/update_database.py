@@ -116,7 +116,7 @@ def update_database():
                     db.session.commit()
                     logger.info("      -> Added successfully.")
             except Exception as e:
-                logger.error(f"      -> FAILED to add notes_shared column: {e}")
+                logger.exception("      -> FAILED to add notes_shared column")
                 db.session.rollback()
 
             logger.info("SQLite mode: Basic updates complete. Skipping advanced schema inspections (Postgres-specific).")

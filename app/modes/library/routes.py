@@ -209,17 +209,7 @@ def create_from_suggestion():
 
 
 
-# Global dictionary to track generation progress for books - DEPRECATED
-# Now using BookGenerationProgress model in database for persistent tracking
-active_generations = {}
 
-def generate_book_background(app_context, book_id, user_background, user_id):
-    """Background task to generate all content for a book - DEPRECATED, use generation.py"""
-    # This function is kept for backwards compatibility but should not be used
-    # Use app.modes.library.agent.generate_book_content_background instead
-    logger.warning(f"Using deprecated generate_book_background for book {book_id}")
-    from app.modes.library.agent import generate_book_content_background
-    generate_book_content_background(app_context, book_id, user_id, user_background)
 
 @library_bp.route('/<int:book_id>/progress')
 @login_required

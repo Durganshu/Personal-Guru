@@ -289,6 +289,10 @@
     async function pollProgress() {
         try {
             const res = await fetch(`/library/${bookId}/progress`);
+            if (!res.ok) {
+                console.error('Progress poll failed:', res.status);
+                return;
+            }
             const data = await res.json();
             updateProgress(data);
 

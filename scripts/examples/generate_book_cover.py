@@ -135,7 +135,7 @@ def generate_book_cover(book_title, book_description, workflow_json):
 # --- RUNNING THE CODE ---
 if __name__ == "__main__":
     # Load your JSON from the file
-    with open("scripts/example_workflow.json", "r") as f:
+    with open("scripts/example_workflow.json") as f:
         raw_workflow = json.load(f)
 
     book_name = "Echoes of Empire"
