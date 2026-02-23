@@ -133,12 +133,12 @@ def generate_book_cover(book_title, book_description, workflow_json):
     ws.close()
 
 # --- RUNNING THE CODE ---
+if __name__ == "__main__":
+    # Load your JSON from the file
+    with open("scripts/example_workflow.json", "r") as f:
+        raw_workflow = json.load(f)
 
-# Load your JSON from the file
-with open("scripts/example_workflow.json", "r") as f:
-    raw_workflow = json.load(f)
+    book_name = "Echoes of Empire"
+    book_desc = "A journey through India's pre-1800 history, ancient civilizations, and Mughal palaces."
 
-book_name = "Echoes of Empire"
-book_desc = "A journey through India's pre-1800 history, ancient civilizations, and Mughal palaces."
-
-generate_book_cover(book_name, book_desc, raw_workflow)
+    generate_book_cover(book_name, book_desc, raw_workflow)
