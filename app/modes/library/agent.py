@@ -402,23 +402,26 @@ def _generate_book_cover(book):
     from app.common.book_cover import BookCoverService
     service = BookCoverService(server_address, workflow_path)
 
-    # Build output path: data/book_cover/cover_<book_id>.png
-    cover_dir = os.path.join(os.getcwd(), 'data', 'book_cover')
-    os.makedirs(cover_dir, exist_ok=True)
+    # Build output path relative to project root
+    # We use a relative path for the DB to ensure portability between local and Docker
+    rel_cover_dir = os.path.join('data', 'book_cover')
+    abs_cover_dir = os.path.join(os.getcwd(), rel_cover_dir)
+    os.makedirs(abs_cover_dir, exist_ok=True)
 
     filename = werkzeug.utils.secure_filename(f"cover_{book.id}.png")
-    output_path = os.path.join(cover_dir, filename)
+    abs_output_path = os.path.join(abs_cover_dir, filename)
+    rel_output_path = os.path.join(rel_cover_dir, filename)
 
     success, error_msg = service.generate_cover(
         book.title,
         book.description or '',
-        output_path
+        abs_output_path
     )
 
     if success:
-        book.cover_path = output_path
+        book.cover_path = rel_output_path
         db.session.commit()
-        logger.info(f"Book cover saved for book {book.id}: {output_path}")
+        logger.info(f"Book cover saved for book {book.id}: {rel_output_path}")
     else:
         logger.warning(f"Book cover generation failed for book {book.id}: {error_msg}")
 

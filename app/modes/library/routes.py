@@ -446,10 +446,29 @@ def serve_cover(book_id):
     if book.user_id != current_user.userid and not book.is_shared:
         return "Unauthorized", 403
 
-    if not book.cover_path or not os.path.exists(book.cover_path):
-        return "Cover not found", 404
+    if not book.cover_path:
+        return "Cover not set", 404
 
-    return send_file(book.cover_path, mimetype='image/png')
+    # Resolve path: handle relative paths and legacy absolute paths
+    target_path = book.cover_path
+
+    # If it's absolute but doesn't exist (likely from a different environment like host vs docker)
+    # try to see if the filename exists in our local data directory
+    if os.path.isabs(target_path) and not os.path.exists(target_path):
+        filename = os.path.basename(target_path)
+        fallback_path = os.path.join(os.getcwd(), 'data', 'book_cover', filename)
+        if os.path.exists(fallback_path):
+            target_path = fallback_path
+
+    # If it's relative, make it absolute based on current directory
+    if not os.path.isabs(target_path):
+        target_path = os.path.join(os.getcwd(), target_path)
+
+    if not os.path.exists(target_path):
+        logger.warning(f"Cover file not found at: {target_path} (Original DB path: {book.cover_path})")
+        return "Cover file not found", 404
+
+    return send_file(target_path, mimetype='image/png')
 
 
 @library_bp.route('/<int:book_id>/edit', methods=['GET'])
