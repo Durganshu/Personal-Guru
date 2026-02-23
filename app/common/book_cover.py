@@ -73,13 +73,16 @@ class BookCoverService:
             # Skip non-functional nodes
             if class_type == "MarkdownNote":
                 continue
+            # WORKFLOW_DEPENDENCY: Node 45 is the positive prompt node in the
+            # default workflow (scripts/example_workflow.json). If using a
+            # different workflow, this may need adjustment.
+            POSITIVE_PROMPT_NODE_ID = 45
 
             # Map widgets_values to inputs based on node type
             if class_type == "CLIPTextEncode":
-                # Node 45 is the positive prompt node in the workflow
                 inputs["text"] = (
                     refined_prompt
-                    if node["id"] == 45
+                    if node["id"] == POSITIVE_PROMPT_NODE_ID
                     else node.get("widgets_values", [""])[0]
                 )
             elif class_type == "CLIPLoader":
