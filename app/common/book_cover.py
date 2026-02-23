@@ -94,8 +94,10 @@ class BookCoverService:
             elif class_type == "ModelSamplingAuraFlow":
                 inputs["shift"] = node["widgets_values"][0]
             elif class_type == "EmptySD3LatentImage":
-                inputs["width"] = node["widgets_values"][0]
-                inputs["height"] = node["widgets_values"][1]
+                # User requested 278:398 aspect ratio.
+                # Scaling up to 834x1194 for quality.
+                inputs["width"] = 834
+                inputs["height"] = 1194
                 inputs["batch_size"] = node["widgets_values"][2]
             elif class_type == "KSampler":
                 inputs["seed"] = random.randint(1, 2**53)
