@@ -43,7 +43,7 @@ class BookCoverService:
 
     def _load_workflow(self):
         """Load the ComfyUI workflow JSON from file."""
-        with open(self.workflow_path, "r") as f:
+        with open(self.workflow_path) as f:
             return json.load(f)
 
     def _build_prompt_api(self, workflow_json, refined_prompt):
