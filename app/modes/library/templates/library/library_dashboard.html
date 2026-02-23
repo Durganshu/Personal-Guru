@@ -78,11 +78,33 @@
         -webkit-backface-visibility: hidden;
         border-radius: 12px;
         overflow: hidden;
+        transition: opacity 0.3s;
     }
     .flip-card-front {
-        background: #000; /* Dark background behind covers */
+        background: #000;
         border: 1px solid var(--border-color, #313244);
         box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        z-index: 2;
+    }
+    /* When flipped, hide front from pointer events */
+    .flip-card.flipped .flip-card-front {
+        pointer-events: none;
+    }
+    .flip-card-back {
+        background: var(--surface-color, #1e1e2e);
+        border: 1px solid var(--primary-color, #cba6f7);
+        transform: rotateY(180deg);
+        display: flex;
+        flex-direction: column;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        z-index: 1;
+        pointer-events: none; /* Hidden by default */
+    }
+    /* When flipped, enable pointer events on back */
+    .flip-card.flipped .flip-card-back {
+        pointer-events: auto;
+        z-index: 3;
     }
     .flip-card-front .cover-img {
         width: 100%;
@@ -111,7 +133,7 @@
         transition: opacity 0.3s ease;
         z-index: 5;
     }
-    .flip-card:hover .cover-title {
+    .flip-card:not(.flipped):hover .cover-title {
         opacity: 1;
     }
     .flip-hint {
@@ -128,7 +150,7 @@
         z-index: 10;
         border: 1px solid rgba(203, 166, 247, 0.3);
     }
-    .flip-card:hover .flip-hint {
+    .flip-card:not(.flipped):hover .flip-hint {
         opacity: 1;
     }
     .flip-card-back {
@@ -149,6 +171,7 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
         white-space: normal;
+        transform: translateZ(10px); /* Pop to front */
     }
     .flip-card-back .book-desc {
         flex: 1;
@@ -157,12 +180,14 @@
         overflow-y: auto;
         margin-bottom: 1rem;
         line-height: 1.5;
+        transform: translateZ(10px); /* Pop to front */
     }
     .flip-card-back .card-actions {
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
         margin-top: auto;
+        transform: translateZ(20px); /* Buttons on top layer */
     }
     .flip-card-back .card-actions .btn {
         width: 100%;
@@ -333,7 +358,11 @@
         });
     }
 
-    function flipCard(el) {
+    function flipCard(el, event) {
+        // Don't flip if clicking a button or link
+        if (event && (event.target.closest('button') || event.target.closest('a') || event.target.closest('.card-actions'))) {
+            return;
+        }
         el.classList.toggle('flipped');
     }
 
@@ -673,16 +702,16 @@
 
             {% elif book.cover_path %}
             <!-- === FLIP CARD: has cover === -->
-            <div class="flip-card" onclick="flipCard(this)">
+            <div class="flip-card" id="book-card-{{ book.id }}">
                 <div class="flip-card-inner">
                     <!-- FRONT: Cover + Title -->
-                    <div class="flip-card-front">
+                    <div class="flip-card-front" onclick="flipCard(this.closest('.flip-card'), event)">
                         <span class="flip-hint"><i class="fas fa-sync-alt"></i> Tap to flip</span>
                         <img src="{{ url_for('library.serve_cover', book_id=book.id) }}" alt="{{ book.title }}" class="cover-img">
                         <div class="cover-title">{{ book.title }}</div>
                     </div>
                     <!-- BACK: Details + Actions -->
-                    <div class="flip-card-back">
+                    <div class="flip-card-back" onclick="flipCard(this.closest('.flip-card'), event)">
                         <h3>{{ book.title }}</h3>
                         <div class="book-desc">{{ book.description | truncate(200) }}</div>
                         <div class="card-actions">
@@ -726,7 +755,7 @@
                     </div>
                 </div>
                 <div class="flat-actions">
-                    <button class="btn btn-sm btn-primary" onclick="openBookWithLoader({{ book.id }}, this.closest('.book-card'))"><i class="fas fa-book-open"></i> Read</button>
+                    <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); openBookWithLoader({{ book.id }}, this.closest('.book-card'))"><i class="fas fa-book-open"></i> Read</button>
                     <a href="{{ url_for('library.edit_book', book_id=book.id) }}" class="btn btn-sm btn-warning" onclick="event.stopPropagation()"><i class="fas fa-edit"></i> Edit</a>
                     <button class="btn btn-sm btn-danger" onclick="deleteBook({{ book.id }}, event)"><i class="fas fa-trash"></i> Delete</button>
                 </div>
@@ -767,14 +796,14 @@
             {% for book in shared_books %}
             {% if book.cover_path %}
             <!-- Shared flip card -->
-            <div class="flip-card" onclick="flipCard(this)">
+            <div class="flip-card" id="book-card-shared-{{ book.id }}">
                 <div class="flip-card-inner">
-                    <div class="flip-card-front">
+                    <div class="flip-card-front" onclick="flipCard(this.closest('.flip-card'), event)">
                         <span class="flip-hint"><i class="fas fa-sync-alt"></i> Tap to flip</span>
                         <img src="{{ url_for('library.serve_cover', book_id=book.id) }}" alt="{{ book.title }}" class="cover-img">
                         <div class="cover-title">{{ book.title }}</div>
                     </div>
-                    <div class="flip-card-back">
+                    <div class="flip-card-back" onclick="flipCard(this.closest('.flip-card'), event)">
                         <h3>{{ book.title }}</h3>
                         <div class="book-desc">{{ book.description | truncate(200) }}</div>
                         <div class="card-actions">
