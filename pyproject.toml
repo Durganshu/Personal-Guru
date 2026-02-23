@@ -28,6 +28,7 @@ dependencies = [
     "setuptools",
     "bleach>=6.0.0",
     "scikit-learn>=1.0.0",
+    "websocket-client",
 ]
 
 [project.optional-dependencies]

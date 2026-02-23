@@ -231,6 +231,15 @@ def generate_book_content_background(app_context, book_id, user_id, user_backgro
                     break
 
             if final_check_complete:
+                # Attempt book cover generation before marking complete
+                progress.current_message = 'Generating book cover...'
+                db.session.commit()
+
+                try:
+                    _generate_book_cover(book)
+                except Exception as cover_err:
+                    logger.warning(f"Book cover generation failed for {book_id} (non-fatal): {cover_err}")
+
                 # Mark as completed
                 progress.status = 'completed'
                 progress.current_message = 'Generation complete!'
@@ -371,6 +380,47 @@ def get_all_active_generations(user_id):
     ).all()
 
     return [p.to_dict() for p in active_progress]
+
+
+
+def _generate_book_cover(book):
+    """
+    Attempt to generate a book cover image using ComfyUI.
+    Saves to data/book_cover/cover_<book_id>.png and updates book.cover_path.
+    """
+    import os
+    import werkzeug.utils
+    from flask import current_app
+
+    server_address = current_app.config.get('COMFYUI_SERVER_ADDRESS', 'localhost:8188')
+    workflow_path = current_app.config.get('COMFYUI_WORKFLOW_PATH')
+
+    if not workflow_path or not os.path.exists(workflow_path):
+        logger.warning(f"ComfyUI workflow not found at {workflow_path}, skipping cover generation")
+        return
+
+    from app.common.book_cover import BookCoverService
+    service = BookCoverService(server_address, workflow_path)
+
+    # Build output path: data/book_cover/cover_<book_id>.png
+    cover_dir = os.path.join(os.getcwd(), 'data', 'book_cover')
+    os.makedirs(cover_dir, exist_ok=True)
+
+    filename = werkzeug.utils.secure_filename(f"cover_{book.id}.png")
+    output_path = os.path.join(cover_dir, filename)
+
+    success, error_msg = service.generate_cover(
+        book.title,
+        book.description or '',
+        output_path
+    )
+
+    if success:
+        book.cover_path = output_path
+        db.session.commit()
+        logger.info(f"Book cover saved for book {book.id}: {output_path}")
+    else:
+        logger.warning(f"Book cover generation failed for book {book.id}: {error_msg}")
 
 
 class LibrarianAgent:

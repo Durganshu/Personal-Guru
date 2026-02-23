@@ -406,6 +406,50 @@ def delete_book(book_id):
         return jsonify({"error": str(e)}), 500
 
 
+@library_bp.route('/<int:book_id>/retry_cover', methods=['POST'])
+@login_required
+def retry_cover(book_id):
+    """Retries book cover generation for a book."""
+    book = Book.query.get_or_404(book_id)
+
+    # Allow owner or shared book viewers to trigger retry
+    if book.user_id != current_user.userid:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    try:
+        from app.modes.library.agent import _generate_book_cover
+        _generate_book_cover(book)
+
+        if book.cover_path:
+            return jsonify({
+                "success": True,
+                "cover_url": url_for('library.serve_cover', book_id=book.id)
+            })
+        else:
+            return jsonify({"success": False, "error": "Cover generation failed. Is ComfyUI running?"}), 500
+    except Exception as e:
+        logger.error(f"Cover retry failed for book {book_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@library_bp.route('/<int:book_id>/cover')
+def serve_cover(book_id):
+    """Serves the book cover image file."""
+    import os
+    from flask import send_file
+
+    book = Book.query.get_or_404(book_id)
+
+    # Allow access if owner or if book is shared
+    if book.user_id != current_user.userid and not book.is_shared:
+        return "Unauthorized", 403
+
+    if not book.cover_path or not os.path.exists(book.cover_path):
+        return "Cover not found", 404
+
+    return send_file(book.cover_path, mimetype='image/png')
+
+
 @library_bp.route('/<int:book_id>/edit', methods=['GET'])
 @login_required
 def edit_book(book_id):

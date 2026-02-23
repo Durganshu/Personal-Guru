@@ -300,6 +300,7 @@ class Book(TimestampMixin, SyncMixin, db.Model):
     user_id = db.Column(db.String(100), db.ForeignKey('logins.userid'), nullable=False)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
+    cover_path = db.Column(db.String(512))  # Path to generated book cover image
     is_shared = db.Column(db.Boolean, default=False, nullable=False)
     notes_shared = db.Column(db.Boolean, default=False, nullable=False)
 

@@ -27,6 +27,7 @@
         transition: transform 0.2s;
         cursor: pointer;
         position: relative;
+        overflow: hidden;
     }
     .book-card:hover {
         transform: translateY(-5px);
@@ -35,6 +36,46 @@
     .book-card.generating {
         border-color: #667eea;
         background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    }
+    .book-cover-container {
+        width: 100%;
+        height: 180px;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+        position: relative;
+    }
+    .book-cover-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+    .book-cover-placeholder {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #313244 0%, #45475a 50%, #585b70 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        color: #6c7086;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: background 0.3s, color 0.3s;
+    }
+    .book-cover-placeholder:hover {
+        background: linear-gradient(135deg, #45475a 0%, #585b70 50%, #6c7086 100%);
+        color: #cba6f7;
+    }
+    .book-cover-placeholder i {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    .book-cover-placeholder.retrying {
+        pointer-events: none;
+        opacity: 0.6;
     }
     .generation-badge {
         position: absolute;
@@ -47,6 +88,7 @@
         font-size: 0.75rem;
         font-weight: 600;
         animation: pulse-badge 2s infinite;
+        z-index: 2;
     }
     @keyframes pulse-badge {
         0%, 100% { opacity: 1; }
@@ -334,6 +376,39 @@
             button.innerHTML = '<i class="fas fa-play"></i> Generate Content';
         }
     }
+
+    async function retryBookCover(bookId, event) {
+        event.stopPropagation(); // Prevent card click
+
+        const placeholder = event.currentTarget;
+        placeholder.classList.add('retrying');
+        placeholder.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Generating cover...</span>';
+
+        try {
+            const res = await fetch(`/library/${bookId}/retry_cover`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                }
+            });
+
+            const data = await res.json();
+
+            if (data.success && data.cover_url) {
+                // Replace placeholder with actual image
+                const container = placeholder.parentElement;
+                container.innerHTML = `<img src="${data.cover_url}" alt="Book Cover" class="book-cover-img">`;
+            } else {
+                placeholder.classList.remove('retrying');
+                placeholder.innerHTML = '<i class="fas fa-image"></i><span>Click to retry cover</span><small style="font-size:0.7rem;color:#f38ba8;">' + (data.error || 'Generation failed') + '</small>';
+            }
+        } catch (e) {
+            placeholder.classList.remove('retrying');
+            placeholder.innerHTML = '<i class="fas fa-image"></i><span>Click to retry cover</span><small style="font-size:0.7rem;color:#f38ba8;">Network error</small>';
+        }
+    }
 </script>
 {% endblock %}
 
@@ -398,6 +473,16 @@
             {% else %}
             <!-- Normal complete book card -->
             <div class="book-card" onclick="openBookWithLoader({{ book.id }}, this)">
+                <div class="book-cover-container">
+                    {% if book.cover_path %}
+                    <img src="{{ url_for('library.serve_cover', book_id=book.id) }}" alt="{{ book.title }} Cover" class="book-cover-img">
+                    {% else %}
+                    <div class="book-cover-placeholder" onclick="retryBookCover({{ book.id }}, event)" title="Click to generate cover">
+                        <i class="fas fa-image"></i>
+                        <span>Click to generate cover</span>
+                    </div>
+                    {% endif %}
+                </div>
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <h3 style="flex: 1; margin: 0;">{{ book.title }}</h3>
                     <div class="d-flex gap-1">
@@ -452,6 +537,16 @@
         <div class="grid-container" id="shared-books-grid">
             {% for book in shared_books %}
             <div class="book-card" onclick="openBookWithLoader({{ book.id }}, this)">
+                <div class="book-cover-container">
+                    {% if book.cover_path %}
+                    <img src="{{ url_for('library.serve_cover', book_id=book.id) }}" alt="{{ book.title }} Cover" class="book-cover-img">
+                    {% else %}
+                    <div class="book-cover-placeholder" style="cursor: default;">
+                        <i class="fas fa-book"></i>
+                        <span>No cover available</span>
+                    </div>
+                    {% endif %}
+                </div>
                 <h3>{{ book.title }}</h3>
                 <p>{{ book.description | truncate(100) }}</p>
                 <div class="d-flex justify-content-between mt-3">

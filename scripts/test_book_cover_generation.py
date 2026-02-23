@@ -4,7 +4,7 @@ import json
 import urllib.request
 import urllib.parse
 
-server_address = "100.123.43.34:8188"
+server_address = "localhost:8188"
 client_id = str(uuid.uuid4())
 
 def queue_prompt(prompt):
