@@ -1,0 +1,7 @@
+{% for book in my_books %}
+    {% set progress_data = book_progress.get(book.id) %}
+    {% set needs_generation = book_needs_generation.get(book.id) %}
+    {% include 'library/_book_card.html' %}
+{% else %}
+    <p class="text-center w-100">You don't have any books yet. Try curating or generating one!</p>
+{% endfor %}

@@ -407,10 +407,42 @@
             });
             const data = await res.json();
             if (data.success) {
-                window.location.href = `/library/${data.book_id}/page/1`;
+                // Refresh grid and switch to My Books tab instead of leaving dashboard
+                await refreshMyBooksGrid();
+                switchTab('my-books');
             }
         } catch (err) {
             alert("Error saving book.");
+        }
+    }
+
+    async function refreshMyBooksGrid() {
+        const grid = document.getElementById('my-books-grid');
+        try {
+            const res = await fetch('/library/my-books-fragment');
+            const html = await res.text();
+            grid.innerHTML = html;
+        } catch (e) {
+            console.error("Failed to refresh grid:", e);
+        }
+    }
+
+    async function refreshBookCard(bookId) {
+        const card = document.getElementById('book-card-' + bookId);
+        if (!card) return;
+        try {
+            const res = await fetch(`/library/card/${bookId}`);
+            const html = await res.text();
+
+            // Create a temporary container to hold the new card
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+            const newCard = temp.firstElementChild;
+
+            // Replace the old card with the new one
+            card.replaceWith(newCard);
+        } catch (e) {
+            console.error("Failed to refresh card:", e);
         }
     }
 
@@ -445,10 +477,13 @@
             const data = await res.json();
             if (data.success && data.book && data.book.id) {
                 progressContainer.innerHTML = '<strong>Step 2/2:</strong> Book structured! Generating chapters...';
-                // Trigger the background content generation using the same logic as the dashboard cards
+
+                // Refresh the My Books grid so the new book appears immediately
+                await refreshMyBooksGrid();
+
+                // Trigger the background content generation
                 await openBookWithLoader(data.book.id, progressContainer);
             } else if (data.success && data.redirect) {
-                 // Fallback if no book ID but success
                  window.location.href = data.redirect;
             } else {
                 progressContainer.innerHTML = `<span class="text-danger">Failed to generate book: ${data.error || "Unknown Error"}</span>`;
@@ -496,8 +531,15 @@
 
                         if (pollData.status === 'ready') {
                             clearInterval(pollInterval);
-                            progressDiv.innerText = "Complete! Opening book...";
-                            window.location.href = `/library/${bookId}/page/1`;
+                            progressDiv.innerText = "Complete! Refreshing...";
+
+                            // Refresh the card so it shows as complete/flip-card
+                            await refreshBookCard(bookId);
+
+                            // Optionally redirect if this was a fresh generation from the AI tab
+                            if (element.id === 'generate-progress-container') {
+                                window.location.href = `/library/${bookId}/page/1`;
+                            }
                         } else if (pollData.status === 'error') {
                             clearInterval(pollInterval);
                             alert("Generation Error: " + pollData.message);
@@ -589,8 +631,8 @@
             const data = await res.json();
 
             if (data.status === 'generating' || data.status === 'pending') {
-                // Reload the page to show the progress component
-                window.location.reload();
+                // Refresh the card state
+                await refreshBookCard(bookId);
             } else if (data.status === 'ready') {
                 // Book is already complete, open it
                 window.location.href = data.redirect || `/library/${bookId}/page/1`;
@@ -626,9 +668,8 @@
             const data = await res.json();
 
             if (data.success && data.cover_url) {
-                // Replace placeholder with actual image
-                const container = placeholder.parentElement;
-                container.innerHTML = `<img src="${data.cover_url}" alt="Book Cover" class="book-cover-img">`;
+                // Refresh the whole card to transform it into a Flip Card
+                await refreshBookCard(bookId);
             } else {
                 placeholder.classList.remove('retrying');
                 placeholder.innerHTML = '<i class="fas fa-image"></i><span>Click to retry cover</span><small style="font-size:0.7rem;color:#f38ba8;">' + (data.error || 'Generation failed') + '</small>';
@@ -690,105 +731,7 @@
             book_needs_generation: {{ book_needs_generation }}
         </div>
         <div class="grid-container" id="my-books-grid">
-            {% for book in my_books %}
-            <!-- Debug: book.id={{ book.id }}, in_progress={{ book.id in book_progress }}, needs_gen={{ book.id in book_needs_generation }}, value={{ book_needs_generation.get(book.id, 'N/A') }} -->
-            {% if book.id in book_progress %}
-            <!-- Book is actively generating -->
-            <div class="book-card generating" id="book-card-{{ book.id }}">
-                <span class="generation-badge">
-                    <i class="fas fa-spinner fa-spin"></i> Publishing
-                </span>
-                <div class="generating-scroll-body">
-                    {% include 'library/_book_generation_progress.html' %}
-                </div>
-            </div>
-            {% elif book.id in book_needs_generation and book_needs_generation[book.id] %}
-            <!-- Book needs generation -->
-            <div class="book-card" id="book-card-{{ book.id }}" style="border: 2px dashed var(--primary-color, #cba6f7);">
-                <div class="mini-placeholder" style="cursor: default; opacity: 0.5;">
-                    <i class="fas fa-book-medical"></i>
-                    <span>Ready for content</span>
-                </div>
-                <div class="book-card-body">
-                    <h3 style="margin: 0 0 0.5rem;">{{ book.title }}</h3>
-                    <p style="color: #a6adc8; font-size: 0.85rem; line-height: 1.4;">{{ book.description | truncate(100) }}</p>
-                    <div class="alert alert-warning mb-2" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; background: rgba(250, 179, 135, 0.1); border-color: rgba(250, 179, 135, 0.2); color: #fab387;">
-                        <i class="fas fa-exclamation-triangle"></i> Incomplete content
-                    </div>
-                    <button class="btn btn-primary w-100" onclick="startBookGeneration({{ book.id }}, event)">
-                        <i class="fas fa-play"></i> Generate Content
-                    </button>
-                </div>
-                <div class="flat-actions">
-                    <a href="{{ url_for('library.edit_book', book_id=book.id) }}" class="btn btn-sm btn-warning" onclick="event.stopPropagation()"><i class="fas fa-edit"></i> Edit</a>
-                    <button class="btn btn-sm btn-danger" onclick="deleteBook({{ book.id }}, event)"><i class="fas fa-trash"></i> Delete</button>
-                </div>
-            </div>
-
-            {% elif book.cover_path %}
-            <!-- === FLIP CARD: has cover === -->
-            <div class="flip-card" id="book-card-{{ book.id }}">
-                <div class="flip-card-inner">
-                    <!-- FRONT: Cover + Title -->
-                    <div class="flip-card-front" onclick="flipCard(this.closest('.flip-card'), event)">
-                        <span class="flip-hint"><i class="fas fa-sync-alt"></i> Tap to flip</span>
-                        <img src="{{ url_for('library.serve_cover', book_id=book.id) }}" alt="{{ book.title }}" class="cover-img">
-                        <div class="cover-title">{{ book.title }}</div>
-                    </div>
-                    <!-- BACK: Details + Actions -->
-                    <div class="flip-card-back" onclick="flipCard(this.closest('.flip-card'), event)">
-                        <h3>{{ book.title }}</h3>
-                        <div class="book-desc">{{ book.description | truncate(200) }}</div>
-                        <div class="card-actions">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <small style="font-size: 0.75rem; color: #a6adc8;">{{ book.book_topics | length }} Topics</small>
-                                <span class="badge {{ 'bg-success' if book.is_shared else 'bg-secondary' }}" style="font-size: 0.7rem; opacity: 0.8;">
-                                    {{ 'Shared' if book.is_shared else 'Private' }}
-                                </span>
-                            </div>
-                            <button class="btn btn-primary" onclick="event.stopPropagation(); openBookWithLoader({{ book.id }}, this.closest('.flip-card'))">
-                                <i class="fas fa-book-open"></i> Read Book
-                            </button>
-                            <div class="card-actions-row">
-                                <a href="{{ url_for('library.edit_book', book_id=book.id) }}" class="btn btn-sm btn-warning" onclick="event.stopPropagation()">
-                                    <i class="fas fa-edit"></i> Edit
-                                </a>
-                                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteBook({{ book.id }}, event)">
-                                    <i class="fas fa-trash"></i> Delete
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {% else %}
-            <!-- === FLAT CARD: no cover === -->
-            <div class="book-card">
-                <div class="mini-placeholder" onclick="retryBookCover({{ book.id }}, event)" title="Click to generate cover">
-                    <i class="fas fa-image"></i>
-                    <span>Generate cover</span>
-                </div>
-                <div class="book-card-body">
-                    <h3 style="margin: 0 0 0.5rem;">{{ book.title }}</h3>
-                    <p style="color: #a6adc8; font-size: 0.85rem; margin-bottom: 0.5rem; line-height: 1.4;">{{ book.description | truncate(140) }}</p>
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <small style="font-size: 0.75rem;">{{ book.book_topics | length }} Topics</small>
-                        <span class="badge {{ 'bg-success' if book.is_shared else 'bg-secondary' }}" style="font-size: 0.7rem;">
-                            {{ 'Shared' if book.is_shared else 'Private' }}
-                        </span>
-                    </div>
-                </div>
-                <div class="flat-actions">
-                    <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); openBookWithLoader({{ book.id }}, this.closest('.book-card'))"><i class="fas fa-book-open"></i> Read</button>
-                    <a href="{{ url_for('library.edit_book', book_id=book.id) }}" class="btn btn-sm btn-warning" onclick="event.stopPropagation()"><i class="fas fa-edit"></i> Edit</a>
-                    <button class="btn btn-sm btn-danger" onclick="deleteBook({{ book.id }}, event)"><i class="fas fa-trash"></i> Delete</button>
-                </div>
-            </div>
-            {% endif %}
-            {% else %}
-            <p class="text-center w-100">You don't have any books yet. Try curating or generating one!</p>
-            {% endfor %}
+            {% include 'library/_my_books_grid.html' %}
         </div>
     </div>
 

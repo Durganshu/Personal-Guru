@@ -45,59 +45,88 @@ def get_user_vector_db(user_id):
     return vector_db_cache[user_id]
 
 
-@library_bp.route('/')
-@login_required
-def dashboard():
-    """Renders the main Library Dashboard."""
+def _prepare_dashboard_data():
+    """Helper to prepare book progress and needs_generation data for the dashboard."""
     my_books = Book.query.filter_by(user_id=current_user.userid).order_by(Book.created_at.desc()).all()
     # Discover others' shared books
     shared_books = Book.query.filter_by(is_shared=True).filter(Book.user_id != current_user.userid).order_by(Book.modified_at.desc()).limit(20).all()
 
-    # Get generation progress for user's books (but don't auto-start)
     from app.modes.library.agent import get_generation_progress
 
     book_progress = {}
     book_needs_generation = {}
 
     for book in my_books:
-        # Check current progress first (trust the database-backed system)
         progress_data = get_generation_progress(book.id)
-
         needs_generation = False
         if progress_data['status'] == 'completed':
             needs_generation = False
-            logger.info(f"Book {book.id} ({book.title}): Status is completed. Marked as complete.")
         elif progress_data['status'] == 'generating':
-            # While generating, we don't show the "Incomplete content" warning separately
-            # as the "Publishing" loader takes over.
             needs_generation = False
         else:
-            # Fallback manual check for status like 'pending' or 'error'
             for bt in book.book_topics:
-                # Optimized check: use topic relationship
                 chapters = bt.topic.chapter_mode
                 if not chapters:
                     needs_generation = True
-                    logger.info(f"Book {book.id} ({book.title}): Topic '{bt.topic.name}' has no chapters.")
                     break
                 for ch in chapters:
                     if not ch.content or not ch.content.strip():
                         needs_generation = True
-                        logger.info(f"Book {book.id} ({book.title}): Chapter '{ch.title}' has no content.")
                         break
                 if needs_generation:
                     break
 
-        # Store whether book needs generation
         book_needs_generation[book.id] = needs_generation
-
-        # Add to progress dict if actively generating
         if progress_data['status'] == 'generating':
             book_progress[book.id] = progress_data
 
-        logger.info(f"Book {book.id} ({book.title}): final_needs_generation={needs_generation}, status={progress_data['status']}")
+    return my_books, shared_books, book_progress, book_needs_generation
 
-    return render_template('library/library_dashboard.html', my_books=my_books, shared_books=shared_books, book_progress=book_progress, book_needs_generation=book_needs_generation)
+@library_bp.route('/')
+@login_required
+def dashboard():
+    """Renders the main Library Dashboard."""
+    my_books, shared_books, book_progress, book_needs_generation = _prepare_dashboard_data()
+    return render_template('library/library_dashboard.html',
+                         my_books=my_books,
+                         shared_books=shared_books,
+                         book_progress=book_progress,
+                         book_needs_generation=book_needs_generation)
+
+@library_bp.route('/my-books-fragment')
+@login_required
+def my_books_fragment():
+    """Returns the HTML fragment for the 'My Books' grid."""
+    my_books, _, book_progress, book_needs_generation = _prepare_dashboard_data()
+    return render_template('library/_my_books_grid.html',
+                         my_books=my_books,
+                         book_progress=book_progress,
+                         book_needs_generation=book_needs_generation)
+
+@library_bp.route('/card/<int:book_id>')
+@login_required
+def book_card_fragment(book_id):
+    """Returns the HTML fragment for a single book card."""
+    book = Book.query.get_or_404(book_id)
+    if book.user_id != current_user.userid and not book.is_shared:
+        return "Unauthorized", 403
+
+    from app.modes.library.agent import get_generation_progress
+    progress_data = get_generation_progress(book.id)
+
+    # Calculate needs_generation similarly
+    needs_generation = False
+    if progress_data['status'] not in ['completed', 'generating']:
+        for bt in book.book_topics:
+            chapters = bt.topic.chapter_mode
+            if not chapters or any(not ch.content or not ch.content.strip() for ch in chapters):
+                needs_generation = True
+                break
+
+    return render_template('library/_book_card.html',
+                         book=book,
+                         progress_data=progress_data if progress_data['status'] == 'generating' else None,
+                         needs_generation=needs_generation)
 
 @library_bp.route('/search', methods=['GET'])
 @login_required
