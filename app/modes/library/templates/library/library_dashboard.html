@@ -416,12 +416,25 @@
         }
     }
 
+    function executeScripts(container) {
+        const scripts = container.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+            const newScript = document.createElement('script');
+            Array.from(oldScript.attributes).forEach(attr =>
+                newScript.setAttribute(attr.name, attr.value)
+            );
+            newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+            oldScript.parentNode.replaceChild(newScript, oldScript);
+        });
+    }
+
     async function refreshMyBooksGrid() {
         const grid = document.getElementById('my-books-grid');
         try {
             const res = await fetch('/library/my-books-fragment');
             const html = await res.text();
             grid.innerHTML = html;
+            executeScripts(grid);
         } catch (e) {
             console.error("Failed to refresh grid:", e);
         }
@@ -434,13 +447,16 @@
             const res = await fetch(`/library/card/${bookId}`);
             const html = await res.text();
 
-            // Create a temporary container to hold the new card
+            // Create a temporary container
             const temp = document.createElement('div');
             temp.innerHTML = html;
             const newCard = temp.firstElementChild;
 
-            // Replace the old card with the new one
+            // Replace the old card
             card.replaceWith(newCard);
+
+            // Re-execute scripts so dynamic components start up
+            executeScripts(newCard);
         } catch (e) {
             console.error("Failed to refresh card:", e);
         }
