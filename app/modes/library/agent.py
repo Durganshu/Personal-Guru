@@ -8,7 +8,10 @@ from flask import current_app
 from app.core.extensions import db
 from app.core.models import Book, BookGenerationProgress, ChapterMode
 from app.modes.chapter.agent import ChapterTeachingAgent
+from app.modes.library.prompts import get_librarian_search_prompt, get_librarian_generate_prompt
 from app.common.agents import PlannerAgent
+from app.common.utils import call_llm
+from app.core.exceptions import LLMResponseError
 
 logger = logging.getLogger(__name__)
 
@@ -368,3 +371,70 @@ def get_all_active_generations(user_id):
     ).all()
 
     return [p.to_dict() for p in active_progress]
+
+
+class LibrarianAgent:
+    """
+    Agent responsible for discovering, clustering, and generating books.
+    """
+
+    def search_and_suggest(self, query, vector_db, current_topics):
+        """
+        Searches existing topics using VectorDB and suggests a curated book.
+
+        Args:
+            query (str): The user's search query.
+            vector_db (VectorDB): The instantiated and loaded VectorDB.
+            current_topics (list): List of user's existing topics to match against.
+
+        Returns:
+            dict: Suggested book structure with title, description, and list of matched topic IDs.
+        """
+        # 1. Search VectorDB for relevant content
+        search_results = vector_db.search(query, top_k=15)
+
+        if not search_results:
+            return None
+
+        # 2. Prepare context for LLM
+        context_items = []
+        for res in search_results:
+            topic_id = res['metadata'].get('topic_id')
+            topic_title = res['metadata'].get('title', 'Unknown')
+            context_items.append(f"Topic ID {topic_id}: {topic_title} - {res['content'][:150]}")
+
+        context = "\n".join(context_items)
+
+        prompt = get_librarian_search_prompt(query, context)
+
+        try:
+            response = call_llm(prompt, is_json=True)
+            return response
+        except LLMResponseError as e:
+            logging.error(f"LibrarianAgent search failed: {e}")
+            return None
+
+    def generate_book(self, query, user_background):
+        """
+        Generates a completely new book structure for topics the user hasn't learned yet.
+
+        Args:
+            query (str): The subject the user wants to learn.
+            user_background (str): The user's background.
+
+        Returns:
+            dict: Book structure with title, description, and list of new topic names.
+        """
+        prompt = get_librarian_generate_prompt(query, user_background)
+
+        try:
+            response = call_llm(prompt, is_json=True)
+            return response
+        except LLMResponseError as e:
+            logging.error(f"LibrarianAgent generation failed: {e}")
+            # Fallback
+            return {
+                "title": f"Learning {query}",
+                "description": f"An auto-generated book about {query}",
+                "topics": [f"Introduction to {query}", f"Core Concepts of {query}", f"Advanced {query}"]
+            }

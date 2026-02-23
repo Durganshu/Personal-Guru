@@ -57,3 +57,37 @@ Write a brief, engaging description (2-3 sentences) that:
 3. Is clear and informative
 
 Respond with ONLY the description text, no JSON, no extra formatting."""
+
+
+def get_librarian_search_prompt(query, context):
+    """Generate the prompt for the LibrarianAgent to search and curate a book."""
+    return f"""
+        You are an AI Librarian. The user is searching their own library for: "{query}"
+
+        Based on their existing content fragments below, curate a "Book" (a collection of topics).
+        Select the most relevant Topic IDs that form a logical learning progression.
+
+        Existing Content:
+        {context}
+
+        Return a JSON object with:
+        - title: A catchy title for this curated book
+        - description: A short description of what this book covers
+        - topic_ids: A chronological list of integer Topic IDs to include.
+        """
+
+
+def get_librarian_generate_prompt(query, user_background):
+    """Generate the prompt for the LibrarianAgent to generate a new book structure."""
+    return f"""
+        You are an AI Librarian. The user wants to generate a new book to learn about: "{query}"
+        User Background: "{user_background}"
+
+        Design a comprehensive, structured book consisting of 3 to 6 sequential topics (chapters).
+        The topics should progressively build knowledge from fundamentals to advanced concepts.
+
+        Return a JSON object with:
+        - title: A compelling title for the book
+        - description: A short summary of the book's learning objective
+        - topics: An ordered list of strings, each being a distinct topic name to generate.
+        """

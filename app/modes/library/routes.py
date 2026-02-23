@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app.core.extensions import db
 from app.core.models import Book, BookTopic, Topic, ChapterMode
 from app.modes.library import library_bp
-from app.common.agents import LibrarianAgent
+from app.modes.library.agent import LibrarianAgent
 from app.common.vector_db import VectorDB
 from markdown_it import MarkdownIt
 import logging
@@ -53,7 +53,7 @@ def dashboard():
     shared_books = Book.query.filter_by(is_shared=True).filter(Book.user_id != current_user.userid).order_by(Book.modified_at.desc()).limit(20).all()
 
     # Get generation progress for user's books (but don't auto-start)
-    from app.modes.library.generation import get_generation_progress
+    from app.modes.library.agent import get_generation_progress
 
     book_progress = {}
     book_needs_generation = {}
@@ -85,7 +85,7 @@ def dashboard():
 
         logger.info(f"Book {book.id} ({book.title}): needs_generation={needs_generation}, status={progress_data['status']}")
 
-    return render_template('library_dashboard.html', my_books=my_books, shared_books=shared_books, book_progress=book_progress, book_needs_generation=book_needs_generation)
+    return render_template('library/library_dashboard.html', my_books=my_books, shared_books=shared_books, book_progress=book_progress, book_needs_generation=book_needs_generation)
 
 @library_bp.route('/search', methods=['GET'])
 @login_required
@@ -205,9 +205,9 @@ active_generations = {}
 def generate_book_background(app_context, book_id, user_background, user_id):
     """Background task to generate all content for a book - DEPRECATED, use generation.py"""
     # This function is kept for backwards compatibility but should not be used
-    # Use app.modes.library.generation.generate_book_content_background instead
+    # Use app.modes.library.agent.generate_book_content_background instead
     logger.warning(f"Using deprecated generate_book_background for book {book_id}")
-    from app.modes.library.generation import generate_book_content_background
+    from app.modes.library.agent import generate_book_content_background
     generate_book_content_background(app_context, book_id, user_id, user_background)
 
 @library_bp.route('/<int:book_id>/progress')
@@ -219,7 +219,7 @@ def generation_progress(book_id):
         return jsonify({"status": "error", "message": "Unauthorized"}), 403
 
     # Use the new database-backed progress system
-    from app.modes.library.generation import get_generation_progress
+    from app.modes.library.agent import get_generation_progress
     progress_data = get_generation_progress(book_id)
     return jsonify(progress_data)
 
@@ -236,7 +236,7 @@ def init_book(book_id):
         return jsonify({"status": "error", "message": "Unauthorized"}), 403
 
     from app.common.utils import get_user_context
-    from app.modes.library.generation import start_book_generation, get_generation_progress
+    from app.modes.library.agent import start_book_generation, get_generation_progress
 
     user_background = get_user_context()
 
@@ -308,7 +308,7 @@ def read_book(book_id, page_num):
 
     if page_num < 1 or page_num > total_pages:
         if total_pages == 0:
-             return render_template('book_view.html', book=book, current_page_data=None, page_num=0, total_pages=0)
+             return render_template('library/book_view.html', book=book, current_page_data=None, page_num=0, total_pages=0)
         return redirect(url_for('library.read_book', book_id=book.id, page_num=max(1, min(page_num, total_pages))))
 
     current_page_data = flattened_pages[page_num - 1]
@@ -328,7 +328,7 @@ def read_book(book_id, page_num):
     owner_name = book.login.display_name if book.login else "Book Owner"
 
     return render_template(
-        'book_view.html',
+        'library/book_view.html',
         book=book,
         all_pages=flattened_pages,
         current_page_data=current_page_data,
@@ -422,7 +422,7 @@ def edit_book(book_id):
     # Get topics already in the book
     book_topic_ids = [bt.topic_id for bt in book.book_topics]
 
-    return render_template('library_edit.html', book=book, user_topics=user_topics, book_topic_ids=book_topic_ids)
+    return render_template('library/library_edit.html', book=book, user_topics=user_topics, book_topic_ids=book_topic_ids)
 
 @library_bp.route('/<int:book_id>/update-metadata', methods=['POST'])
 @login_required

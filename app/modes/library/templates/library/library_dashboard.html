@@ -369,7 +369,7 @@
                 <span class="generation-badge">
                     <i class="fas fa-spinner fa-spin"></i> Publishing
                 </span>
-                {% include '_book_generation_progress.html' %}
+                {% include 'library/_book_generation_progress.html' %}
             </div>
             {% elif book.id in book_needs_generation and book_needs_generation[book.id] %}
             <!-- Book needs generation - show generate button -->
