@@ -36,7 +36,8 @@ TARGET_MODELS = [
     models.PlanRevision,
     models.Login,
     models.Book,
-    models.BookTopic
+    models.BookTopic,
+    models.BookGenerationProgress
 ]
 
 def get_column_type(column):

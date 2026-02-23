@@ -327,6 +327,43 @@ class BookTopic(db.Model):
     topic = db.relationship('Topic', back_populates='book_topics')
 
 
+class BookGenerationProgress(TimestampMixin, db.Model):
+    """Tracks the progress of book content generation."""
+
+    __tablename__ = 'book_generation_progress'
+
+    id = db.Column(db.Integer, primary_key=True)
+    book_id = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False, unique=True)
+    user_id = db.Column(db.String(100), db.ForeignKey('logins.userid'), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')  # 'pending', 'generating', 'completed', 'error'
+    total_topics = db.Column(db.Integer, nullable=False, default=0)
+    current_topic_index = db.Column(db.Integer, nullable=False, default=0)
+    total_chapters = db.Column(db.Integer, nullable=False, default=0)
+    completed_chapters = db.Column(db.Integer, nullable=False, default=0)
+    current_message = db.Column(db.Text)
+    error_message = db.Column(db.Text)
+    started_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+
+    # Relationships
+    book = db.relationship('Book', backref=db.backref('generation_progress', uselist=False, cascade='all, delete-orphan'))
+    login = db.relationship('Login', backref='book_generation_progress')
+
+    def to_dict(self):
+        """Convert progress to dictionary for JSON response."""
+        return {
+            'book_id': self.book_id,
+            'status': self.status,
+            'total_topics': self.total_topics,
+            'current_topic_index': self.current_topic_index,
+            'total_chapters': self.total_chapters,
+            'completed_chapters': self.completed_chapters,
+            'message': self.current_message,
+            'error': self.error_message,
+            'progress_percent': int((self.completed_chapters / self.total_chapters * 100) if self.total_chapters > 0 else 0)
+        }
+
+
 class Login(UserMixin, TimestampMixin, db.Model):
     """User authentication and identity model."""
 
