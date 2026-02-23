@@ -221,7 +221,7 @@
 
             if (data.status === 'ready') {
                 window.location.href = data.redirect || `/library/${bookId}/page/1`;
-            } else if (data.status === 'generating') {
+            } else if (data.status === 'generating' || data.status === 'pending') {
                 progressDiv.innerText = data.message || "Generating Content...";
 
                 // Polling progress every 3 seconds
@@ -242,7 +242,7 @@
                             element.classList.remove('generating');
                             element.style.opacity = '1';
                             element.style.pointerEvents = 'auto';
-                        } else if (pollData.status === 'generating') {
+                        } else if (pollData.status === 'generating' || pollData.status === 'pending') {
                             progressDiv.innerText = pollData.message || "Generating Content...";
                         }
                     } catch (e) {
