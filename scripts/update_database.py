@@ -115,7 +115,7 @@ def update_database():
                     db.session.execute(sql)
                     db.session.commit()
                     logger.info("      -> Added successfully.")
-            except Exception as e:
+            except Exception:
                 logger.exception("      -> FAILED to add notes_shared column")
                 db.session.rollback()
 
