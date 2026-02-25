@@ -19,6 +19,7 @@ const NotesManager = (() => {
         _topicName = config.topicName;
         _csrfToken = config.csrfToken;
         _jweToken = config.jweToken || '';
+        const readOnly = config.readOnly || false;
 
         _editor = document.getElementById('notes-editor');
         _statusEl = document.getElementById('save-status');
@@ -28,8 +29,10 @@ const NotesManager = (() => {
         // Load initial content if empty (API fetch)
         loadNotes();
 
-        // Bind events
-        bindEvents();
+        // Only bind events if not read-only
+        if (!readOnly) {
+            bindEvents();
+        }
     }
 
     function bindEvents() {

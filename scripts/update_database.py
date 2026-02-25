@@ -34,7 +34,10 @@ TARGET_MODELS = [
     models.Feedback,
     models.AIModelPerformance,
     models.PlanRevision,
-    models.Login
+    models.Login,
+    models.Book,
+    models.BookTopic,
+    models.BookGenerationProgress
 ]
 
 def get_column_type(column):
@@ -45,6 +48,7 @@ def get_column_type(column):
     return str(column.type).upper()
 
 def update_database():
+    os.environ['SKIP_BACKGROUND_TASKS'] = 'True'
     app = create_app()
     with app.app_context():
         logger.info("Starting database update...")
@@ -97,7 +101,25 @@ def update_database():
         inspector = inspect(db.engine) # Re-inspect after create/rename
 
         if db.engine.name == 'sqlite':
-            logger.info("SQLite mode: Skipping advanced schema inspections (Postgres-specific).")
+            logger.info("SQLite mode: Performing basic column additions...")
+
+            # Special handling for SQLite - add missing columns
+            # Check if books table has notes_shared column
+            try:
+                books_columns = inspector.get_columns('books')
+                books_col_names = [col['name'] for col in books_columns]
+
+                if 'notes_shared' not in books_col_names:
+                    logger.info("  [+] Adding missing column: notes_shared to books table")
+                    sql = text('ALTER TABLE books ADD COLUMN notes_shared BOOLEAN DEFAULT 0 NOT NULL')
+                    db.session.execute(sql)
+                    db.session.commit()
+                    logger.info("      -> Added successfully.")
+            except Exception:
+                logger.exception("      -> FAILED to add notes_shared column")
+                db.session.rollback()
+
+            logger.info("SQLite mode: Basic updates complete. Skipping advanced schema inspections (Postgres-specific).")
             return
 
         for model in TARGET_MODELS:

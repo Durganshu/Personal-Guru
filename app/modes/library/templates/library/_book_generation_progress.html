@@ -1,0 +1,308 @@
+<!-- Book Generation Progress Component with Real-World Publishing Analogy -->
+<style>
+    .book-publishing-progress {
+        background: transparent;
+        border-radius: 0;
+        padding: 1rem 0.5rem;
+        color: white;
+        box-shadow: none;
+        margin: 0;
+    }
+
+    .publishing-stage {
+        display: flex;
+        align-items: center;
+        margin: 1.25rem 0;
+        position: relative;
+    }
+
+    .stage-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        background: rgba(255,255,255,0.2);
+        border: 3px solid rgba(255,255,255,0.3);
+        flex-shrink: 0;
+        transition: all 0.3s ease;
+        z-index: 2;
+    }
+
+    .stage-icon.active {
+        background: rgba(255,255,255,0.9);
+        color: #667eea;
+        border-color: white;
+        box-shadow: 0 0 20px rgba(255,255,255,0.5);
+        animation: pulse 2s infinite;
+    }
+
+    .stage-icon.completed {
+        background: #10b981;
+        border-color: #10b981;
+        color: white;
+    }
+
+    .stage-icon.pending {
+        opacity: 0.4;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
+    .stage-content {
+        margin-left: 1.5rem;
+        flex: 1;
+    }
+
+    .stage-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .stage-description {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+
+    .stage-connector {
+        position: absolute;
+        left: 24px;
+        top: 50px;
+        width: 2px;
+        height: calc(100% + 1.25rem);
+        background: rgba(255,255,255,0.2);
+        z-index: 1;
+    }
+
+    .stage-connector.active {
+        background: linear-gradient(to bottom, #10b981 0%, rgba(255,255,255,0.2) 100%);
+    }
+
+    .progress-bar-container {
+        background: rgba(255,255,255,0.2);
+        border-radius: 10px;
+        height: 8px;
+        margin-top: 1.5rem;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+        border-radius: 10px;
+        transition: width 0.5s ease;
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    }
+
+    .progress-stats {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 1rem;
+        font-size: 0.9rem;
+    }
+
+    .book-cover-preview {
+        width: 100px;
+        height: 140px;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border-radius: 8px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        margin: 0 auto 1rem;
+    }
+</style>
+
+<div class="book-publishing-progress" id="book-progress-{{ book.id }}">
+    <div class="text-center mb-4">
+        <div class="book-cover-preview">
+            <i class="fas fa-book"></i>
+        </div>
+        <h4 class="mb-1">{{ book.title }}</h4>
+        <p class="mb-0" style="opacity: 0.9; font-size: 0.9rem;">Your book is being published...</p>
+    </div>
+
+    <div class="publishing-stages">
+        <!-- Stage 1: Order Placed -->
+        <div class="publishing-stage">
+            <div class="stage-icon completed" id="stage-1-icon-{{ book.id }}">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="stage-content">
+                <div class="stage-title">Book Ordered</div>
+                <div class="stage-description">Your custom book request has been received</div>
+            </div>
+            <div class="stage-connector" id="connector-1-{{ book.id }}"></div>
+        </div>
+
+        <!-- Stage 2: Drafting Structure -->
+        <div class="publishing-stage">
+            <div class="stage-icon pending" id="stage-2-icon-{{ book.id }}">
+                <i class="fas fa-pencil-ruler"></i>
+            </div>
+            <div class="stage-content">
+                <div class="stage-title">Publisher Drafting Structure</div>
+                <div class="stage-description" id="stage-2-desc-{{ book.id }}">Planning chapters and topics...</div>
+            </div>
+            <div class="stage-connector" id="connector-2-{{ book.id }}"></div>
+        </div>
+
+        <!-- Stage 3: Printing -->
+        <div class="publishing-stage">
+            <div class="stage-icon pending" id="stage-3-icon-{{ book.id }}">
+                <i class="fas fa-print"></i>
+            </div>
+            <div class="stage-content">
+                <div class="stage-title">Printing Your Book</div>
+                <div class="stage-description" id="stage-3-desc-{{ book.id }}">Writing content for each chapter...</div>
+            </div>
+            <div class="stage-connector" id="connector-3-{{ book.id }}"></div>
+        </div>
+
+        <!-- Stage 4: Delivery -->
+        <div class="publishing-stage">
+            <div class="stage-icon pending" id="stage-4-icon-{{ book.id }}">
+                <i class="fas fa-truck"></i>
+            </div>
+            <div class="stage-content">
+                <div class="stage-title">Book Delivered</div>
+                <div class="stage-description">Adding to your library...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progress-bar-{{ book.id }}" style="width: 0%"></div>
+    </div>
+
+    <div class="progress-stats">
+        <span id="progress-text-{{ book.id }}">Starting...</span>
+        <span id="progress-percent-{{ book.id }}">0%</span>
+    </div>
+</div>
+
+<script>
+(function() {
+    const bookId = {{ book.id }};
+    let pollInterval = null;
+
+    function updateStage(stageNum, status) {
+        const icon = document.getElementById('stage-' + stageNum + '-icon-' + bookId);
+        const connector = document.getElementById('connector-' + stageNum + '-' + bookId);
+
+        if (!icon) return;
+
+        icon.classList.remove('pending', 'active', 'completed');
+        if (connector) connector.classList.remove('active');
+
+        if (status === 'active') {
+            icon.classList.add('active');
+            if (connector) connector.classList.add('active');
+        } else if (status === 'completed') {
+            icon.classList.add('completed');
+            if (connector) connector.classList.add('active');
+        } else {
+            icon.classList.add('pending');
+        }
+    }
+
+    function updateProgress(data) {
+        const progressBar = document.getElementById('progress-bar-' + bookId);
+        const progressText = document.getElementById('progress-text-' + bookId);
+        const progressPercent = document.getElementById('progress-percent-' + bookId);
+
+        let currentStage = 1;
+        let percent = 0;
+        let message = data.message || 'Processing...';
+
+        if (data.status === 'pending') {
+            currentStage = 1;
+            percent = 10;
+            message = 'Order received, preparing...';
+        } else if (data.status === 'generating') {
+            if (data.total_chapters === 0 || data.current_topic_index === 0) {
+                currentStage = 2;
+                percent = 25;
+                const stage2Desc = document.getElementById('stage-2-desc-' + bookId);
+                if (stage2Desc) stage2Desc.textContent = message;
+            } else {
+                currentStage = 3;
+                const progress = data.completed_chapters / data.total_chapters;
+                percent = 25 + (progress * 65);
+                const stage3Desc = document.getElementById('stage-3-desc-' + bookId);
+                if (stage3Desc) {
+                    stage3Desc.textContent = 'Chapter ' + data.completed_chapters + ' of ' + data.total_chapters + ' complete';
+                }
+            }
+        } else if (data.status === 'completed') {
+            currentStage = 4;
+            percent = 100;
+            message = 'Book ready! Opening...';
+        } else if (data.status === 'error') {
+            message = 'Error: ' + (data.error || 'Unknown error');
+            percent = 0;
+        }
+
+        for (let i = 1; i <= 4; i++) {
+            if (i < currentStage) {
+                updateStage(i, 'completed');
+            } else if (i === currentStage) {
+                updateStage(i, 'active');
+            } else {
+                updateStage(i, 'pending');
+            }
+        }
+
+        if (progressBar) progressBar.style.width = percent + '%';
+        if (progressText) progressText.textContent = message;
+        if (progressPercent) progressPercent.textContent = Math.round(percent) + '%';
+
+        if (data.status === 'completed') {
+            if (pollInterval) clearInterval(pollInterval);
+
+            // If on the dashboard, refresh the whole card to show the flip-card/cover
+            if (typeof refreshBookCard === 'function') {
+                refreshBookCard(bookId);
+            } else {
+                // Otherwise fallback to redirect
+                setTimeout(function() {
+                    window.location.href = '/library/' + bookId + '/page/1';
+                }, 2000);
+            }
+        }
+    }
+
+    async function pollProgress() {
+        try {
+            const res = await fetch('/library/' + bookId + '/progress');
+            if (!res.ok) {
+                console.error('Progress poll failed:', res.status);
+                return;
+            }
+            const data = await res.json();
+            updateProgress(data);
+
+            if (data.status === 'completed' || data.status === 'error') {
+                if (pollInterval) clearInterval(pollInterval);
+            }
+        } catch (e) {
+            console.error('Error polling progress:', e);
+        }
+    }
+
+    pollProgress();
+    pollInterval = setInterval(pollProgress, 2000);
+
+    window.addEventListener('beforeunload', function() {
+        if (pollInterval) clearInterval(pollInterval);
+    });
+})();
+</script>

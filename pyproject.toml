@@ -27,6 +27,8 @@ dependencies = [
     "cryptography==42.0.5",
     "setuptools",
     "bleach>=6.0.0",
+    "scikit-learn>=1.0.0",
+    "websocket-client>=1.6.0",
 ]
 
 [project.optional-dependencies]

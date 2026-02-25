@@ -9,8 +9,27 @@ import logging
 import platform
 import psutil
 import bleach
+import shutil
+import uuid
 from datetime import datetime
 from dotenv import load_dotenv
+
+import flask
+import flask_login
+
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
+try:
+    import soundfile as sf
+except ImportError:
+    sf = None
+
+from app.core import extensions
+from app.core import models
+from app.common import audio_service
 from app.core.exceptions import (
     MissingConfigError,
     LLMConnectionError,
@@ -153,23 +172,19 @@ def call_llm(prompt_or_messages, is_json=False):
 
         # Database Logging Hook
         try:
-            # Local imports to avoid circular dependency
-            from app.core.extensions import db
-            from app.core.models import AIModelPerformance
-            from flask_login import current_user
-
-            # Only log if user is authenticated and we are in a request context
-            if current_user and current_user.is_authenticated:
-                perf_log = AIModelPerformance(
-                    user_id=current_user.userid,
+            # Only log if we're in a request context and user is authenticated
+            # In background threads, current_user is not available
+            if flask.has_request_context() and flask_login.current_user and flask_login.current_user.is_authenticated:
+                perf_log = models.AIModelPerformance(
+                    user_id=flask_login.current_user.userid,
                     model_type='LLM',
                     model_name=LLM_MODEL_NAME,
                     latency_ms=latency_ms,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens
                 )
-                db.session.add(perf_log)
-                db.session.commit()
+                extensions.db.session.add(perf_log)
+                extensions.db.session.commit()
                 logger.debug("Logged AI performance metrics to database.")
 
         except Exception as db_err:
@@ -331,7 +346,6 @@ def chunk_text(text, max_chars=300):
     Splits text into chunks of approximately max_chars, breaking at sentence boundaries.
     Used to avoid TTS limits (e.g., Kokoro ~500 tokens).
     """
-    import re
     chunks = []
     sentences = re.split(r'([.!?]+)', text)
     current_chunk = ""
@@ -364,12 +378,6 @@ def generate_audio(text, step_index):
     Supports both Docker/OpenAI and local Kokoro modes via audio_service.
     Handles long text by chunking and merging.
     """
-    from app.common.audio_service import get_tts
-    import tempfile
-    import subprocess
-    # Import numpy only if needed/available, though usually available if soundfile is needed.
-    # soundfile import will be lazy.
-
     start_time = time.time()
     static_dir = os.path.join(os.getcwd(), 'app', 'static')
     if not os.path.exists(static_dir):
@@ -389,7 +397,7 @@ def generate_audio(text, step_index):
     chunks = chunk_text(text, max_chars=300)
 
     try:
-        tts = get_tts()
+        tts = audio_service.get_tts()
         temp_files = []
         sample_rate = None
 
@@ -410,9 +418,7 @@ def generate_audio(text, step_index):
                     f.write(result)
             else:
                 # Local/Kokoro mode: result is numpy array
-                try:
-                    import soundfile as sf
-                except ImportError:
+                if sf is None:
                     logger.error("soundfile not installed. Cannot save local audio.")
                     return None, "soundfile dependency missing for local TTS"
 
@@ -430,7 +436,6 @@ def generate_audio(text, step_index):
         if len(temp_files) == 1:
             if os.path.exists(output_filename):
                 os.remove(output_filename)
-            import shutil
             shutil.move(temp_files[0], output_filename)
 
         else:
@@ -484,21 +489,17 @@ def generate_audio(text, step_index):
         try:
             end_time = time.time()
             latency_ms = int((end_time - start_time) * 1000)
-            from app.core.extensions import db
-            from app.core.models import AIModelPerformance
-            from flask_login import current_user
-
-            if current_user and current_user.is_authenticated:
-                perf_log = AIModelPerformance(
-                    user_id=current_user.userid,
+            if flask.has_request_context() and flask_login.current_user and flask_login.current_user.is_authenticated:
+                perf_log = models.AIModelPerformance(
+                    user_id=flask_login.current_user.userid,
                     model_type='TTS',
                     model_name=TTS_MODEL,
                     latency_ms=latency_ms,
                     input_tokens=len(text),
                     output_tokens=0
                 )
-                db.session.add(perf_log)
-                db.session.commit()
+                extensions.db.session.add(perf_log)
+                extensions.db.session.commit()
         except Exception as e:
             logging.warning(f"Failed to log TTS performance: {e}")
 
@@ -556,11 +557,10 @@ def get_user_context():
     Retrieves the user context string from the database for LLM usage.
     Falls back to environment variable if no user or empty profile.
     """
-    from flask_login import current_user
 
     try:
-        if current_user.is_authenticated and current_user.user_profile:
-            context = current_user.user_profile.to_context_string()
+        if flask_login.current_user.is_authenticated and flask_login.current_user.user_profile:
+            context = flask_login.current_user.user_profile.to_context_string()
             if context.strip():
                 return context
     except Exception as e:
@@ -622,9 +622,6 @@ def generate_podcast_audio(transcript, output_filename):
     Generates a full podcast audio file from a transcript using the configured TTS service.
     Supports both Docker/OpenAI and local Kokoro modes via audio_service.
     """
-    from app.common.audio_service import get_tts
-    # soundfile and numpy are imported lazily to avoid strict dependency in CI
-
     start_time = time.time()
 
     # 1. Parse Transcript
@@ -636,7 +633,7 @@ def generate_podcast_audio(transcript, output_filename):
 
     # 2. Get TTS Service
     try:
-        tts = get_tts()
+        tts = audio_service.get_tts()
     except Exception as e:
         return False, f"Failed to get TTS service: {e}"
 
@@ -692,12 +689,9 @@ def generate_podcast_audio(transcript, output_filename):
 
         if is_local_mode:
             # Local mode - concatenate samples and save directly
-            try:
-                import numpy as np
-                import soundfile as sf
-            except ImportError as e:
-                logger.error(f"Missing dependencies for local audio generation: {e}")
-                return False, f"Missing dependencies (numpy/soundfile): {e}"
+            if np is None or sf is None:
+                logger.error("Missing dependencies for local audio generation")
+                return False, "Missing dependencies (numpy/soundfile)"
 
             if all_samples:
                 combined = np.concatenate(all_samples)
@@ -748,24 +742,20 @@ def generate_podcast_audio(transcript, output_filename):
         try:
             end_time = time.time()
             latency_ms = int((end_time - start_time) * 1000)
-            from app.core.extensions import db
-            from app.core.models import AIModelPerformance
-            from flask_login import current_user
-
             # Calculate approx input length from lines
             total_chars = sum(len(txt) for _, txt in lines)
 
-            if current_user and current_user.is_authenticated:
-                perf_log = AIModelPerformance(
-                    user_id=current_user.userid,
+            if flask.has_request_context() and flask_login.current_user and flask_login.current_user.is_authenticated:
+                perf_log = models.AIModelPerformance(
+                    user_id=flask_login.current_user.userid,
                     model_type='TTS',
                     model_name=TTS_MODEL,
                     latency_ms=latency_ms,
                     input_tokens=total_chars,
                     output_tokens=0
                 )
-                db.session.add(perf_log)
-                db.session.commit()
+                extensions.db.session.add(perf_log)
+                extensions.db.session.commit()
         except Exception as e:
             logging.warning(f"Failed to log Podcast TTS performance: {e}")
 
@@ -786,7 +776,6 @@ def transcribe_audio(audio_file_path):
     Transcribes audio using the configured STT service.
     Supports both Docker/OpenAI and local faster-whisper modes via audio_service.
     """
-    from app.common.audio_service import get_stt
 
     start_time = time.time()
 
@@ -794,30 +783,26 @@ def transcribe_audio(audio_file_path):
         raise STTError(f"Audio file not found: {audio_file_path}")
 
     try:
-        stt = get_stt()
+        stt = audio_service.get_stt()
         transcript = stt.transcribe(audio_file_path)
 
         # --- Logging Hook for STT ---
         try:
             end_time = time.time()
             latency_ms = int((end_time - start_time) * 1000)
-            from app.core.extensions import db
-            from app.core.models import AIModelPerformance
-            from flask_login import current_user
-
             output_len = len(transcript) if transcript else 0
 
-            if current_user and current_user.is_authenticated:
-                perf_log = AIModelPerformance(
-                    user_id=current_user.userid,
+            if flask.has_request_context() and flask_login.current_user and flask_login.current_user.is_authenticated:
+                perf_log = models.AIModelPerformance(
+                    user_id=flask_login.current_user.userid,
                     model_type='STT',
                     model_name=STT_MODEL,
                     latency_ms=latency_ms,
                     input_tokens=0,
                     output_tokens=output_len
                 )
-                db.session.add(perf_log)
-                db.session.commit()
+                extensions.db.session.add(perf_log)
+                extensions.db.session.commit()
         except Exception as e:
             logging.warning(f"Failed to log STT performance: {e}")
 
@@ -866,30 +851,22 @@ def log_telemetry(event_type: str, triggers: dict, payload: dict, installation_i
         payload (dict): The data payload for the event.
         installation_id (str, optional): The installation ID. If None, attempts to resolve from current_user or DB.
     """
-    import uuid
-    from flask import session
-    from flask_login import current_user
-    from app.core.extensions import db
-    from app.core.models import TelemetryLog, Installation
-
-    logger = logging.getLogger(__name__)
-
     if os.getenv("OFFLINE_MODE", "False").lower() == "true":
         return
 
     try:
         # Resolve User ID (Nullable)
         user_id = None
-        if current_user and current_user.is_authenticated:
-            user_id = current_user.userid
+        if flask.has_request_context() and flask_login.current_user and flask_login.current_user.is_authenticated:
+            user_id = flask_login.current_user.userid
             # If installation_id not provided, try to get from user
             if not installation_id:
-                installation_id = current_user.installation_id
+                installation_id = flask_login.current_user.installation_id
 
         # Resolve Installation ID (Non-Nullable)
         if not installation_id:
             # Try to find any installation record (assuming single-tenant / personal use)
-            inst_record = Installation.query.first()
+            inst_record = models.Installation.query.first()
             if inst_record:
                 installation_id = inst_record.installation_id
 
@@ -899,12 +876,12 @@ def log_telemetry(event_type: str, triggers: dict, payload: dict, installation_i
             return
 
         # Ensure session_id exists
-        if 'telemetry_session_id' not in session:
-            session['telemetry_session_id'] = str(uuid.uuid4())
+        if 'telemetry_session_id' not in flask.session:
+            flask.session['telemetry_session_id'] = str(uuid.uuid4())
 
-        session_id = session['telemetry_session_id']
+        session_id = flask.session['telemetry_session_id']
 
-        log_entry = TelemetryLog(
+        log_entry = models.TelemetryLog(
             user_id=user_id,
             installation_id=installation_id,
             session_id=session_id,
@@ -913,8 +890,8 @@ def log_telemetry(event_type: str, triggers: dict, payload: dict, installation_i
             payload=payload
         )
 
-        db.session.add(log_entry)
-        db.session.commit()
+        extensions.db.session.add(log_entry)
+        extensions.db.session.commit()
         logger.debug(f"Telemetry logged: {event_type}")
 
     except Exception as e:

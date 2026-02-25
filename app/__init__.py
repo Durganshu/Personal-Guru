@@ -89,6 +89,9 @@ def create_app(config_class=Config):
     app.register_blueprint(chat_bp, url_prefix='/chat')
     app.register_blueprint(common_bp, url_prefix='/common')
 
+    from app.modes.library import library_bp
+    app.register_blueprint(library_bp, url_prefix='/library')
+
     # Global Routes (Home, Background, etc.)
     # Global Routes (Home, Background, etc.)
 
@@ -305,6 +308,9 @@ def create_app(config_class=Config):
 
     # Do not start sync in TESTING mode
     if app.config.get('TESTING'):
+        should_start_sync = False
+
+    if os.environ.get('SKIP_BACKGROUND_TASKS') == 'True':
         should_start_sync = False
 
     # DEBUG: Trace startup logic

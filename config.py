@@ -65,6 +65,10 @@ class Config:
     TTS_PROVIDER = os.environ.get('TTS_PROVIDER', 'externalapi')  # Options: 'native', 'externalapi'
     STT_PROVIDER = os.environ.get('STT_PROVIDER', 'externalapi')  # Options: 'native', 'externalapi'
 
+    # ComfyUI (Book Cover Generation)
+    COMFYUI_SERVER_ADDRESS = os.environ.get('COMFYUI_SERVER_ADDRESS', 'localhost:8188')
+    COMFYUI_WORKFLOW_PATH = os.environ.get('COMFYUI_WORKFLOW_PATH', os.path.join(os.path.abspath(os.path.dirname(__file__)), 'scripts', 'example_workflow.json'))
+
     # App Settings
     USER_BACKGROUND = os.environ.get('USER_BACKGROUND', 'a beginner')
     ENABLE_TELEMETRY_LOGGING = os.environ.get('ENABLE_TELEMETRY_LOGGING', 'True').lower() == 'true'

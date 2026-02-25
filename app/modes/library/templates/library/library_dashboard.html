@@ -1,0 +1,828 @@
+{% extends "base.html" %}
+
+{% block title %}Library - Personal Guru{% endblock %}
+{% block head %}
+{{ super() }}
+<style>
+    .library-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .library-tabs {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    .grid-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, 280px);
+        gap: 2.5rem 2rem;
+        justify-content: center;
+        align-items: stretch;
+        margin-top: 2rem;
+    }
+
+    /* Centering search and filters */
+    .controls-container {
+        max-width: 1200px;
+        margin: 0 auto 1rem;
+        padding: 0 1rem;
+    }
+    .library-filters {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 2rem;
+    }
+    .search-bar-container {
+        max-width: 600px;
+        margin: 0 auto 1.5rem;
+    }
+
+    /* === Universal Sizing Fix === */
+    .grid-container *, .grid-container *::before, .grid-container *::after {
+        box-sizing: border-box;
+    }
+
+    /* === Shared Base for all Cards === */
+    .flip-card, .book-card {
+        width: 280px;
+        height: 400px;
+        position: relative;
+        border-radius: 12px;
+    }
+
+    /* === Flip Card (books WITH cover) === */
+    .flip-card {
+        perspective: 1000px;
+        cursor: pointer;
+    }
+    .flip-card-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-style: preserve-3d;
+    }
+    .flip-card.flipped .flip-card-inner {
+        transform: rotateY(180deg);
+    }
+    .flip-card-front, .flip-card-back {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        border-radius: 12px;
+        overflow: hidden;
+        /* Removed opacity transition as it causes mirroring artifacts in 3D space */
+    }
+    .flip-card-front {
+        background: #000;
+        border: 1px solid var(--border-color, #313244);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        z-index: 2;
+        transform: translateZ(1px); /* Ensure front is strictly on top */
+    }
+    /* When flipped, hide front from pointer events */
+    .flip-card.flipped .flip-card-front {
+        pointer-events: none;
+    }
+    .flip-card-back {
+        background: var(--surface-color, #1e1e2e);
+        border: 1px solid var(--primary-color, #cba6f7);
+        transform: rotateY(180deg) translateZ(1px); /* Consistent 3D separation */
+        display: flex;
+        flex-direction: column;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        z-index: 1;
+        pointer-events: none;
+    }
+    /* When flipped, enable pointer events on back */
+    .flip-card.flipped .flip-card-back {
+        pointer-events: auto;
+        z-index: 3;
+    }
+    .flip-card-front .cover-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .flip-card-front .cover-title {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 4rem 1rem 1.25rem;
+        font-size: 0.95rem;
+        font-weight: 700;
+        text-align: center;
+        background: linear-gradient(transparent, rgba(0,0,0,0.7) 30%, rgba(0,0,0,0.9) 60%, #000);
+        color: #fff;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 5;
+    }
+    .flip-card:not(.flipped):hover .cover-title {
+        opacity: 1;
+    }
+    .flip-hint {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: rgba(0,0,0,0.6);
+        color: #cba6f7;
+        font-size: 0.7rem;
+        padding: 0.3rem 0.6rem;
+        border-radius: 20px;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 10;
+        border: 1px solid rgba(203, 166, 247, 0.3);
+    }
+    .flip-card:not(.flipped):hover .flip-hint {
+        opacity: 1;
+    }
+    .flip-card-back {
+        background: var(--surface-color, #1e1e2e);
+        border: 1px solid var(--primary-color, #cba6f7);
+        transform: rotateY(180deg);
+        display: flex;
+        flex-direction: column;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    }
+    .flip-card-back h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1.1rem;
+        color: #cba6f7;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        white-space: normal;
+        transform: translateZ(10px); /* Pop to front */
+    }
+    .flip-card-back .book-desc {
+        flex: 1;
+        font-size: 0.85rem;
+        color: #a6adc8;
+        overflow-y: auto;
+        margin-bottom: 1rem;
+        line-height: 1.5;
+        transform: translateZ(10px); /* Pop to front */
+    }
+    .flip-card-back .card-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: auto;
+        transform: translateZ(20px); /* Buttons on top layer */
+    }
+    .flip-card-back .card-actions .btn {
+        width: 100%;
+        padding: 0.5rem;
+        font-size: 0.9rem;
+    }
+    .flip-card-back .card-actions-row {
+        display: flex;
+        gap: 0.5rem;
+    }
+    .flip-card-back .card-actions-row .btn {
+        flex: 1;
+    }
+
+    /* === Flat Card (books WITHOUT cover) === */
+    .book-card {
+        background: var(--surface-color, #1e1e2e);
+        border: 1px solid var(--border-color, #313244);
+        padding: 1.5rem;
+        transition: transform 0.2s, border-color 0.2s;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .book-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--primary-color, #cba6f7);
+    }
+    .book-card .book-card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        padding-right: 0.25rem;
+    }
+    /* Simple scrollbar for card content */
+    .book-card .book-card-body::-webkit-scrollbar {
+        width: 4px;
+    }
+    .book-card .book-card-body::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .book-card .book-card-body::-webkit-scrollbar-thumb {
+        background: rgba(203, 166, 247, 0.2);
+        border-radius: 4px;
+    }
+    .book-card:hover .book-card-body::-webkit-scrollbar-thumb {
+        background: rgba(203, 166, 247, 0.4);
+    }
+
+    .book-card .mini-placeholder {
+        width: 100%;
+        height: 130px;
+        flex-shrink: 0;
+        background: rgba(203, 166, 247, 0.05);
+        border: 2px dashed rgba(203, 166, 247, 0.2);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s;
+    }
+    .book-card:hover .mini-placeholder {
+        background: rgba(203, 166, 247, 0.1);
+        border-color: var(--primary-color, #cba6f7);
+    }
+    .book-card .mini-placeholder i {
+        font-size: 1.8rem;
+        color: var(--primary-color, #cba6f7);
+    }
+    .book-card .mini-placeholder span {
+        font-size: 0.75rem;
+        color: #a6adc8;
+    }
+    .book-card.generating {
+        border-color: #667eea;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        cursor: default;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden; /* Header stays, body scrolls */
+    }
+    .generating-scroll-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.5rem;
+        /* Ensure it captures scroll events */
+        pointer-events: auto;
+    }
+    /* High-visibility scrollbar for generating cards */
+    .generating-scroll-body::-webkit-scrollbar {
+        width: 6px;
+    }
+    .generating-scroll-body::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.1);
+    }
+    .generating-scroll-body::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 4px;
+    }
+    .generating-scroll-body::-webkit-scrollbar-thumb:hover {
+        background: #764ba2;
+    }
+
+    .generation-badge {
+        pointer-events: none;
+        opacity: 0.8;
+    }
+
+    .generation-badge {
+        animation: pulse-badge 2s infinite;
+        z-index: 2;
+    }
+    @keyframes pulse-badge {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    .search-bar {
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto 2rem;
+        display: flex;
+        gap: 0.5rem;
+    }
+    .generate-panel {
+        background: rgba(203, 166, 247, 0.1);
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        margin-top: 2rem;
+    }
+    .active-tab {
+        background: var(--primary-color, #cba6f7);
+        color: #11111b;
+    }
+</style>
+<script>
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.getElementById(tabId).style.display = 'block';
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active-tab'));
+        document.getElementById('btn-' + tabId).classList.add('active-tab');
+    }
+
+    function filterBooks(inputId, gridId) {
+        const query = document.getElementById(inputId).value.toLowerCase();
+        const grid = document.getElementById(gridId);
+        if (!grid) return;
+        // Search both flip-cards and book-cards
+        const cards = grid.querySelectorAll('.flip-card, .book-card');
+        cards.forEach(card => {
+            const textContent = card.innerText || card.textContent;
+            card.style.display = textContent.toLowerCase().includes(query) ? '' : 'none';
+        });
+    }
+
+    function flipCard(el, event) {
+        // Don't flip if clicking a button or link
+        if (event && (event.target.closest('button') || event.target.closest('a') || event.target.closest('.card-actions'))) {
+            return;
+        }
+        el.classList.toggle('flipped');
+    }
+
+    async function searchLibrary(e) {
+        e.preventDefault();
+        const query = document.getElementById('searchInput').value;
+        const resultsDiv = document.getElementById('searchResults');
+        resultsDiv.innerHTML = "Searching and curating...";
+
+        try {
+            const res = await fetch(`/library/search?q=${encodeURIComponent(query)}`);
+            if (!res.ok) {
+                if (res.status === 404) {
+                    resultsDiv.innerHTML = "No existing content found. Try Generating a new book!";
+                    return;
+                }
+                throw new Error("Search failed");
+            }
+            const data = await res.json();
+
+            const cardHtml = `
+                <div class="book-card" id="suggested-book-card">
+                    <h3>Curated: ${data.title}</h3>
+                    <p>${data.description}</p>
+                    <small>Topics: ${data.topic_ids.join(', ')}</small>
+                    <button class="btn btn-sm" style="width:100%; margin-top:1rem;">Save this Book</button>
+                </div>
+            `;
+            resultsDiv.innerHTML = cardHtml;
+
+            // Avoid inline onclick to prevent quote escaping issues
+            document.getElementById('suggested-book-card').addEventListener('click', () => {
+                createFromSuggestion(data.title, data.description, data.topic_ids);
+            });
+        } catch (err) {
+            resultsDiv.innerHTML = "Error during search: " + err.message;
+        }
+    }
+
+    async function createFromSuggestion(title, description, topic_ids) {
+        try {
+            const res = await fetch('/library/create-from-suggestion', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({title, description, topic_ids})
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Refresh grid and switch to My Books tab instead of leaving dashboard
+                await refreshMyBooksGrid();
+                switchTab('my-books');
+            }
+        } catch (err) {
+            alert("Error saving book.");
+        }
+    }
+
+    function executeScripts(container) {
+        const scripts = container.querySelectorAll('script');
+        scripts.forEach(oldScript => {
+            const newScript = document.createElement('script');
+            Array.from(oldScript.attributes).forEach(attr =>
+                newScript.setAttribute(attr.name, attr.value)
+            );
+            newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+            oldScript.parentNode.replaceChild(newScript, oldScript);
+        });
+    }
+
+    async function refreshMyBooksGrid() {
+        const grid = document.getElementById('my-books-grid');
+        try {
+            const res = await fetch('/library/my-books-fragment');
+            const html = await res.text();
+            grid.innerHTML = html;
+            executeScripts(grid);
+        } catch (e) {
+            console.error("Failed to refresh grid:", e);
+        }
+    }
+
+    async function refreshBookCard(bookId) {
+        const card = document.getElementById('book-card-' + bookId);
+        if (!card) return;
+        try {
+            const res = await fetch(`/library/card/${bookId}`);
+            const html = await res.text();
+
+            // Create a temporary container
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+            const newCard = temp.firstElementChild;
+
+            // Replace the old card
+            card.replaceWith(newCard);
+
+            // Re-execute scripts so dynamic components start up
+            executeScripts(newCard);
+        } catch (e) {
+            console.error("Failed to refresh card:", e);
+        }
+    }
+
+    async function generateBook(e) {
+        e.preventDefault();
+        const query = document.getElementById('genInput').value;
+        const btn = document.getElementById('genBtn');
+        btn.disabled = true;
+        btn.innerText = "Structuring Book Plan...";
+
+        // Ensure progress container exists for inline loading
+        let progressContainer = document.getElementById('generate-progress-container');
+        if (!progressContainer) {
+            progressContainer = document.createElement('div');
+            progressContainer.id = 'generate-progress-container';
+            progressContainer.className = 'mt-4 text-center p-3 border rounded bg-light';
+            btn.parentElement.parentElement.appendChild(progressContainer);
+        }
+        progressContainer.style.display = 'block';
+        progressContainer.innerHTML = '<strong>Step 1/2:</strong> Structuring topics (takes ~10 seconds)...';
+
+        try {
+            const res = await fetch('/library/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({query: query})
+            });
+            const data = await res.json();
+            if (data.success && data.book && data.book.id) {
+                progressContainer.innerHTML = '<strong>Step 2/2:</strong> Book structured! Generating chapters...';
+
+                // Refresh the My Books grid so the new book appears immediately
+                await refreshMyBooksGrid();
+
+                // Trigger the background content generation
+                await openBookWithLoader(data.book.id, progressContainer);
+            } else if (data.success && data.redirect) {
+                 window.location.href = data.redirect;
+            } else {
+                progressContainer.innerHTML = `<span class="text-danger">Failed to generate book: ${data.error || "Unknown Error"}</span>`;
+                btn.disabled = false;
+                btn.innerText = "Generate Book Plan";
+            }
+        } catch(err) {
+            progressContainer.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
+            btn.disabled = false;
+            btn.innerText = "Generate Book Plan";
+        }
+    }
+
+    async function openBookWithLoader(bookId, element) {
+        // Prevent multiple clicks
+        if (element.classList.contains('generating')) return;
+        element.classList.add('generating');
+        element.style.opacity = '0.7';
+        element.style.pointerEvents = 'none'; // Disable clicking again
+
+        let progressDiv = element.querySelector('.generation-progress');
+        if (!progressDiv) {
+            progressDiv = document.createElement('div');
+            progressDiv.className = 'generation-progress mt-2 fw-bold text-primary';
+            progressDiv.style.fontSize = '0.85em';
+            element.appendChild(progressDiv);
+        }
+        progressDiv.style.display = 'block';
+        progressDiv.innerText = "Initializing Book...";
+
+        try {
+            const res = await fetch(`/library/${bookId}/init`);
+            const data = await res.json();
+
+            if (data.status === 'ready') {
+                window.location.href = data.redirect || `/library/${bookId}/page/1`;
+            } else if (data.status === 'generating' || data.status === 'pending') {
+                progressDiv.innerText = data.message || "Generating Content...";
+
+                // Polling progress every 3 seconds
+                const pollInterval = setInterval(async () => {
+                    try {
+                        const pollRes = await fetch(`/library/${bookId}/progress`);
+                        const pollData = await pollRes.json();
+
+                        if (pollData.status === 'ready') {
+                            clearInterval(pollInterval);
+                            progressDiv.innerText = "Complete! Refreshing...";
+
+                            // Refresh the card so it shows as complete/flip-card
+                            await refreshBookCard(bookId);
+
+                            // Optionally redirect if this was a fresh generation from the AI tab
+                            if (element.id === 'generate-progress-container') {
+                                window.location.href = `/library/${bookId}/page/1`;
+                            }
+                        } else if (pollData.status === 'error') {
+                            clearInterval(pollInterval);
+                            alert("Generation Error: " + pollData.message);
+                            progressDiv.innerText = "Error generating book.";
+                            progressDiv.className = 'generation-progress mt-2 fw-bold text-danger';
+                            element.classList.remove('generating');
+                            element.style.opacity = '1';
+                            element.style.pointerEvents = 'auto';
+                        } else if (pollData.status === 'generating' || pollData.status === 'pending') {
+                            progressDiv.innerText = pollData.message || "Generating Content...";
+                        }
+                    } catch (e) {
+                        console.error("Polling error:", e);
+                    }
+                }, 3000);
+            } else {
+                alert("Error initializing book.");
+                progressDiv.innerText = "Error initializing book.";
+                element.classList.remove('generating');
+                element.style.opacity = '1';
+                element.style.pointerEvents = 'auto';
+            }
+        } catch (e) {
+            alert("Error: " + e.message);
+            progressDiv.innerText = "Error connecting to server.";
+            element.classList.remove('generating');
+            element.style.opacity = '1';
+            element.style.pointerEvents = 'auto';
+        }
+    }
+
+    async function deleteBook(bookId, event) {
+        event.stopPropagation(); // Prevent card click
+
+        if (!confirm('Are you sure you want to delete this book? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/library/${bookId}/delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                }
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                // Remove the card from the UI
+                const card = document.getElementById('book-card-' + bookId) ||
+                             document.getElementById('book-card-shared-' + bookId) ||
+                             event.target.closest('.book-card') ||
+                             event.target.closest('.flip-card');
+                if (card) {
+                    card.style.opacity = '0';
+                    setTimeout(() => card.remove(), 300);
+                }
+            } else {
+                alert('Failed to delete book: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('Error deleting book: ' + e.message);
+        }
+    }
+
+    async function startBookGeneration(bookId, event) {
+        event.stopPropagation(); // Prevent card click
+
+        const button = event.target.closest('button');
+        const card = document.getElementById('book-card-' + bookId);
+
+        // Disable button and show loading
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+
+        try {
+            // Call the init endpoint to start generation
+            const res = await fetch(`/library/${bookId}/init`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                }
+            });
+
+            const data = await res.json();
+
+            if (data.status === 'generating' || data.status === 'pending') {
+                // Refresh the card state
+                await refreshBookCard(bookId);
+            } else if (data.status === 'ready') {
+                // Book is already complete, open it
+                window.location.href = data.redirect || `/library/${bookId}/page/1`;
+            } else {
+                alert('Error starting generation: ' + (data.message || 'Unknown error'));
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-play"></i> Generate Content';
+            }
+        } catch (e) {
+            alert('Error: ' + e.message);
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-play"></i> Generate Content';
+        }
+    }
+
+    async function retryBookCover(bookId, event) {
+        event.stopPropagation(); // Prevent card click
+
+        const placeholder = event.currentTarget;
+        placeholder.classList.add('retrying');
+        placeholder.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Generating cover...</span>';
+
+        try {
+            const res = await fetch(`/library/${bookId}/retry_cover`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-JWE-Token': document.querySelector('meta[name="jwe-token"]').getAttribute('content')
+                }
+            });
+
+            const data = await res.json();
+
+            if (data.success && data.cover_url) {
+                // Refresh the whole card to transform it into a Flip Card
+                await refreshBookCard(bookId);
+            } else {
+                placeholder.classList.remove('retrying');
+                placeholder.innerHTML = '<i class="fas fa-image"></i><span>Click to retry cover</span><small style="font-size:0.7rem;color:#f38ba8;">' + (data.error || 'Generation failed') + '</small>';
+            }
+        } catch (e) {
+            placeholder.classList.remove('retrying');
+            placeholder.innerHTML = '<i class="fas fa-image"></i><span>Click to retry cover</span><small style="font-size:0.7rem;color:#f38ba8;">Network error</small>';
+        }
+    }
+    // Reset loaders and interactive states when navigating back to this page (e.g. via browser back button)
+    window.addEventListener('pageshow', function(event) {
+        // Reset 3D flip loaders
+        document.querySelectorAll('.book-card.generating, .flip-card.generating').forEach(el => {
+            el.classList.remove('generating');
+            el.style.opacity = '1';
+            el.style.pointerEvents = 'auto';
+            const progressDiv = el.querySelector('.generation-progress');
+            if (progressDiv) progressDiv.style.display = 'none';
+        });
+
+        // Reset cover retry placeholders
+        document.querySelectorAll('.mini-placeholder.retrying').forEach(el => {
+            el.classList.remove('retrying');
+            el.innerHTML = '<i class="fas fa-image"></i><span>Generate cover</span>';
+        });
+
+        // Reset manual generation buttons
+        document.querySelectorAll('.book-card button').forEach(btn => {
+            if (btn.innerText.includes('Publishing')) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-play"></i> Generate Content';
+            }
+        });
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="library-header">
+        <h1>Library</h1>
+        <p>Curate, Discover, and Generate Knowledge Books</p>
+    </div>
+
+    <div class="library-tabs">
+        <button id="btn-my-books" class="btn tab-btn active-tab" onclick="switchTab('my-books')">My Books</button>
+        <button id="btn-search-topics" class="btn tab-btn" onclick="switchTab('search-topics')">Curate from Topics</button>
+        <button id="btn-generate-book" class="btn tab-btn" onclick="switchTab('generate-book')">AI Book Generation</button>
+        <button id="btn-shared-books" class="btn tab-btn" onclick="switchTab('shared-books')">Community Books</button>
+    </div>
+
+    <div id="my-books" class="tab-content">
+        <div class="search-bar mb-4">
+            <input type="text" id="myBooksSearch" class="form-control" placeholder="Search my books..." onkeyup="filterBooks('myBooksSearch', 'my-books-grid')">
+        </div>
+        <!-- Debug info -->
+        <div style="display:none;">
+            book_progress: {{ book_progress }}
+            book_needs_generation: {{ book_needs_generation }}
+        </div>
+        <div class="grid-container" id="my-books-grid">
+            {% include 'library/_my_books_grid.html' %}
+        </div>
+    </div>
+
+    <div id="search-topics" class="tab-content" style="display:none;">
+        <form class="search-bar" onsubmit="searchLibrary(event)">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search your knowledge base (e.g. 'Advanced Python')">
+            <button class="btn btn-primary" type="submit">Curate</button>
+        </form>
+        <div id="searchResults" class="grid-container">
+            <!-- Results populate here -->
+        </div>
+    </div>
+
+    <div id="generate-book" class="tab-content" style="display:none;">
+        <form class="generate-panel" onsubmit="generateBook(event)">
+            <h3>Generate a New Book</h3>
+            <p>Tell the AI Librarian what you want to learn, and it will structure a complete multi-topic book for you.</p>
+            <div class="search-bar mt-4">
+                <input type="text" id="genInput" class="form-control" placeholder="e.g. History of Rome or Quantum Computing">
+                <button class="btn btn-primary" id="genBtn" type="submit">Generate Book Plan</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="shared-books" class="tab-content" style="display:none;">
+        <div class="search-bar mb-4">
+            <input type="text" id="sharedBooksSearch" class="form-control" placeholder="Search community books..." onkeyup="filterBooks('sharedBooksSearch', 'shared-books-grid')">
+        </div>
+        <div class="grid-container" id="shared-books-grid">
+            {% for book in shared_books %}
+            {% if book.cover_path %}
+            <!-- Shared flip card -->
+            <div class="flip-card" id="book-card-shared-{{ book.id }}">
+                <div class="flip-card-inner">
+                    <div class="flip-card-front" onclick="flipCard(this.closest('.flip-card'), event)">
+                        <span class="flip-hint"><i class="fas fa-sync-alt"></i> Tap to flip</span>
+                        <img src="{{ url_for('library.serve_cover', book_id=book.id) }}" alt="{{ book.title }}" class="cover-img">
+                        <div class="cover-title">{{ book.title }}</div>
+                    </div>
+                    <div class="flip-card-back" onclick="flipCard(this.closest('.flip-card'), event)">
+                        <h3>{{ book.title }}</h3>
+                        <div class="book-desc">{{ book.description | truncate(200) }}</div>
+                        <div class="card-actions">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small style="font-size: 0.75rem; color: #cba6f7;">By: {{ book.login.display_name }}</small>
+                                <small style="font-size: 0.75rem; color: #a6adc8;">{{ book.book_topics | length }} Topics</small>
+                            </div>
+                            <button class="btn btn-primary" onclick="event.stopPropagation(); openBookWithLoader({{ book.id }}, this.closest('.flip-card'))">
+                                <i class="fas fa-book-open"></i> Read Book
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <!-- Shared flat card -->
+            <div class="book-card" onclick="openBookWithLoader({{ book.id }}, this)" style="cursor: pointer;">
+                <div class="mini-placeholder" style="cursor: default;">
+                    <i class="fas fa-book"></i>
+                    <span>Community Book</span>
+                </div>
+                <div class="book-card-body">
+                    <h3 style="margin: 0 0 0.5rem;">{{ book.title }}</h3>
+                    <p style="color: #a6adc8; font-size: 0.85rem; line-height: 1.4;">{{ book.description | truncate(140) }}</p>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <small style="color: #cba6f7; font-size: 0.8rem;">By: {{ book.login.display_name }}</small>
+                    <small style="color: #a6adc8; font-size: 0.75rem;">{{ book.book_topics | length }} Topics</small>
+                </div>
+            </div>
+            {% endif %}
+            {% else %}
+            <p class="text-center w-100">No community books available right now.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -43,6 +43,7 @@ class Topic(TimestampMixin, SyncMixin, db.Model):
     flashcard_mode = db.relationship('FlashcardMode', back_populates='topic', cascade='all, delete-orphan')
     chat_mode = db.relationship('ChatMode', back_populates='topic', uselist=False, cascade='all, delete-orphan')
     plan_revisions = db.relationship('PlanRevision', back_populates='topic', uselist=True, cascade='all, delete-orphan')
+    book_topics = db.relationship('BookTopic', back_populates='topic', cascade='all, delete-orphan')
     login = db.relationship('Login', back_populates='topics')
 
 class ChatMode(TimestampMixin, SyncMixin, db.Model):
@@ -290,6 +291,80 @@ class PlanRevision(TimestampMixin, SyncMixin, db.Model):
     login = db.relationship('Login', back_populates='plan_revisions')
 
 
+class Book(TimestampMixin, SyncMixin, db.Model):
+    """A collection of topics organized into a book."""
+
+    __tablename__ = 'books'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(100), db.ForeignKey('logins.userid'), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    cover_path = db.Column(db.String(512))  # Path to generated book cover image
+    is_shared = db.Column(db.Boolean, default=False, nullable=False)
+    notes_shared = db.Column(db.Boolean, default=False, nullable=False)
+
+    # Relationships
+    login = db.relationship('Login', back_populates='books')
+    book_topics = db.relationship('BookTopic', back_populates='book', cascade='all, delete-orphan', order_by='BookTopic.order_index')
+
+    # Constraint: notes_shared can only be True if is_shared is True
+    __table_args__ = (
+        db.CheckConstraint('NOT notes_shared OR is_shared', name='notes_shared_requires_is_shared'),
+    )
+
+
+class BookTopic(db.Model):
+    """Association table linking books to topics with ordering."""
+
+    __tablename__ = 'book_topics'
+
+    book_id = db.Column(db.Integer, db.ForeignKey('books.id'), primary_key=True)
+    topic_id = db.Column(db.Integer, db.ForeignKey('topics.id'), primary_key=True)
+    order_index = db.Column(db.Integer, nullable=False, default=0)
+
+    # Relationships
+    book = db.relationship('Book', back_populates='book_topics')
+    topic = db.relationship('Topic', back_populates='book_topics')
+
+
+class BookGenerationProgress(TimestampMixin, db.Model):
+    """Tracks the progress of book content generation."""
+
+    __tablename__ = 'book_generation_progress'
+
+    id = db.Column(db.Integer, primary_key=True)
+    book_id = db.Column(db.Integer, db.ForeignKey('books.id'), nullable=False, unique=True)
+    user_id = db.Column(db.String(100), db.ForeignKey('logins.userid'), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')  # 'pending', 'generating', 'completed', 'error'
+    total_topics = db.Column(db.Integer, nullable=False, default=0)
+    current_topic_index = db.Column(db.Integer, nullable=False, default=0)
+    total_chapters = db.Column(db.Integer, nullable=False, default=0)
+    completed_chapters = db.Column(db.Integer, nullable=False, default=0)
+    current_message = db.Column(db.Text)
+    error_message = db.Column(db.Text)
+    started_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+
+    # Relationships
+    book = db.relationship('Book', backref=db.backref('generation_progress', uselist=False, cascade='all, delete-orphan'))
+    login = db.relationship('Login', backref='book_generation_progress')
+
+    def to_dict(self):
+        """Convert progress to dictionary for JSON response."""
+        return {
+            'book_id': self.book_id,
+            'status': self.status,
+            'total_topics': self.total_topics,
+            'current_topic_index': self.current_topic_index,
+            'total_chapters': self.total_chapters,
+            'completed_chapters': self.completed_chapters,
+            'message': self.current_message,
+            'error': self.error_message,
+            'progress_percent': int((self.completed_chapters / self.total_chapters * 100) if self.total_chapters > 0 else 0)
+        }
+
+
 class Login(UserMixin, TimestampMixin, db.Model):
     """User authentication and identity model."""
 
@@ -332,6 +407,7 @@ class Login(UserMixin, TimestampMixin, db.Model):
     # Relationships
     installation = db.relationship('Installation', back_populates='logins')
     topics = db.relationship('Topic', back_populates='login', cascade='all, delete-orphan')
+    books = db.relationship('Book', back_populates='login', cascade='all, delete-orphan')
     feedbacks = db.relationship('Feedback', back_populates='login', cascade='all, delete-orphan')
     telemetry_logs = db.relationship('TelemetryLog', back_populates='login', cascade='all, delete-orphan')
     ai_model_performances = db.relationship('AIModelPerformance', back_populates='login', cascade='all, delete-orphan')
