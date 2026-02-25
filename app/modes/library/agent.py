@@ -311,59 +311,54 @@ def get_generation_progress(book_id):
                 'completed_chapters': completed_chapters_actual
             }
 
-    # If book is actually complete but progress says otherwise, fix it
+    # Determine if progress needs to be reconciled or updated
+    now = datetime.datetime.utcnow()
+    needs_update = False
+
+    # Sequential state transitions (if/elif ensures only one transition per check)
     if not needs_generation and progress.status != 'completed':
+        # Book is actually complete but progress says otherwise, fix it
         logger.info(f"Book {book_id} is complete but status was {progress.status}, fixing")
         progress.status = 'completed'
         progress.current_message = 'Generation complete!'
-        progress.completed_at = datetime.datetime.utcnow()
-        progress.total_chapters = total_chapters_actual
-        progress.completed_chapters = completed_chapters_actual
-        db.session.commit()
+        progress.completed_at = now
+        needs_update = True
 
-    # If progress exists but marked completed, but actually needs generation
-    # (e.g., user added new topics to the book)
-    if progress.status == 'completed' and needs_generation:
+    elif progress.status == 'completed' and needs_generation:
+        # User added new topics to a previously completed book
         logger.info(f"Book {book_id} marked complete but needs more content, resetting")
         progress.status = 'pending'
         progress.current_message = 'Additional content needed'
-        progress.total_chapters = total_chapters_actual
-        progress.completed_chapters = completed_chapters_actual
-        db.session.commit()
+        needs_update = True
 
-    # If progress exists but marked error, and still needs generation
-    if progress.status == 'error' and needs_generation:
+    elif progress.status == 'error' and needs_generation:
+        # Retry logic for failed generations
         logger.info(f"Book {book_id} had error, resetting to pending for retry")
         progress.status = 'pending'
         progress.error_message = None
         progress.current_message = 'Ready to retry generation'
+        needs_update = True
+
+    elif progress.status == 'generating' and progress.modified_at:
+        # Check for stale background threads (stuck or crashed)
+        time_since_update = (now - progress.modified_at).total_seconds()
+        if time_since_update > 60:
+            if needs_generation:
+                logger.warning(f"Book {book_id} generation appears stale ({time_since_update}s), resetting to pending")
+                progress.status = 'pending'
+                progress.current_message = 'Generation interrupted, click to resume'
+            else:
+                # Thread stopped but work was actually done
+                progress.status = 'completed'
+                progress.current_message = 'Generation complete!'
+                progress.completed_at = now
+            needs_update = True
+
+    # Always sync counts and commit once if state or progress changed
+    if needs_update or progress.total_chapters != total_chapters_actual or progress.completed_chapters != completed_chapters_actual:
         progress.total_chapters = total_chapters_actual
         progress.completed_chapters = completed_chapters_actual
         db.session.commit()
-
-    # If progress is marked as 'generating' but the book still needs generation
-    # Check if the generation is stale (no updates in last 60 seconds)
-    if progress.status == 'generating':
-        # Check when the progress was last updated using modified_at from TimestampMixin
-        if progress.modified_at:
-            time_since_update = datetime.datetime.utcnow() - progress.modified_at
-            if time_since_update.total_seconds() > 60:
-                if needs_generation:
-                    logger.warning(f"Book {book_id} generation appears stale (no updates in {time_since_update.total_seconds()}s), resetting to pending")
-                    progress.status = 'pending'
-                    progress.current_message = 'Generation interrupted, click to resume'
-                    progress.total_chapters = total_chapters_actual
-                    progress.completed_chapters = completed_chapters_actual
-                    db.session.commit()
-                else:
-                    # Generation is stale but book is complete - mark as complete
-                    logger.info(f"Book {book_id} was generating but is now complete")
-                    progress.status = 'completed'
-                    progress.current_message = 'Generation complete!'
-                    progress.completed_at = datetime.datetime.utcnow()
-                    progress.total_chapters = total_chapters_actual
-                    progress.completed_chapters = completed_chapters_actual
-                    db.session.commit()
 
     return progress.to_dict()
 
